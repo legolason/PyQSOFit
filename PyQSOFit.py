@@ -1,5 +1,5 @@
 #The main frame of this code is transfered from Yue Shen's IDL code 
-#Last modified on 8/30/2018
+#Last modified on 8/31/2018
 #Auther: Hengxiao Guo AT UIUC
 #Email: hengxiaoguo AT gmail DOT com
 #Co-Auther Shu Wang, Yue Shen
@@ -940,8 +940,9 @@ class QSOFit():
 
                     # calculate MC err
                     if self.MC == True and self.n_trails > 0:
-                        all_para_std,fwhm_std,sigma_std,peak_std,area_std = \
-                        self.line_mc(np.log(wave[ind_n]), line_flux[ind_n], err[ind_n], self.line_fit_ini, self.line_fit_par, self.n_trails)
+                        
+                        all_para_std,fwhm_std,sigma_std,ew_std,peak_std,area_std = \
+                        self.line_mc(np.log(wave[ind_n]), line_flux[ind_n], err[ind_n], self.line_fit_ini, self.line_fit_par, self.n_trails,compcenter)
 
 
                     #----------------------get line fitting results----------------------
@@ -1080,14 +1081,16 @@ class QSOFit():
     
     
     #---------MC error for emission line parameters-------------------
-    def line_mc(self,x,y,err,pp0,pp_limits,n_trails):
+    def line_mc(self,x,y,err,pp0,pp_limits,n_trails,compcenter):
         """calculate the Monte Carlo errror of line parameters"""
         all_para_1comp=np.zeros(len(pp0)*n_trails).reshape(len(pp0),n_trails)
         all_para_std = np.zeros(len(pp0))
         all_fwhm = np.zeros(n_trails)
         all_sigma = np.zeros(n_trails)
+        all_ew = np.zeros(n_trails)
         all_peak = np.zeros(n_trails)
         all_area = np.zeros(n_trails)
+     
         for tra in range(n_trails):
             flux = y + np.random.randn(len(y))*err
             f = kmpfit.Fitter(residuals = self.residuals_line, data = (x, flux, err),maxiter = 50)
@@ -1096,12 +1099,12 @@ class QSOFit():
             all_para_1comp[:,tra] = f.params
 
             #further line properties
-            all_fwhm[tra],all_sigma[tra],all_peak[tra],all_area[tra] = self.line_prop(f.params)
+            all_fwhm[tra],all_sigma[tra],all_ew[tra],all_peak[tra],all_area[tra] = self.line_prop(compcenter,f.params)
 
         for st in range(len(pp0)):
             all_para_std[st] = all_para_1comp[st,:].std()
 
-        return all_para_std,all_fwhm.std(),all_sigma.std(),all_peak.std(),all_area.std()
+        return all_para_std,all_fwhm.std(),all_sigma.std(),all_ew.std(),all_peak.std(),all_area.std()
 
     #-----line properties calculation function--------
     def line_prop(self,compcenter,pp):
@@ -1243,7 +1246,7 @@ class QSOFit():
             if self.MC == True:
                 
                 for p in range(int(len(gauss_result)/6)):
-                    if self.CalFWHM(gauss_result[3*p+1],gauss_result[3*p+2] ) < 1200.:
+                    if self.CalFWHM(q.gauss_result[2+p*6],q.gauss_result[4+p*6]) < 1200.:
                         color = 'g'
                     else:
                         color = 'r'
@@ -1310,7 +1313,7 @@ class QSOFit():
 
                 if self.MC == True:
                     for p in range(int(len(gauss_result)/6)):
-                        if self.CalFWHM(gauss_result[3*p+1],gauss_result[3*p+2] ) < 1200.:
+                        if self.CalFWHM(q.gauss_result[2+p*6],q.gauss_result[4+p*6] ) < 1200.:
                             color = 'g'
                         else:
                             color = 'r'
