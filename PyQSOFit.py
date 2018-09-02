@@ -1,5 +1,5 @@
 #The main frame of this code is transfered from Yue Shen's IDL code 
-#Last modified on 8/31/2018
+#Last modified on 9/1/2018
 #Auther: Hengxiao Guo AT UIUC
 #Email: hengxiaoguo AT gmail DOT com
 #Co-Auther Shu Wang, Yue Shen
@@ -330,13 +330,13 @@ class QSOFit():
         Return:
         -----------
         .wave: array
-            the reduced rest wavelenth, some pixels may be removed.
+            the rest wavelenth, some pixels has been removed.
             
         .flux: array
-            the reduced flux.
+            the rest flux. Dereddened and *(1+z) flux.  
             
         .err: array
-            the reduced err.
+            the error.
         
         .wave_orig: array
             the wavelength after remove bad pixels, masking, deredden, spectral trim, and smoothing.
@@ -474,7 +474,7 @@ class QSOFit():
         
         
         
-        self.RestFrame(self.lam,self.z)
+        self.RestFrame(self.lam,self.flux,self.z)
         self.CalculateSN(self.lam,self.flux)
         self.OrignialSpec(self.wave,self.flux,self.err)
         
@@ -570,10 +570,11 @@ class QSOFit():
         self.flux=flux_unred
         return self.flux
         
-    def RestFrame(self,lam,z):
-        """Move to rest frame"""
-        self.wave = lam/(1.0+z)
-        return self.wave
+    def RestFrame(self,lam,flux,z):
+        """Move wavelenth and flux to rest frame"""
+        self.wave = lam/(1.+z)
+        self.flux = flux*(1.+z)
+        return self.wave,self.flux
     
     def OrignialSpec(self,wave,flux,err):
         """save the orignial spectrum before host galaxy decompsition"""
