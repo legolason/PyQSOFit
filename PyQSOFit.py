@@ -1,5 +1,5 @@
 #The main frame of this code is transfered from Yue Shen's IDL code 
-#Last modified on 9/1/2018
+#Last modified on 9/3/2018
 #Auther: Hengxiao Guo AT UIUC
 #Email: hengxiaoguo AT gmail DOT com
 #Co-Auther Shu Wang, Yue Shen
@@ -206,8 +206,9 @@ class QSOFit():
             
         nsmooth: integer number, optional
             do n-pixel smoothing to the raw input spectral flux and err. The default is set to 1 (no smooth).
-            It will return the same array size.
-             
+            It will return the same array size. We note that smooth the raw data is not suggested, this function
+            is in case of some fail-fitted low S/N spectra. 
+              
         and_or_mask: bool, optional
             If True, and and_mask or or_mask is not None, it will delelet the masked pixels, and only return 
             the remained pixels. Default: False
@@ -292,13 +293,15 @@ class QSOFit():
             used to tie e.g., NII. Default: False
            
         tie_width: bool, optional
-            if True, line FWHM with the same "windex" will be tied togeter in the same line complex, Defualt: False
+            if True, line sigma with the same "windex" will be tied togeter in the same line complex, Defualt: False
         
         tie_flux_1: bool, optional
-            if True, line flux with the flag "findex = 1" will be tied to the ratio of fvalue. Default: False
+            if True, line flux with the flag "findex = 1" will be tied to the ratio of fvalue. To fix the narrow line
+            flux, user should fix the line width "tie_width" first. Default: False
             
         tie_flux_2: bool, optional
-            if True, line flux with the flag "findex = 2" will be tied to the ratio of fvalue. Default: False
+            if True, line flux with the flag "findex = 2" will be tied to the ratio of fvalue. To fix the narrow line
+            flux, user should fix the line width "tie_width" first. Default: False
         
         save_result: bool, optional
             if True, all the fitting results will be save to a fits file, Default: True
@@ -442,6 +445,8 @@ class QSOFit():
             save_fig_path = self.path
         if save_fits_name == None:
             save_fits_name = 'result'
+        else:
+            save_fits_name = save_fits_name
         
         #get the source name in plate-mjd-fiber, if no then None
         if name is None:
@@ -1113,7 +1118,10 @@ class QSOFit():
         Calculate the further results for the broad component in emission lines, e.g., FWHM, sigma, peak, line flux
         The compcenter is the theortical vacuum wavelength for the broad compoenet.
         """
-        ind_br = np.repeat(np.where(pp[2::3] > 0.002,True,False),3) 
+        
+        ind_br = np.repeat(np.where(pp[2::3] > 0.0017,True,False),3)
+        ind_br[9:] = False # to exclude the broad OIII and broad He II
+        
         p = pp[ind_br]
         del pp 
         pp = p
