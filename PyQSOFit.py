@@ -1,5 +1,5 @@
 #The main frame of this code is transfered from Yue Shen's IDL code 
-#Last modified on 9/3/2018
+#Last modified on 9/4/2018
 #Auther: Hengxiao Guo AT UIUC
 #Email: hengxiaoguo AT gmail DOT com
 #Co-Auther Shu Wang, Yue Shen
@@ -195,32 +195,28 @@ class QSOFit():
             n_trails = 20,linefit = True, tie_lambda = True, tie_width = True, tie_flux_1 = True,tie_flux_2 = True,\
             save_result = True, plot_fig = True,save_fig = True,plot_line_name = True, plot_legend = True, dustmap_path = None,\
             save_fig_path = None,save_fits_path = None,save_fits_name = None):
+        
         """
-        Fit the QSO spectrum and get different docomposed components and corresponding parameters
+        Fit the QSO spectrum and get different decomposed components and corresponding parameters
         
         Parameter:
         ----------
         name: str, optinal
-            source name, Default is None. If None, it will use plateid+mjd+fiberid as name. If there are no
+            source name, Default is None. If None, it will use plateid+mjd+fiberid as the name. If there are no
             these parameters, it will be empty.
             
         nsmooth: integer number, optional
             do n-pixel smoothing to the raw input spectral flux and err. The default is set to 1 (no smooth).
-            It will return the same array size. We note that smooth the raw data is not suggested, this function
-            is in case of some fail-fitted low S/N spectra. 
+            It will return the same array size. We note that smooth the raw data is not suggested, this function is in case of some fail-fitted low S/N spectra. 
               
         and_or_mask: bool, optional
-            If True, and and_mask or or_mask is not None, it will delelet the masked pixels, and only return 
-            the remained pixels. Default: False
+            If True, and and_mask or or_mask is not None, it will delete the masked pixels, and only return the remained pixels. Default: False
             
         reject_badpix: bool, optional
-            reject 10 most possiable outliers by the test of pointDistGESD. One important Caveat here is that 
-            this process will also delete narrow emssion lines in some high SN ratio object e.g., [OIII]. Only 
-            use it when you are definely clear about what you are doing. It will return the remained pixels. 
+            reject 10 most possible outliers by the test of pointDistGESD. One important Caveat here is that this process will also delete narrow emission lines in some high SN ratio object e.g., [OIII]. Only use it when you are definitely clear about what you are doing. It will return the remained pixels. 
         
         deredden: bool, optional
-            correct the Galactic extinciton only if the ra and dec is availabe. It will return the corrected flux
-            with the same array size. Default: True.
+            correct the Galactic extinction only if the RA and Dec are available. It will return the corrected flux with the same array size. Default: True.
         
         wave_range: 2-element array, optional
             trim input wavelength (lam) according to the min and max range of the input 2-element array, e.g.,
@@ -230,51 +226,44 @@ class QSOFit():
             mask some absorption lines or sky lines in spectrum, e.g., np.array([[5650.,5750.],[5850.,5900.]])
             
         decomposition_host: bool, optional    
-            If Ture, the host galaxy-QSO decompostion will do. If no more than 100 pixels are negtive, the result
-            will be applied. The Decomposition is based on the PCA method of Yip et al. 2004 (AJ, 128, 585) & (128, 2603).
-            Now the templete is only available for redshift < 1.16 in specific absolute magnitude bins. For galaxy, 
-            the global model has 10 pca components and first 5 will enough to reproduce 98.37% galaxy spectra.
-            For QSO, the global model have 50 pca and first 20 will reproduce 96.89% QSOs. If have i-band absolute
-            magnitude, the Luminosity-redshift binned pca components are avaibale. Then the first 10 pca in each bin
-            is enough to reporduce most QSO spectrum. Default: False
+            If Ture, the host galaxy-QSO decomposition will do. If no more than 100 pixels are negative, the result will be applied. The Decomposition is based on the PCA method of Yip et al. 2004 (AJ, 128, 585) & (128, 2603).
+            Now the template is only available for redshift < 1.16 in specific absolute magnitude bins. For galaxy, 
+            the global model has 10 PCA components and first 5 will enough to reproduce 98.37% galaxy spectra.
+            For QSO, the global model has 50, and the first 20 will reproduce 96.89% QSOs. If have i-band absolute magnitude, the Luminosity-redshift binned PCA components are available. Then the first 10 PCA in each bin is enough to reproduce most QSO spectrum. Default: False
             
         Mi: float, optional
-            the absolute magnitude of i band. It only works when decomposition_host is True. If not None, the Luminosity
-            redshift binned pca will be used to decompose the spectrum. Default: None
+            the absolute magnitude of i band. It only works when decomposition_host is True. If not None, the Luminosity redshift binned PCA will be used to decompose the spectrum. Default: None
             
         npca_gal: int, optional
-            the number of galaxy pca components applied. It only works when decomposition_host is True. The default is 5,
+            the number of galaxy PCA components applied. It only works when decomposition_host is True. The default is 5,
             which is already account for 98.37% galaxies.
         
         npca_qso: int, optional
-            the nubmer of qso pca components applied. It only works when decomposition_host is True. The default is 10,
-            No matter the global or luminosity-redshift binned pca are used, it can reproduce > 92% QSOs. The binned pca
+            the number of QSO PCA components applied. It only works when decomposition_host is True. The default is 10,
+            No matter the global or luminosity-redshift binned PCA is used, it can reproduce > 92% QSOs. The binned PCA
             is better if have Mi information.
         
         nsmooth_qso: int, optional
-            do n-pixel smoothing for the qso spectrum after eliminating the host galaxy. It only works when 
-            decomposition_host is True. Since the subtraced QSO spectrum in emission line region will be noise, the smooth
-            used will alleviate this problem. The default is set to 1 with no smoothing.
+            do n-pixel smoothing for the QSO spectrum after eliminating the host galaxy. It only works when 
+            decomposition_host is True. Since the subtracted QSO spectrum in the emission line region will be noise, the smooth used will alleviate this problem. The default is set to 1 with no smoothing.
          
         Fe_uv_op: bool, optional
-            if Ture, fit continuum with UV and optical FeII templete. Default: True
+            if Ture, fit continuum with UV and optical FeII template. Default: True
         
         poly: bool, optional
-            if True, fit continuum with polynomial component to account for the dust reddening. Default: False
+            if True, fit continuum with the polynomial component to account for the dust reddening. Default: False
         
         BC: bool, optional
-            if True, fit continuum with Balmer contiuna from 1000 to 3646A. Default: False
+            if True, fit continuum with Balmer continua from 1000 to 3646A. Default: False
             
         rej_abs: bool, optional
-            if True, it will iterate the continuum fitting for deleting some 3 sigma out continuum window points
-            (< 3500A), which might fall into the broad absoption lines. Default: False 
+            if True, it will iterate the continuum fitting for deleting some 3 sigmas out continuum window points
+            (< 3500A), which might fall into the broad absorption lines. Default: False 
             
         initial_gauss: 1*14 array, optional
-            better initial value will help find solution faster. Default innitials is np.array([0., 3000., 0., 0.,
-            3000., 0., 1., -1.5, 0., 15000., 0.5, 0., 0., 0.]). First six parameters are flux scale, FWHM, small shift
-            for wavelenth for UV and optical FeII template, respectively. The next two parameters are power-law slope 
-            and intercept. The next three are norm, Te, tau_BE in Balmer continuum model in Dietrich et al. 2002.
-            the last three parameters are a,b,c in polynomial funciton a*(x-3000)+b*x^2+c*x^3. 
+            better initial value will help find a solution faster. Default initial is np.array([0., 3000., 0., 0.,
+            3000., 0., 1., -1.5, 0., 15000., 0.5, 0., 0., 0.]). First six parameters are flux scale, FWHM, small shift for wavelength for UV and optical FeII template, respectively. The next two parameters are the power-law slope and intercept. The next three are the norm, Te, tau_BE in Balmer continuum model in Dietrich et al. 2002.
+            the last three parameters are a,b,c in polynomial function a*(x-3000)+b*x^2+c*x^3. 
         
         MC: bool, optional 
             if True, do the Monte Carlo simulation based on the input error array to produce the MC error array.
@@ -282,29 +271,25 @@ class QSOFit():
             But it can be still output by in kmpfit attribute. Default: False
         
         n_trails: int, optional
-            the number of trails of MC process to produce the error array. The conservative number should be larger 
-            than 20. It only works when MC is True. Default: 20
+            the number of trails of the MC process to produce the error array. The conservative number should be larger than 20. It only works when MC is True. Default: 20
             
         linefit: bool, optional
             if True, the emission line will be fitted. Default: True
            
         tie_lambda: bool, optional
-            if True, line center with the same "vindex" will be tied togeter in the same line complex, this is always
-            used to tie e.g., NII. Default: False
+            if True, line center with the same "vindex" will be tied together in the same line complex, this is always used to tie e.g., NII. Default: False
            
         tie_width: bool, optional
-            if True, line sigma with the same "windex" will be tied togeter in the same line complex, Defualt: False
+            if True, line sigma with the same "windex" will be tied together in the same line complex, Default: False
         
         tie_flux_1: bool, optional
-            if True, line flux with the flag "findex = 1" will be tied to the ratio of fvalue. To fix the narrow line
-            flux, user should fix the line width "tie_width" first. Default: False
+            if True, line flux with the flag "findex = 1" will be tied to the ratio of fvalue. To fix the narrow line flux, the user should fix the line width "tie_width" first. Default: False
             
         tie_flux_2: bool, optional
-            if True, line flux with the flag "findex = 2" will be tied to the ratio of fvalue. To fix the narrow line
-            flux, user should fix the line width "tie_width" first. Default: False
+            if True, line flux with the flag "findex = 2" will be tied to the ratio of fvalue. To fix the narrow line flux, the user should fix the line width "tie_width" first. Default: False
         
         save_result: bool, optional
-            if True, all the fitting results will be save to a fits file, Default: True
+            if True, all the fitting results will be saved to a fits file, Default: True
             
         plot_fig: bool, optional
             if True, the fitting results will be plotted. Default: True
@@ -313,7 +298,7 @@ class QSOFit():
             if True, the figure will be saved, and the path can be set by "save_fig_path". Default: True
         
         plot_line_name: bool, optional
-            if True, serval main emiision lines will be plotted in the first panel of the output figure. Default: False
+            if True, serval main emission lines will be plotted in the first panel of the output figure. Default: False
             
         plot_legend: bool, optional
             if True, open legend in the first panel of the output figure. Default: False
@@ -333,7 +318,7 @@ class QSOFit():
         Return:
         -----------
         .wave: array
-            the rest wavelenth, some pixels has been removed.
+            the rest wavelength, some pixels have been removed.
             
         .flux: array
             the rest flux. Dereddened and *(1+z) flux.  
@@ -342,28 +327,28 @@ class QSOFit():
             the error.
         
         .wave_orig: array
-            the wavelength after remove bad pixels, masking, deredden, spectral trim, and smoothing.
+            the wavelength after removes bad pixels, masking, deredden, spectral trim, and smoothing.
             
         .flux_orig: array
-            the flux after remove bad pixels, masking, deredden, spectral trim, and smoothing.
+            the flux after removes bad pixels, masking, deredden, spectral trim, and smoothing.
             
         .err_orig: array
-            the error after remove bad pixels, masking, deredden, spectral trim, and smoothing.
+            the error after removes bad pixels, masking, deredden, spectral trim, and smoothing.
             
         .host: array
             the model of host galaxy from PCA method.
             
         .qso: array
-            the model of quasar from PCA method.
+            the model of a quasar from PCA method.
             
         .SN_ratio_conti: float
             the mean S/N ratio of 1350, 3000 and 5100A.
             
-        .f.: structrue 
-            all the orignial continuum fitting results, for details, see https://www.astro.rug.nl/software/kapteyn/kmpfittutorial.html
+        .f.: structure 
+            all the original continuum fitting results, for details, see https://www.astro.rug.nl/software/kapteyn/kmpfittutorial.html
             
         .f_conti_model: array
-            the continuum model including powerlaw, polynomial, optical/UV FeII, Balmer continuum.
+            the continuum model including power-law, polynomial, optical/UV FeII, Balmer continuum.
             
         .f_bc_model: array
             the Balmer continuum model.
@@ -375,7 +360,7 @@ class QSOFit():
             the optical FeII model.
             
         .f_pl_model: array
-            the powerlaw model.
+            the power-law model.
             
         .f_poly_model: array
             the polynomial model.
@@ -387,20 +372,20 @@ class QSOFit():
             the emission line flux after subtracting the .f_conti_model.
         
         .line_fit: structrue
-            all the orignial line fitting results, for details, see https://www.astro.rug.nl/software/kapteyn/kmpfittutorial.html
+            all the original line fitting results, for details, see https://www.astro.rug.nl/software/kapteyn/kmpfittutorial.html
         
         .gauss_result: array
-            the Gaussian parameters for all lines in format [scalar, central_wavelength, sigma ]* n, n is n Gaussians for all complexes.
+            the Gaussian parameters for all lines in the format [scalar, central_wavelength, sigma ]* n, n is n Gaussians for all complexes.
             
         .conti_result: array
-            some usefull continuum parameters saved to the fits, all the continuum fitting parameters are in .f.params. The corresponding names
+            some useful continuum parameters saved to the fits, all the continuum fitting parameters are in .f.params. The corresponding names
             are listed in .conti_result_name.
             
         .conti_result_name: array
             the names for .conti_result.
             
         .line_result: array
-            some usefull emission line parameters saved to the fits, all the line fitting parameters are in .line_fit.params.
+            some useful emission line parameters saved to the fits, all the line fitting parameters are in .line_fit.params.
             the corresponding names are listed in .line_result_name.
             
         .line_result_name: array
@@ -415,6 +400,7 @@ class QSOFit():
         .linelist: array
             the information listed in the qsopar.fits.
         """
+
         
         self.name = name
         self.wave_range = wave_range
@@ -1120,6 +1106,8 @@ class QSOFit():
         """
         
         ind_br = np.repeat(np.where(pp[2::3] > 0.0017,True,False),3)
+        #if len(ind_br) > 9:
+        print ind_br
         ind_br[9:] = False # to exclude the broad OIII and broad He II
         
         p = pp[ind_br]
