@@ -1243,7 +1243,7 @@ class QSOFit():
             if self.MC == True:
                 
                 for p in range(int(len(gauss_result)/6)):
-                    if self.CalFWHM(q.gauss_result[2+p*6],q.gauss_result[4+p*6]) < 1200.:
+                    if self.CalFWHM(gauss_result[2+p*6],gauss_result[4+p*6]) < 1200.:
                         color = 'g'
                     else:
                         color = 'r'
@@ -1310,7 +1310,7 @@ class QSOFit():
 
                 if self.MC == True:
                     for p in range(int(len(gauss_result)/6)):
-                        if self.CalFWHM(q.gauss_result[2+p*6],q.gauss_result[4+p*6] ) < 1200.:
+                        if self.CalFWHM(gauss_result[2+p*6],gauss_result[4+p*6] ) < 1200.:
                             color = 'g'
                         else:
                             color = 'r'
