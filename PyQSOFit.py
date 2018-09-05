@@ -1107,7 +1107,6 @@ class QSOFit():
         
         ind_br = np.repeat(np.where(pp[2::3] > 0.0017,True,False),3)
         #if len(ind_br) > 9:
-        print ind_br
         ind_br[9:] = False # to exclude the broad OIII and broad He II
         
         p = pp[ind_br]
