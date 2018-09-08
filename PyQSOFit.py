@@ -1,5 +1,5 @@
 #The main frame of this code is transfered from Yue Shen's IDL code 
-#Last modified on 9/4/2018
+#Last modified on 9/8/2018
 #Auther: Hengxiao Guo AT UIUC
 #Email: hengxiaoguo AT gmail DOT com
 #Co-Auther Shu Wang, Yue Shen
@@ -190,9 +190,9 @@ class QSOFit():
 
 
     def Fit(self, name = None, nsmooth = 1,and_or_mask = True,reject_badpix =True, deredden = True,wave_range = None,\
-            wave_mask = None,decomposition_host = True, Mi = None,npca_gal = 5, npca_qso = 20,nsmooth_qso = 1, \
-            Fe_uv_op = True, poly = False, BC = False, rej_abs = False,initial_guess = None, MC = False, \
-            n_trails = 20,linefit = True, tie_lambda = True, tie_width = True, tie_flux_1 = True,tie_flux_2 = True,\
+            wave_mask = None,decomposition_host = True, Mi = None,npca_gal = 5, npca_qso = 20, \
+            Fe_uv_op = True, poly = False, BC = False, rej_abs = False,initial_guess = None, MC = True, \
+            n_trails = 1,linefit = True, tie_lambda = True, tie_width = True, tie_flux_1 = True,tie_flux_2 = True,\
             save_result = True, plot_fig = True,save_fig = True,plot_line_name = True, plot_legend = True, dustmap_path = None,\
             save_fig_path = None,save_fits_path = None,save_fits_name = None):
         
@@ -242,10 +242,6 @@ class QSOFit():
             the number of QSO PCA components applied. It only works when decomposition_host is True. The default is 10,
             No matter the global or luminosity-redshift binned PCA is used, it can reproduce > 92% QSOs. The binned PCA
             is better if have Mi information.
-        
-        nsmooth_qso: int, optional
-            do n-pixel smoothing for the QSO spectrum after eliminating the host galaxy. It only works when 
-            decomposition_host is True. Since the subtracted QSO spectrum in the emission line region will be noise, the smooth used will alleviate this problem. The default is set to 1 with no smoothing.
          
         Fe_uv_op: bool, optional
             if Ture, fit continuum with UV and optical FeII template. Default: True
@@ -337,6 +333,10 @@ class QSOFit():
             
         .host: array
             the model of host galaxy from PCA method.
+        
+        .hos_data: array
+            the host galaxy (the data minus the qso model), which could be used as the real host galaxy data to
+            get more information about the host, e.g.,star fomation history. 
             
         .qso: array
             the model of a quasar from PCA method.
@@ -408,7 +408,6 @@ class QSOFit():
         self.Mi = Mi
         self.npca_gal = npca_gal
         self.npca_qso = npca_qso
-        self.nsmooth_qso = nsmooth_qso
         self.initial_guess = initial_guess
         self.Fe_uv_op = Fe_uv_op
         self.poly = poly
@@ -603,10 +602,23 @@ class QSOFit():
             self.decomposed = True
             del self.wave,self.flux,self.err
             self.wave = datacube[0,:]
-            self.flux = smooth(datacube[1,:]-datacube[3,:],self.nsmooth_qso) # QSO flux without host
+            #block OIII, ha,NII,SII,OII,Ha,Hb,Hr,hdelta
+        
+            line_mask=np.where( (self.wave < 4970.) & (self.wave > 4950.) |
+                                (self.wave < 5020.) & (self.wave > 5000.) | 
+                                (self.wave < 6590.) & (self.wave > 6540.) |
+                                (self.wave < 3737.) & (self.wave > 3717.) |
+                                (self.wave < 4872.) & (self.wave > 4852.) |
+                                (self.wave < 4350.) & (self.wave > 4330.) |
+                                (self.wave < 4111.) & (self.wave > 4091.), True,False)
+            
+            f=interpolate.interp1d(self.wave[~line_mask],datacube[3,:][~line_mask])
+            masked_host=f(self.wave)
+            self.flux = datacube[1,:]-masked_host # QSO flux without host
             self.err = datacube[2,:]
             self.host = datacube[3,:]
             self.qso = datacube[4,:]
+            self.host_data = datacube[1,:]-self.qso
         return self.wave,self.flux,self.err 
     
     
@@ -1106,7 +1118,7 @@ class QSOFit():
         """
         
         ind_br = np.repeat(np.where(pp[2::3] > 0.0017,True,False),3)
-        #if len(ind_br) > 9:
+        
         ind_br[9:] = False # to exclude the broad OIII and broad He II
         
         p = pp[ind_br]
