@@ -1,6 +1,6 @@
 # PyQSOFit
 ## A code to fit the spectrum of quasar  
-##(example.ipynb is a demo for the quick start!!!)
+### (example.ipynb is a demo for the quick start!!!)
 
 We provide a brief guide of the Python QSO fitting code (PyQSOFit) to measure spectral properties of SDSS quasars. The code is currently transfered from Yue's IDL to Python. The package includes the main routine, Fe II templates, an input line-fitting parameter list, host galaxy temeplets and dust reddening map to extract spectral measurements from the raw fits. Monte Carlo estimation of the measurement uncertainties of the fitting results can be conducted with the same fitting code. 
 
