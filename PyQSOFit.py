@@ -1012,7 +1012,7 @@ class QSOFit():
                     #further line parameters ----------
                     fur_result_tmp = np.array([])
                     fur_result_name_tmp = np.array([])
-                    fwhm,sigma,ew,peak,area = self._line_prop(compcenter,line_fit.params)
+                    fwhm,sigma,ew,peak,area = self.line_prop(compcenter,line_fit.params)
                     br_name = uniq_linecomp_sort[ii]
 
                     if self.MC == True:
@@ -1130,7 +1130,7 @@ class QSOFit():
             all_para_1comp[:,tra] = line_fit.params
 
             #further line properties
-            all_fwhm[tra],all_sigma[tra],all_ew[tra],all_peak[tra],all_area[tra] = self._line_prop(compcenter,line_fit.params)
+            all_fwhm[tra],all_sigma[tra],all_ew[tra],all_peak[tra],all_area[tra] = self.line_prop(compcenter,line_fit.params)
 
         for st in range(len(pp0)):
             all_para_std[st] = all_para_1comp[st,:].std()
@@ -1138,7 +1138,7 @@ class QSOFit():
         return all_para_std,all_fwhm.std(),all_sigma.std(),all_ew.std(),all_peak.std(),all_area.std()
 
     #-----line properties calculation function--------
-    def _line_prop(self,compcenter,pp):
+    def line_prop(self,compcenter,pp):
         """
         Calculate the further results for the broad component in emission lines, e.g., FWHM, sigma, peak, line flux
         The compcenter is the theortical vacuum wavelength for the broad compoenet.
@@ -1268,7 +1268,7 @@ class QSOFit():
         plt.plot(self.wave_prereduced,self.flux_prereduced,'k',label = 'data')
        
         if decomposition_host == True and self.decomposed == True:
-            plt.plot(wave,self.qso+self.host,'pink', label = 'host+qso templete')
+            plt.plot(wave,self.qso+self.host,'pink', label = 'host+qso temp')
             plt.plot(wave,flux,'grey', label = 'data-host')
             plt.plot(wave,self.host,'purple', label = 'host')
         else:
