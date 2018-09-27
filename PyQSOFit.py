@@ -1,5 +1,5 @@
 #The main frame of this code is transfered from Yue Shen's IDL code 
-#Last modified on 9/25/2018
+#Last modified on 9/26/2018
 #Auther: Hengxiao Guo AT UIUC
 #Email: hengxiaoguo AT gmail DOT com
 #Co-Auther Shu Wang, Yue Shen
@@ -568,16 +568,15 @@ class QSOFit():
         """Block the bad pixels or absorption lines in spectrum."""
              
         for msk in range(len(self.wave_mask)):
-
             try:
-                ind_not_mask = ~np.where( (lam/(1.+z) > self.wave_mask[msk,0]) & (lam/(1.+z) < self.wave_mask[msk,1]), True,False )
+                ind_not_mask = ~np.where( (lam/(1.+z) > self.wave_mask[msk,0]) & (lam/(1.+z) < self.wave_mask[msk,1]), True, False)
             except IndexError:
-                raise RuntimeError("Wave_mask should be 2-D array, e.g., np.array([[2000,3000],[3100,4000]]).")
+                raise RuntimeError("Wave_mask should be 2D array, e.g., np.array([[2000,3000],[3100,4000]]).")
    
-            ind_not_mask = ~np.where( (lam/(1.+z) > self.wave_mask[msk,0]) & (lam/(1.+z) < self.wave_mask[msk,1]), True,False )
             del self.lam,self.flux,self.err
             self.lam,self.flux,self.err = lam[ind_not_mask],flux[ind_not_mask],err[ind_not_mask]
-            return self.lam,self.flux,self.err
+            lam, flux, err = self.lam, self.flux, self.err
+        return self.lam,self.flux,self.err
             
     def _DeRedden(self,lam,flux,ra,dec,dustmap_path):
         """Correct the Galatical extinction"""          
@@ -1264,7 +1263,7 @@ class QSOFit():
             plt.title(str(self.sdss_name)+'   z = '+str(z), fontsize  = 20)
         else:
             plt.title('ra,dec = ('+str(ra)+','+str(dec)+')   '+str(self.sdss_name)+'   z = '+str(z), fontsize = 20)
-         
+            
         plt.plot(self.wave_prereduced,self.flux_prereduced,'k',label = 'data')
        
         if decomposition_host == True and self.decomposed == True:
@@ -1402,3 +1401,4 @@ class QSOFit():
             return yval
     
     
+
