@@ -1285,7 +1285,7 @@ class QSOFit():
                     else:
                         color = 'r'
                     plt.plot(wave,manygauss(np.log(wave),gauss_result[::2][p*3:(p+1)*3])+f_conti_model, color = color)
-                plt.plot(wave,manygauss(np.log(wave),gauss_result[::2])+self.PL_poly,'b', label = 'line', lw = 2)
+                plt.plot(wave,manygauss(np.log(wave),gauss_result[::2])+f_conti_model,'b', label = 'line', lw = 2)
             else:
                 
                 for p in range(int(len(gauss_result)/3)):
@@ -1293,8 +1293,8 @@ class QSOFit():
                         color = 'g'
                     else:
                         color = 'r'
-                    plt.plot(wave,manygauss(np.log(wave),gauss_result[p*3:(p+1)*3])+self.PL_poly, color = color)
-                plt.plot(wave,manygauss(np.log(wave),gauss_result)+self.f_conti_model,'b', label = 'line', lw = 2)
+                    plt.plot(wave,manygauss(np.log(wave),gauss_result[p*3:(p+1)*3])+f_conti_model, color = color)
+                plt.plot(wave,manygauss(np.log(wave),gauss_result)+f_conti_model,'b', label = 'line', lw = 2)
         plt.plot([0,0],[0,0],'r', label = 'line br')
         plt.plot([0,0],[0,0],'g', label = 'line na')
         plt.plot(wave,f_conti_model,'c',lw=2, label = 'FeII')
