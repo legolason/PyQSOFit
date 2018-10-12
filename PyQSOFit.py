@@ -1,5 +1,5 @@
 #The main frame of this code is transfered from Yue Shen's IDL code 
-#Last modified on 9/26/2018
+#Last modified on 10/12/2018
 #Auther: Hengxiao Guo AT UIUC
 #Email: hengxiaoguo AT gmail DOT com
 #Co-Auther Shu Wang, Yue Shen
@@ -429,15 +429,7 @@ class QSOFit():
         self.plot_legend = plot_legend
         self.save_fig = save_fig
         
-        #set default path for figure and fits
-        if save_result == True and save_fits_path == None:
-            save_fits_path = self.path
-        if save_fig == True and save_fig_path == None:
-            save_fig_path = self.path
-        if save_fits_name == None:
-            save_fits_name = 'result'
-        else:
-            save_fits_name = save_fits_name
+        
         
         #get the source name in plate-mjd-fiber, if no then None
         if name is None:
@@ -453,6 +445,20 @@ class QSOFit():
                 self.sdss_name = ''
         else:
             self.sdss_name = name
+            
+        
+        #set default path for figure and fits
+        if save_result == True and save_fits_path == None:
+            save_fits_path = self.path
+        if save_fig == True and save_fig_path == None:
+            save_fig_path = self.path
+        if save_fits_name == None:
+            if self.sdss_name == '':
+                save_fits_name = 'result'
+            else:
+                save_fits_name = self.sdss_name
+        else:
+            save_fits_name = save_fits_name
 
         # deal with pixels with error equal 0 or inifity
         ind_gooderror = np.where( (self.err != 0) & ~np.isinf(self.err), True, False)
@@ -794,13 +800,13 @@ class QSOFit():
         if self.MC == False:
             self.conti_result = np.array([ra,dec,self.plateid,self.mjd,self.fiberid,self.z,self.SN_ratio_conti,conti_fit.params[1],conti_fit.params[4],conti_fit.params[6],conti_fit.params[7],\
                                conti_fit.params[11],conti_fit.params[12],conti_fit.params[13],L[0],L[1],L[2]])
-            self.conti_result_name = np.array(['ra','dec','plateid','MJD','firberid','redshift','SN_ratio_conti','Fe_uv_FWHM','Fe_op_FWHM','PL_norm','PL_slope',\
+            self.conti_result_name = np.array(['ra','dec','plateid','MJD','fiberid','redshift','SN_ratio_conti','Fe_uv_FWHM','Fe_op_FWHM','PL_norm','PL_slope',\
                           'POLY_a','POLY_b','POLY_c','L1350','L3000','L5100'])
 
         else:
             self.conti_result = np.array([ra,dec,plateid,mjd,fiberid,self.z,self.SN_ratio_conti,conti_fit.params[1],conti_para_std[1],conti_fit.params[4],conti_para_std[4],conti_fit.params[6],conti_para_std[6],conti_fit.params[7],conti_para_std[7],\
                                conti_fit.params[11],conti_para_std[11],conti_fit.params[12],conti_para_std[12],conti_fit.params[13],conti_para_std[13],L[0],all_L_std[0],L[1],all_L_std[1],L[2],all_L_std[2]])
-            self.conti_result_name = np.array(['ra','dec','plateid','MJD','firberid','redshift','SN_ratio_conti','Fe_uv_FWHM','Fe_uv_FWHM_err','Fe_op_FWHM','Fe_op_FWHM_err','PL_norm','PL_norm_err','PL_slope',\
+            self.conti_result_name = np.array(['ra','dec','plateid','MJD','fiberid','redshift','SN_ratio_conti','Fe_uv_FWHM','Fe_uv_FWHM_err','Fe_op_FWHM','Fe_op_FWHM_err','PL_norm','PL_norm_err','PL_slope',\
                           'PL_slope_err','POLY_a','POLY_a_err','POLY_b','POLY_b_err','POLY_c','POLY_c_err','L1350','L1350_err','L3000','L3000_err','L5100','L5100_err'])
         
         self.conti_fit = conti_fit 
@@ -962,7 +968,7 @@ class QSOFit():
                 ind_n = np.where( (wave > comp_range[0]) & (wave < comp_range[1]) &(ind_neg_line == True) ,True,False)
 
                 if np.sum(ind_n) > 10:
-
+                    print np.sum(ind_n)
                     #call kmpfit for lines
                     
                     line_fit = self._do_line_kmpfit(linelist,line_flux,ind_line,ind_n,nline_fit,ngauss_fit)
@@ -1027,6 +1033,7 @@ class QSOFit():
 
                 else:
                     print("less than 10 pixels in line fitting!")
+                    
             line_result = np.concatenate([comp_result,gauss_result,fur_result])
             line_result_name = np.concatenate([comp_result_name,gauss_result_name,fur_result_name])
 
