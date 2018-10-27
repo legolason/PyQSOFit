@@ -968,7 +968,6 @@ class QSOFit():
                 ind_n = np.where( (wave > comp_range[0]) & (wave < comp_range[1]) &(ind_neg_line == True) ,True,False)
 
                 if np.sum(ind_n) > 10:
-                    print np.sum(ind_n)
                     #call kmpfit for lines
                     
                     line_fit = self._do_line_kmpfit(linelist,line_flux,ind_line,ind_n,nline_fit,ngauss_fit)
