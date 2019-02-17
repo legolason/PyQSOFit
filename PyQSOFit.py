@@ -1,5 +1,5 @@
 #The main frame of this code is transfered from Yue Shen's IDL code 
-#Last modified on 10/12/2018
+#Last modified on 2/17/2019
 #Auther: Hengxiao Guo AT UIUC
 #Email: hengxiaoguo AT gmail DOT com
 #Co-Auther Shu Wang, Yue Shen
@@ -465,7 +465,13 @@ class QSOFit():
         err_good = self.err[ind_gooderror]
         flux_good = self.flux[ind_gooderror]
         lam_good = self.lam[ind_gooderror]
-        del self.err, self.flux, self.lam
+	if (self.and_mask is not None) & (self.or_mask is not None):
+	    and_mask_good = self.and_mask[ind_gooderror]
+ 	    or_mask_good = self.or_mask[ind_gooderror]
+	    del self.and_mask,self.or_mask
+	    self.and_mask = and_mask_good
+            self.or_mask = or_mask_good
+ 	del self.err, self.flux, self.lam
         self.err = err_good
         self.flux = flux_good
         self.lam = lam_good
@@ -1016,7 +1022,7 @@ class QSOFit():
                     #further line parameters ----------
                     fur_result_tmp = np.array([])
                     fur_result_name_tmp = np.array([])
-                    fwhm,sigma,ew,peak,area = self.line_prop(compcenter,line_fit.params)
+                    fwhm,sigma,ew,peak,area = self.line_prop(compcenter,line_fit.params,'broad')
                     br_name = uniq_linecomp_sort[ii]
 
                     if self.MC == True:
@@ -1135,7 +1141,7 @@ class QSOFit():
             all_para_1comp[:,tra] = line_fit.params
 
             #further line properties
-            all_fwhm[tra],all_sigma[tra],all_ew[tra],all_peak[tra],all_area[tra] = self.line_prop(compcenter,line_fit.params)
+            all_fwhm[tra],all_sigma[tra],all_ew[tra],all_peak[tra],all_area[tra] = self.line_prop(compcenter,line_fit.params,'broad')
 
         for st in range(len(pp0)):
             all_para_std[st] = all_para_1comp[st,:].std()
@@ -1143,14 +1149,22 @@ class QSOFit():
         return all_para_std,all_fwhm.std(),all_sigma.std(),all_ew.std(),all_peak.std(),all_area.std()
 
     #-----line properties calculation function--------
-    def line_prop(self,compcenter,pp):
+    def line_prop(self,compcenter,pp,linetype):
         """
         Calculate the further results for the broad component in emission lines, e.g., FWHM, sigma, peak, line flux
         The compcenter is the theortical vacuum wavelength for the broad compoenet.
         """
-        
-        ind_br = np.repeat(np.where(pp[2::3] > 0.0017,True,False),3)
-        
+        pp = pp.astype(float)
+        if linetype == 'broad':
+            ind_br = np.repeat(np.where(pp[2::3] > 0.0017,True,False),3)
+           
+        elif linetype == 'narrow':
+            ind_br = np.repeat(np.where(pp[2::3] < 0.0017,True,False),3)
+            
+        else:
+            raise RuntimeError("line type should be 'broad' or 'narrow'!")
+            
+                
         ind_br[9:] = False # to exclude the broad OIII and broad He II
         
         p = pp[ind_br]
@@ -1160,66 +1174,66 @@ class QSOFit():
 
         c = 299792.458 # km/s
         n_gauss = int(len(pp)/3)
-
-        cen = np.zeros(n_gauss)
-        sig = np.zeros(n_gauss)
-
-        for i in range(n_gauss):
-            cen[i] = pp[3*i+1]
-            sig[i] = pp[3*i+2]
-        
-        
-        #print cen,sig,area
-        left = min(cen-3*sig)
-        right = max(cen+3*sig)
-        disp = 1.e-4
-        npix = int((right-left)/disp)
-        
-
-
-        xx = np.linspace(left, right, npix)
-        yy = manygauss(xx,pp)
-
-        ff = interpolate.interp1d(np.log(self.wave),self.PL_poly_BC, bounds_error = False, fill_value = 0)
-        contiflux = ff(xx)
-
-
-        #find the line peak location
-        ypeak = yy.max()
-        ypeak_ind= np.argmax(yy)
-        peak = np.exp(xx[ypeak_ind])
-
-        #find the FWHM in km/s
-        #take the broad line we focus and ignore other broad components such as [OIII], HeII
-        
-
-        if n_gauss > 3:
-            spline = interpolate.UnivariateSpline(xx, manygauss(xx,pp[0:9])-np.max(manygauss(xx,pp[0:9]))/2, s = 0)
-        else:
-            spline = interpolate.UnivariateSpline(xx, yy-np.max(yy)/2, s = 0)
-        if len(spline.roots()) > 0:
-            fwhm_left, fwhm_right = spline.roots().min(), spline.roots().max()
-            fwhm = abs(np.exp(fwhm_left)-np.exp(fwhm_right))/compcenter*c
-
-
-            #calculate the total broad line flux
-            area = (np.exp(xx)*yy*disp).sum()
-
-            #calculate the line sigma and EW in normal wavelength
-            lambda0 = 0.
-            lambda1 = 0.
-            lambda2 = 0.
-            ew = 0
-            for lm in range(npix):
-                lambda0 = lambda0 + manygauss(xx[lm],pp)*disp*np.exp(xx[lm])
-                lambda1 = lambda1 + np.exp(xx[lm])*manygauss(xx[lm],pp)*disp*np.exp(xx[lm])
-                lambda2 = lambda2 + np.exp(xx[lm])**2*manygauss(xx[lm],pp)*disp*np.exp(xx[lm])
-            
-                ew = ew + abs(manygauss(xx[lm],pp)/contiflux[lm])*disp*np.exp(xx[lm])
-             
-            sigma = np.sqrt(lambda2/lambda0-(lambda1/lambda0)**2) / compcenter*c
-        else:
+        if n_gauss == 0:
             fwhm,sigma,ew,peak,area = 0.,0.,0.,0.,0.
+        else:
+            cen = np.zeros(n_gauss)
+            sig = np.zeros(n_gauss)
+
+            for i in range(n_gauss):
+                cen[i] = pp[3*i+1]
+                sig[i] = pp[3*i+2]
+
+
+            #print cen,sig,area
+            left = min(cen-3*sig)
+            right = max(cen+3*sig)
+            disp = 1.e-4
+            npix = int((right-left)/disp)
+
+
+            xx = np.linspace(left, right, npix)
+            yy = manygauss(xx,pp)
+
+            ff = interpolate.interp1d(np.log(self.wave),self.PL_poly_BC, bounds_error = False, fill_value = 0)
+            contiflux = ff(xx)
+
+
+            #find the line peak location
+            ypeak = yy.max()
+            ypeak_ind= np.argmax(yy)
+            peak = np.exp(xx[ypeak_ind])
+
+            #find the FWHM in km/s
+            #take the broad line we focus and ignore other broad components such as [OIII], HeII
+
+
+            if n_gauss > 3:
+                spline = interpolate.UnivariateSpline(xx, manygauss(xx,pp[0:9])-np.max(manygauss(xx,pp[0:9]))/2, s = 0)
+            else:
+                spline = interpolate.UnivariateSpline(xx, yy-np.max(yy)/2, s = 0)
+            if len(spline.roots()) > 0:
+                fwhm_left, fwhm_right = spline.roots().min(), spline.roots().max()
+                fwhm = abs(np.exp(fwhm_left)-np.exp(fwhm_right))/compcenter*c
+
+                #calculate the total broad line flux
+                area = (np.exp(xx)*yy*disp).sum()
+
+                #calculate the line sigma and EW in normal wavelength
+                lambda0 = 0.
+                lambda1 = 0.
+                lambda2 = 0.
+                ew = 0
+                for lm in range(npix):
+                    lambda0 = lambda0 + manygauss(xx[lm],pp)*disp*np.exp(xx[lm])
+                    lambda1 = lambda1 + np.exp(xx[lm])*manygauss(xx[lm],pp)*disp*np.exp(xx[lm])
+                    lambda2 = lambda2 + np.exp(xx[lm])**2*manygauss(xx[lm],pp)*disp*np.exp(xx[lm])
+
+                    ew = ew + abs(manygauss(xx[lm],pp)/contiflux[lm])*disp*np.exp(xx[lm])
+
+                sigma = np.sqrt(lambda2/lambda0-(lambda1/lambda0)**2) / compcenter*c
+            else:
+                fwhm,sigma,ew,peak,area = 0.,0.,0.,0.,0.
 
         return fwhm,sigma,ew,peak,area
     
@@ -1257,6 +1271,7 @@ class QSOFit():
     def _PlotFig(self, ra, dec, z, wave, flux, err, decomposition_host, linefit, tmp_all, gauss_result, f_conti_model, conti_fit,\
                all_comp_range, uniq_linecomp_sort, line_flux, save_fig_path):
         """Plot the results"""
+
         self.PL_poly = conti_fit.params[6]*(wave/3000.0)**conti_fit.params[7]+f_poly_conti(wave, conti_fit.params[11:])
        
         matplotlib.rc('xtick', labelsize = 20) 
