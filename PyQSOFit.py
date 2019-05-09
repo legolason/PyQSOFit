@@ -1,5 +1,5 @@
-#The main frame of this code is transfered from Yue Shen's IDL code 
-#Last modified on 2/17/2019
+# A code for quasar spectrum fitting
+#Last modified on 2/27/2019
 #Auther: Hengxiao Guo AT UIUC
 #Email: hengxiaoguo AT gmail DOT com
 #Co-Auther Shu Wang, Yue Shen
@@ -190,7 +190,7 @@ class QSOFit():
 
 
     def Fit(self, name = None, nsmooth = 1,and_or_mask = True,reject_badpix = True, deredden = True,wave_range = None,\
-            wave_mask = None,decomposition_host = True, Mi = None,npca_gal = 5, npca_qso = 20, \
+            wave_mask = None,decomposition_host = True, BC03 = False, Mi = None,npca_gal = 5, npca_qso = 20, \
             Fe_uv_op = True, poly = False, BC = False, rej_abs = False,initial_guess = None, MC = True, \
             n_trails = 1,linefit = True, tie_lambda = True, tie_width = True, tie_flux_1 = True,tie_flux_2 = True,\
             save_result = True, plot_fig = True,save_fig = True,plot_line_name = True, plot_legend = True, dustmap_path = None,\
@@ -232,7 +232,9 @@ class QSOFit():
             magnitude bins. For galaxy, the global model has 10 PCA components and first 5 will enough to reproduce 98.37% galaxy spectra. For QSO, the global model
             has 50, and the first 20 will reproduce 96.89% QSOs. If have i-band absolute magnitude, the Luminosity-redshift binned PCA components are available. 
             Then the first 10 PCA in each bin is enough to reproduce most QSO spectrum. Default: False
-            
+        BC03: bool, optional
+            if True, it will use Bruzual1 & Charlot 2003 host model to fit spectrum, high shift host will be low resolution R ~ 300, the rest is R ~ 2000. Default: False
+        
         Mi: float, optional
             the absolute magnitude of i band. It only works when decomposition_host is True. If not None, the Luminosity redshift binned PCA will be used to decompose
             the spectrum. Default: None
@@ -411,6 +413,7 @@ class QSOFit():
         self.name = name
         self.wave_range = wave_range
         self.wave_mask = wave_mask
+        self.BC03 = BC03
         self.Mi = Mi
         self.npca_gal = npca_gal
         self.npca_qso = npca_qso
@@ -465,13 +468,14 @@ class QSOFit():
         err_good = self.err[ind_gooderror]
         flux_good = self.flux[ind_gooderror]
         lam_good = self.lam[ind_gooderror]
-	if (self.and_mask is not None) & (self.or_mask is not None):
-	    and_mask_good = self.and_mask[ind_gooderror]
- 	    or_mask_good = self.or_mask[ind_gooderror]
-	    del self.and_mask,self.or_mask
-	    self.and_mask = and_mask_good
+        
+        if (self.and_mask is not None) & (self.or_mask is not None):
+            and_mask_good = self.and_mask[ind_gooderror]
+            or_mask_good = self.or_mask[ind_gooderror]
+            del self.and_mask,self.or_mask
+            self.and_mask = and_mask_good
             self.or_mask = or_mask_good
- 	del self.err, self.flux, self.lam
+        del self.err, self.flux, self.lam
         self.err = err_good
         self.flux = flux_good
         self.lam = lam_good
@@ -490,36 +494,36 @@ class QSOFit():
             self._WaveMsk(self.lam,self.flux,self.err,self.z)    
         if deredden == True and self.ra != -999. and self.dec != -999.:
             self._DeRedden(self.lam,self.flux,self.ra,self.dec,dustmap_path)
-        
-        
-        
+
+
+
         self._RestFrame(self.lam,self.flux,self.z)
         self._CalculateSN(self.lam,self.flux)
         self._OrignialSpec(self.wave,self.flux,self.err)
-        
+
         # do host decomposition --------------
         if self.z < 1.16 and decomposition_host == True:
             self._DoDecomposition(self.wave,self.flux,self.err,self.path)
         else:
             self.decomposed = False
             if self.z > 1.16 and decomposition_host == True:
-                print('redshift larger than 1.16 is not allowed!')
-        
+                print('redshift larger than 1.16 is not allowed for host decomposion!')
+
         #fit continuum --------------------
         self._DoContiFit(self.wave,self.flux,self.err,self.ra,self.dec,self.plateid,self.mjd,self.fiberid)
         #fit line
         if linefit == True:
 
             self._DoLineFit(self.wave,self.line_flux,self.err,self.conti_fit)
-        
+
         #save data -------
         if save_result == True:
             if linefit == False:
                 self.line_result = np.array([])
                 self.line_result_name = np.array([])
             self._SaveResult(self.conti_result,self.conti_result_name,self.line_result,self.line_result_name,save_fits_path,save_fits_name)
-            
-        
+
+
         #plot fig and save ------
         if plot_fig == True:
             if linefit == False:
@@ -529,7 +533,7 @@ class QSOFit():
             self._PlotFig(self.ra,self.dec,self.z,self.wave,self.flux,self.err,decomposition_host,linefit,\
                          self.tmp_all,self.gauss_result,self.f_conti_model,self.conti_fit,self.all_comp_range,\
                          self.uniq_linecomp_sort,self.line_flux,save_fig_path)
-        
+
 
     def _MaskSdssAndOr(self,lam,flux,err,and_mask,or_mask):
         """
@@ -645,6 +649,7 @@ class QSOFit():
             line_mask = np.where( (self.wave < 4970.) & (self.wave > 4950.) |
                                   (self.wave < 5020.) & (self.wave > 5000.) | 
                                   (self.wave < 6590.) & (self.wave > 6540.) |
+				  (self.wave < 6740.) & (self.wave > 6710.) |
                                   (self.wave < 3737.) & (self.wave > 3717.) |
                                   (self.wave < 4872.) & (self.wave > 4852.) |
                                   (self.wave < 4350.) & (self.wave > 4330.) |
@@ -671,10 +676,20 @@ class QSOFit():
         """
         
         # read galaxy and qso eigenspectra -----------------------------------
-        galaxy = fits.open(path+'pca/Yip_pca_templates/gal_eigenspec_Yip2004.fits')
-        gal = galaxy[1].data
-        wave_gal = gal['wave'].flatten()
-        flux_gal = gal['pca'].reshape(gal['pca'].shape[1],gal['pca'].shape[2])
+        if self.BC03 == False:
+            galaxy = fits.open(path+'pca/Yip_pca_templates/gal_eigenspec_Yip2004.fits')
+            gal = galaxy[1].data
+            wave_gal = gal['wave'].flatten()
+            flux_gal = gal['pca'].reshape(gal['pca'].shape[1],gal['pca'].shape[2])
+        if self.BC03 == True:
+            cc=0
+            flux03 = np.array([])
+            for i in glob.glob(path+'/bc03/*.gz'):
+                cc=cc+1
+                gal_temp=np.genfromtxt(i)
+                wave_gal = gal_temp[:,0]
+                flux03 = np.concatenate((flux03,gal_temp[:,1]))
+            flux_gal = np.array(flux03).reshape(cc,-1)
 
         if Mi is None:
             quasar = fits.open(path+'pca/Yip_pca_templates/qso_eigenspec_Yip2004_global.fits')
@@ -1422,4 +1437,5 @@ class QSOFit():
             return yval
     
     
+
 
