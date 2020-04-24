@@ -1,10 +1,13 @@
 # A code for quasar spectrum fitting
-#Last modified on 2/27/2019
+#Last modified on 3/24/2020
 #Auther: Hengxiao Guo AT UIUC
 #Email: hengxiaoguo AT gmail DOT com
 #Co-Auther Shu Wang, Yue Shen
 #version 1.0
 #-------------------------------------------------
+
+#fix the error problem, previous error was underestimated by a factor of 1+z
+
 
 import glob, os,sys,timeit
 import matplotlib
@@ -497,7 +500,7 @@ class QSOFit():
 
 
 
-        self._RestFrame(self.lam,self.flux,self.z)
+        self._RestFrame(self.lam,self.flux,self.err,self.z)
         self._CalculateSN(self.lam,self.flux)
         self._OrignialSpec(self.wave,self.flux,self.err)
 
@@ -602,11 +605,12 @@ class QSOFit():
         self.flux = flux_unred
         return self.flux
         
-    def _RestFrame(self,lam,flux,z):
+    def _RestFrame(self,lam,flux,err,z):
         """Move wavelenth and flux to rest frame"""
         self.wave = lam/(1.+z)
         self.flux = flux*(1.+z)
-        return self.wave,self.flux
+	self.err = err*(1.+z)
+        return self.wave,self.flux,self.err
     
     def _OrignialSpec(self,wave,flux,err):
         """save the orignial spectrum before host galaxy decompsition"""
