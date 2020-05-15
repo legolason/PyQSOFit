@@ -609,7 +609,7 @@ class QSOFit():
         """Move wavelenth and flux to rest frame"""
         self.wave = lam/(1.+z)
         self.flux = flux*(1.+z)
-	self.err = err*(1.+z)
+        self.err = err*(1.+z)
         return self.wave,self.flux,self.err
     
     def _OrignialSpec(self,wave,flux,err):
