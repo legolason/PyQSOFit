@@ -1178,7 +1178,7 @@ class QSOFit():
             ind_br = np.repeat(np.where(pp[2::3] > 0.0017,True,False),3)
            
         elif linetype == 'narrow':
-            ind_br = np.repeat(np.where(pp[2::3] < 0.0017,True,False),3)
+            ind_br = np.repeat(np.where(pp[2::3] <= 0.0017,True,False),3)
             
         else:
             raise RuntimeError("line type should be 'broad' or 'narrow'!")
