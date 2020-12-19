@@ -609,7 +609,7 @@ class QSOFit():
         """Move wavelenth and flux to rest frame"""
         self.wave = lam/(1.+z)
         self.flux = flux*(1.+z)
-	self.err = err*(1.+z)
+        self.err = err*(1.+z)
         return self.wave,self.flux,self.err
     
     def _OrignialSpec(self,wave,flux,err):
@@ -902,7 +902,7 @@ class QSOFit():
         elif self.Fe_uv_op == False and self.poly == False and self.BC == False :
             yval = f_pl 
         elif self.Fe_uv_op == False and self.poly == False and self.BC == True :
-            yval = f_pl  + f_Fe_Balmer + f_conti_BC 
+            yval = f_pl + f_conti_BC 
         elif self.Fe_uv_op == True and self.poly == True and self.BC == True :
             yval = f_pl + f_Fe_MgII + f_Fe_Balmer + f_poly + f_conti_BC 
         elif self.Fe_uv_op == False and self.poly == True and self.BC == True :
@@ -1178,7 +1178,7 @@ class QSOFit():
             ind_br = np.repeat(np.where(pp[2::3] > 0.0017,True,False),3)
            
         elif linetype == 'narrow':
-            ind_br = np.repeat(np.where(pp[2::3] < 0.0017,True,False),3)
+            ind_br = np.repeat(np.where(pp[2::3] <= 0.0017,True,False),3)
             
         else:
             raise RuntimeError("line type should be 'broad' or 'narrow'!")
