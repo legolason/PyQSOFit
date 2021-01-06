@@ -1,0 +1,295 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project version="4">
+  <component name="AutoImportSettings">
+    <option name="autoReloadType" value="SELECTIVE" />
+  </component>
+  <component name="ChangeListManager">
+    <list default="true" id="655d63f5-f9d6-47b4-9580-7d1be872e510" name="Default Changelist" comment="">
+      <change afterPath="$PROJECT_DIR$/example/.ipynb_checkpoints/example-checkpoint.ipynb" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/example/data/QA_other/0332-52367-0639.eps" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/example/data/result/0332-52367-0639.fits" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/example/data/spec-0332-52367-0639.fits" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/example/example.ipynb" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/qsopar.fits" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/sfddata/README.md" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/sfddata/SFD_dust_4096_ngp.fits" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/sfddata/SFD_dust_4096_sgp.fits" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/sfddata/SFD_mask_4096_ngp.fits" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/sfddata/SFD_mask_4096_sgp.fits" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/PyQSOFit.py" beforeDir="false" afterPath="$PROJECT_DIR$/PyQSOFit.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/PyQSOFit_ajusted.py" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/example.ipynb" beforeDir="false" afterPath="$PROJECT_DIR$/.ipynb_checkpoints/example-checkpoint.ipynb" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/pca/gal_eigenspec_Yip2004.fits" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/pca/qso_eigenspec_Yip2004_AZBIN4.fits" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/pca/qso_eigenspec_Yip2004_AZBIN5.fits" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/pca/qso_eigenspec_Yip2004_BZBIN2.fits" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/pca/qso_eigenspec_Yip2004_BZBIN3.fits" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/pca/qso_eigenspec_Yip2004_BZBIN4.fits" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/pca/qso_eigenspec_Yip2004_BZBIN5.fits" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/pca/qso_eigenspec_Yip2004_CZBIN1.fits" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/pca/qso_eigenspec_Yip2004_CZBIN2.fits" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/pca/qso_eigenspec_Yip2004_CZBIN3.fits" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/pca/qso_eigenspec_Yip2004_CZBIN4.fits" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/pca/qso_eigenspec_Yip2004_DZBIN1.fits" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/pca/qso_eigenspec_Yip2004_DZBIN2.fits" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/pca/qso_eigenspec_Yip2004_global.fits" beforeDir="false" />
+    </list>
+    <option name="SHOW_DIALOG" value="false" />
+    <option name="HIGHLIGHT_CONFLICTS" value="true" />
+    <option name="HIGHLIGHT_NON_ACTIVE_CHANGELIST" value="false" />
+    <option name="LAST_RESOLUTION" value="IGNORE" />
+  </component>
+  <component name="FileTemplateManagerImpl">
+    <option name="RECENT_TEMPLATES">
+      <list>
+        <option value="Python Script" />
+      </list>
+    </option>
+  </component>
+  <component name="Git.Settings">
+    <option name="RECENT_GIT_ROOT_PATH" value="$PROJECT_DIR$" />
+  </component>
+  <component name="JupyterTrust" id="df6eba30-a50a-4022-8c25-efca1112a25a" />
+  <component name="ProjectId" id="1k2iiACvu15BEQtY6tn46sJ3EoA" />
+  <component name="ProjectLevelVcsManager">
+    <ConfirmationsSetting value="2" id="Add" />
+  </component>
+  <component name="ProjectViewState">
+    <option name="hideEmptyMiddlePackages" value="true" />
+    <option name="showLibraryContents" value="true" />
+  </component>
+  <component name="PropertiesComponent">
+    <property name="ASKED_SHARE_PROJECT_CONFIGURATION_FILES" value="true" />
+    <property name="WebServerToolWindowFactoryState" value="false" />
+    <property name="last_opened_file_path" value="$PROJECT_DIR$" />
+    <property name="node.js.detected.package.eslint" value="true" />
+    <property name="node.js.detected.package.tslint" value="true" />
+    <property name="node.js.path.for.package.eslint" value="project" />
+    <property name="node.js.path.for.package.tslint" value="project" />
+    <property name="node.js.selected.package.eslint" value="(autodetect)" />
+    <property name="node.js.selected.package.tslint" value="(autodetect)" />
+    <property name="nodejs_interpreter_path.stuck_in_default_project" value="undefined stuck path" />
+    <property name="nodejs_npm_path_reset_for_default_project" value="true" />
+    <property name="python.debugger.dataview.autoresize" value="false" />
+    <property name="settings.editor.selected.configurable" value="preferences.sourceCode.Python" />
+  </component>
+  <component name="PyDebuggerOptionsProvider">
+    <option name="myPyQtBackend" value="PyQt5" />
+  </component>
+  <component name="RecentsManager">
+    <key name="MoveFile.RECENT_KEYS">
+      <recent name="$PROJECT_DIR$/example/data" />
+      <recent name="$PROJECT_DIR$/example" />
+      <recent name="$PROJECT_DIR$" />
+    </key>
+    <key name="CopyFile.RECENT_KEYS">
+      <recent name="$PROJECT_DIR$" />
+      <recent name="$PROJECT_DIR$/demo_test" />
+    </key>
+  </component>
+  <component name="RunManager" selected="Python.temp_test">
+    <configuration name="PyQSOFit" type="PythonConfigurationType" factoryName="Python" temporary="true">
+      <module name="PyQSOFit" />
+      <option name="INTERPRETER_OPTIONS" value="" />
+      <option name="PARENT_ENVS" value="true" />
+      <envs>
+        <env name="PYTHONUNBUFFERED" value="1" />
+      </envs>
+      <option name="SDK_HOME" value="$USER_HOME$/opt/anaconda3/envs/research/bin/python" />
+      <option name="WORKING_DIRECTORY" value="$PROJECT_DIR$" />
+      <option name="IS_MODULE_SDK" value="false" />
+      <option name="ADD_CONTENT_ROOTS" value="true" />
+      <option name="ADD_SOURCE_ROOTS" value="true" />
+      <EXTENSION ID="PythonCoverageRunConfigurationExtension" runner="coverage.py" />
+      <option name="SCRIPT_NAME" value="$PROJECT_DIR$/PyQSOFit.py" />
+      <option name="PARAMETERS" value="" />
+      <option name="SHOW_COMMAND_LINE" value="false" />
+      <option name="EMULATE_TERMINAL" value="false" />
+      <option name="MODULE_MODE" value="false" />
+      <option name="REDIRECT_INPUT" value="false" />
+      <option name="INPUT_FILE" value="" />
+      <method v="2" />
+    </configuration>
+    <configuration default="true" type="PythonConfigurationType" factoryName="Python">
+      <module name="PyQSOFit" />
+      <option name="INTERPRETER_OPTIONS" value="" />
+      <option name="PARENT_ENVS" value="true" />
+      <envs>
+        <env name="PYTHONUNBUFFERED" value="1" />
+      </envs>
+      <option name="SDK_HOME" value="$USER_HOME$/opt/anaconda3/envs/research/bin/python" />
+      <option name="WORKING_DIRECTORY" value="" />
+      <option name="IS_MODULE_SDK" value="false" />
+      <option name="ADD_CONTENT_ROOTS" value="true" />
+      <option name="ADD_SOURCE_ROOTS" value="true" />
+      <EXTENSION ID="PythonCoverageRunConfigurationExtension" runner="coverage.py" />
+      <option name="SCRIPT_NAME" value="" />
+      <option name="PARAMETERS" value="" />
+      <option name="SHOW_COMMAND_LINE" value="false" />
+      <option name="EMULATE_TERMINAL" value="false" />
+      <option name="MODULE_MODE" value="false" />
+      <option name="REDIRECT_INPUT" value="false" />
+      <option name="INPUT_FILE" value="" />
+      <method v="2" />
+    </configuration>
+    <configuration name="temp_learn" type="PythonConfigurationType" factoryName="Python" temporary="true" nameIsGenerated="true">
+      <module name="PyQSOFit" />
+      <option name="INTERPRETER_OPTIONS" value="" />
+      <option name="PARENT_ENVS" value="true" />
+      <envs>
+        <env name="PYTHONUNBUFFERED" value="1" />
+      </envs>
+      <option name="SDK_HOME" value="$USER_HOME$/opt/anaconda3/envs/research/bin/python" />
+      <option name="WORKING_DIRECTORY" value="$PROJECT_DIR$/example" />
+      <option name="IS_MODULE_SDK" value="true" />
+      <option name="ADD_CONTENT_ROOTS" value="true" />
+      <option name="ADD_SOURCE_ROOTS" value="true" />
+      <EXTENSION ID="PythonCoverageRunConfigurationExtension" runner="coverage.py" />
+      <option name="SCRIPT_NAME" value="$PROJECT_DIR$/example/temp_learn.py" />
+      <option name="PARAMETERS" value="" />
+      <option name="SHOW_COMMAND_LINE" value="false" />
+      <option name="EMULATE_TERMINAL" value="false" />
+      <option name="MODULE_MODE" value="false" />
+      <option name="REDIRECT_INPUT" value="false" />
+      <option name="INPUT_FILE" value="" />
+      <method v="2" />
+    </configuration>
+    <configuration name="temp_test" type="PythonConfigurationType" factoryName="Python" temporary="true" nameIsGenerated="true">
+      <module name="PyQSOFit" />
+      <option name="INTERPRETER_OPTIONS" value="" />
+      <option name="PARENT_ENVS" value="true" />
+      <envs>
+        <env name="PYTHONUNBUFFERED" value="1" />
+      </envs>
+      <option name="SDK_HOME" value="" />
+      <option name="WORKING_DIRECTORY" value="$PROJECT_DIR$/example" />
+      <option name="IS_MODULE_SDK" value="true" />
+      <option name="ADD_CONTENT_ROOTS" value="true" />
+      <option name="ADD_SOURCE_ROOTS" value="true" />
+      <EXTENSION ID="PythonCoverageRunConfigurationExtension" runner="coverage.py" />
+      <option name="SCRIPT_NAME" value="$PROJECT_DIR$/example/temp_test.py" />
+      <option name="PARAMETERS" value="" />
+      <option name="SHOW_COMMAND_LINE" value="false" />
+      <option name="EMULATE_TERMINAL" value="false" />
+      <option name="MODULE_MODE" value="false" />
+      <option name="REDIRECT_INPUT" value="false" />
+      <option name="INPUT_FILE" value="" />
+      <method v="2" />
+    </configuration>
+    <list>
+      <item itemvalue="Python.PyQSOFit" />
+      <item itemvalue="Python.temp_test" />
+      <item itemvalue="Python.temp_learn" />
+    </list>
+    <recent_temporary>
+      <list>
+        <item itemvalue="Python.temp_test" />
+        <item itemvalue="Python.PyQSOFit" />
+        <item itemvalue="Python.temp_learn" />
+      </list>
+    </recent_temporary>
+  </component>
+  <component name="SpellCheckerSettings" RuntimeDictionaries="0" Folders="0" CustomDictionaries="0" DefaultDictionary="application-level" UseSingleDictionary="true" transferred="true" />
+  <component name="SvnConfiguration">
+    <configuration />
+  </component>
+  <component name="TaskManager">
+    <task active="true" id="Default" summary="Default task">
+      <changelist id="655d63f5-f9d6-47b4-9580-7d1be872e510" name="Default Changelist" comment="" />
+      <created>1604905211808</created>
+      <option name="number" value="Default" />
+      <option name="presentableId" value="Default" />
+      <updated>1604905211808</updated>
+      <workItem from="1604905216601" duration="2310000" />
+      <workItem from="1605319605506" duration="267000" />
+      <workItem from="1605326677551" duration="118000" />
+      <workItem from="1605342100847" duration="661000" />
+      <workItem from="1605343782112" duration="1360000" />
+      <workItem from="1605703380914" duration="10690000" />
+      <workItem from="1606094942653" duration="897000" />
+      <workItem from="1606451047137" duration="2147000" />
+      <workItem from="1606787771905" duration="4152000" />
+      <workItem from="1606897803850" duration="11990000" />
+      <workItem from="1607408777133" duration="566000" />
+      <workItem from="1607422801177" duration="133000" />
+      <workItem from="1607429745517" duration="466000" />
+      <workItem from="1607563475834" duration="1857000" />
+      <workItem from="1608189355554" duration="222000" />
+      <workItem from="1608193601914" duration="421000" />
+      <workItem from="1608255351128" duration="555000" />
+      <workItem from="1608439488888" duration="401000" />
+      <workItem from="1608647869143" duration="9000" />
+      <workItem from="1608967713301" duration="3000" />
+      <workItem from="1609124813446" duration="3063000" />
+      <workItem from="1609739647380" duration="5144000" />
+      <workItem from="1609768529503" duration="42804000" />
+    </task>
+    <servers />
+  </component>
+  <component name="TypeScriptGeneratedFilesManager">
+    <option name="version" value="3" />
+  </component>
+  <component name="Vcs.Log.Tabs.Properties">
+    <option name="TAB_STATES">
+      <map>
+        <entry key="MAIN">
+          <value>
+            <State />
+          </value>
+        </entry>
+      </map>
+    </option>
+    <option name="oldMeFiltersMigrated" value="true" />
+  </component>
+  <component name="WindowStateProjectService">
+    <state x="-1076" y="195" key="#com.intellij.execution.impl.EditConfigurationsDialog" timestamp="1609771760946">
+      <screen x="-1080" y="-411" width="1080" height="1895" />
+    </state>
+    <state x="-1076" y="195" key="#com.intellij.execution.impl.EditConfigurationsDialog/0.25.1280.775/-1080.-411.1080.1895/1280.-116.1920.1055@-1080.-411.1080.1895" timestamp="1609771760946" />
+    <state x="-967" y="110" key="CommitChangelistDialog2" timestamp="1605703671718">
+      <screen x="-1080" y="-411" width="1080" height="1895" />
+    </state>
+    <state x="-967" y="110" key="CommitChangelistDialog2/0.25.1280.775/-1080.-411.1080.1895/1280.-116.1920.1055@-1080.-411.1080.1895" timestamp="1605703671718" />
+    <state x="1404" y="-116" width="883" height="1055" maximized="true" key="DiffContextDialog" timestamp="1609815465256">
+      <screen x="1280" y="-116" width="1920" height="1055" />
+    </state>
+    <state x="1404" y="-116" width="883" height="1055" maximized="true" key="DiffContextDialog/0.25.1280.775/-1080.-411.1080.1895/1280.-116.1920.1055@-1080.-411.1080.1895" timestamp="1609815465256" />
+    <state x="-780" y="386" key="FileChooserDialogImpl" timestamp="1609767843838">
+      <screen x="-1080" y="-411" width="1080" height="1895" />
+    </state>
+    <state x="-780" y="386" key="FileChooserDialogImpl/0.25.1280.775/-1080.-411.1080.1895/1280.-116.1920.1055@-1080.-411.1080.1895" timestamp="1609767843838" />
+    <state width="1038" height="564" key="GridCell.Tab.0.bottom" timestamp="1609940375456">
+      <screen x="-1080" y="-411" width="1080" height="1895" />
+    </state>
+    <state width="1038" height="564" key="GridCell.Tab.0.bottom/0.25.1280.775/-1080.-411.1080.1895/1280.-116.1920.1055@-1080.-411.1080.1895" timestamp="1609940375456" />
+    <state width="1038" height="564" key="GridCell.Tab.0.center" timestamp="1609940375452">
+      <screen x="-1080" y="-411" width="1080" height="1895" />
+    </state>
+    <state width="1038" height="564" key="GridCell.Tab.0.center/0.25.1280.775/-1080.-411.1080.1895/1280.-116.1920.1055@-1080.-411.1080.1895" timestamp="1609940375452" />
+    <state width="1038" height="564" key="GridCell.Tab.0.left" timestamp="1609940375441">
+      <screen x="-1080" y="-411" width="1080" height="1895" />
+    </state>
+    <state width="1038" height="564" key="GridCell.Tab.0.left/0.25.1280.775/-1080.-411.1080.1895/1280.-116.1920.1055@-1080.-411.1080.1895" timestamp="1609940375441" />
+    <state width="1038" height="564" key="GridCell.Tab.0.right" timestamp="1609940375454">
+      <screen x="-1080" y="-411" width="1080" height="1895" />
+    </state>
+    <state width="1038" height="564" key="GridCell.Tab.0.right/0.25.1280.775/-1080.-411.1080.1895/1280.-116.1920.1055@-1080.-411.1080.1895" timestamp="1609940375454" />
+    <state x="-1030" y="3" key="SettingsEditor" timestamp="1609944685768">
+      <screen x="-1080" y="-411" width="1080" height="1895" />
+    </state>
+    <state x="-1030" y="3" key="SettingsEditor/0.25.1280.775/-1080.-411.1080.1895/1280.-116.1920.1055@-1080.-411.1080.1895" timestamp="1609944685768" />
+    <state x="-741" y="454" key="com.intellij.openapi.vcs.update.UpdateOrStatusOptionsDialogupdate-v2" timestamp="1609918565956">
+      <screen x="-1080" y="-411" width="1080" height="1895" />
+    </state>
+    <state x="-741" y="454" key="com.intellij.openapi.vcs.update.UpdateOrStatusOptionsDialogupdate-v2/0.25.1280.775/-1080.-411.1080.1895/1280.-116.1920.1055@-1080.-411.1080.1895" timestamp="1609918565956" />
+    <state x="-875" y="33" width="670" height="676" key="search.everywhere.popup" timestamp="1609923826573">
+      <screen x="-1080" y="-411" width="1080" height="1895" />
+    </state>
+    <state x="-875" y="33" width="670" height="676" key="search.everywhere.popup/0.25.1280.775/-1080.-411.1080.1895/1280.-116.1920.1055@-1080.-411.1080.1895" timestamp="1609923826573" />
+  </component>
+  <component name="com.intellij.coverage.CoverageDataManagerImpl">
+    <SUITE FILE_PATH="coverage/PyQSOFit$temp_learn.coverage" NAME="temp_learn Coverage Results" MODIFIED="1609919911005" SOURCE_PROVIDER="com.intellij.coverage.DefaultCoverageFileProvider" RUNNER="coverage.py" COVERAGE_BY_TEST_ENABLED="true" COVERAGE_TRACING_ENABLED="false" WORKING_DIRECTORY="$PROJECT_DIR$/example" />
+    <SUITE FILE_PATH="coverage/PyQSOFit$temp_test.coverage" NAME="temp_test Coverage Results" MODIFIED="1609940375423" SOURCE_PROVIDER="com.intellij.coverage.DefaultCoverageFileProvider" RUNNER="coverage.py" COVERAGE_BY_TEST_ENABLED="true" COVERAGE_TRACING_ENABLED="false" WORKING_DIRECTORY="$PROJECT_DIR$/example" />
+    <SUITE FILE_PATH="coverage/PyQSOFit$PyQSOFit.coverage" NAME="PyQSOFit Coverage Results" MODIFIED="1609920254815" SOURCE_PROVIDER="com.intellij.coverage.DefaultCoverageFileProvider" RUNNER="coverage.py" COVERAGE_BY_TEST_ENABLED="true" COVERAGE_TRACING_ENABLED="false" WORKING_DIRECTORY="$PROJECT_DIR$" />
+  </component>
+</project>
