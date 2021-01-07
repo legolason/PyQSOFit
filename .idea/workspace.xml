@@ -178,8 +178,8 @@
     </configuration>
     <list>
       <item itemvalue="Python.PyQSOFit" />
-      <item itemvalue="Python.temp_test" />
       <item itemvalue="Python.temp_learn" />
+      <item itemvalue="Python.temp_test" />
     </list>
     <recent_temporary>
       <list>
