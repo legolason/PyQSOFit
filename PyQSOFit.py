@@ -383,7 +383,7 @@ class QSOFit():
             self._DeRedden(self.lam, self.flux, self.err, self.ra, self.dec, dustmap_path)
         
         self._RestFrame(self.lam, self.flux, self.err, self.z)
-        self._CalculateSN(self.lam, self.flux)
+        self._CalculateSN(self.wave, self.flux)
         self._OrignialSpec(self.wave, self.flux, self.err)
         
         # do host decomposition --------------
@@ -1195,7 +1195,7 @@ class QSOFit():
         
         elif linetype == 'narrow':
             ind_br = np.repeat(np.where(pp[2::3] <= 0.0017, True, False), 3)
-
+        
         else:
             raise RuntimeError("line type should be 'broad' or 'narrow'!")
         
@@ -1391,9 +1391,11 @@ class QSOFit():
                 conti_fit.params[6]*(wave/3000.0)**conti_fit.params[7]+self.F_poly_conti(wave, conti_fit.params[11:]),
                 color='orange', lw=2, label='conti', zorder=9)
         if self.decomposed == False:
-            ax.set_ylim(flux.min()*0.9, self.flux_prereduced.max()*1.1)
+            plot_bottom = flux.min()
         else:
-            ax.set_ylim(min(self.host.min(), flux.min())*0.9, self.flux_prereduced.max()*1.1)
+            plot_bottom = min(self.host.min(), flux.min())
+        
+        ax.set_ylim(plot_bottom*0.9, self.flux_prereduced.max()*1.1)
         
         if self.plot_legend == True:
             ax.legend(loc='best', frameon=False, ncol=2, fontsize=10)
@@ -1412,8 +1414,7 @@ class QSOFit():
             
             for ll in range(len(line_cen)):
                 if wave.min() < line_cen[ll] < wave.max():
-                    ax.plot([line_cen[ll], line_cen[ll]],
-                            [min(self.host.min(), flux.min()), self.flux_prereduced.max()*1.1], 'k:')
+                    ax.plot([line_cen[ll], line_cen[ll]], [plot_bottom*0.9, self.flux_prereduced.max()*1.1], 'k:')
                     ax.text(line_cen[ll]+7, 1.08*self.flux_prereduced.max(), line_name[ll], rotation=90, fontsize=10,
                             va='top')
         
