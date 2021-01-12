@@ -1431,6 +1431,8 @@ class QSOFit():
         
         if self.save_fig == True:
             plt.savefig(save_fig_path+self.sdss_name+'.eps')
+        
+        plt.close()
     
     def CalFWHM(self, logsigma):
         """transfer the logFWHM to normal frame"""
