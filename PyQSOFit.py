@@ -386,6 +386,7 @@ class QSOFit():
         self._CalculateSN(self.wave, self.flux)
         self._OrignialSpec(self.wave, self.flux, self.err)
         
+
         # do host decomposition --------------
         if self.z < 1.16 and decomposition_host == True:
             self._DoDecomposition(self.wave, self.flux, self.err, self.path)
