@@ -501,7 +501,7 @@ class QSOFit():
 
 
         self._RestFrame(self.lam,self.flux,self.err,self.z)
-        self._CalculateSN(self.lam,self.flux)
+        self._CalculateSN(self.wave,self.flux)
         self._OrignialSpec(self.wave,self.flux,self.err)
 
         # do host decomposition --------------
