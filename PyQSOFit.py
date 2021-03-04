@@ -1,13 +1,16 @@
 #!/usr/bin/python3
 # A code for quasar spectrum fitting
-# Last modified on 3/24/2020
-# Auther: Hengxiao Guo AT UIUC
+# Last modified on 3/4/2021
+# Auther: Hengxiao Guo AT UCI
 # Email: hengxiaoguo AT gmail DOT com
-# Co-Auther Shu Wang, Yue Shen
-# version 1.0
+# Co-Auther Shu Wang, Yue Shen, Wenke Ren
+# version 1.1
 # -------------------------------------------------
 
-# fix the error problem, previous error was underestimated by a factor of 1+z
+# fixed the flux error problem, previous error was underestimated by a factor of 1+z
+# fixed QSO PCA
+# fixed MC parameter unrenewed issue (Thanks Yuming Fu to point this out)
+
 
 import glob
 import matplotlib
@@ -1171,6 +1174,7 @@ class QSOFit():
             line_fit = kmpfit.Fitter(residuals=self._residuals_line, data=(x, flux, err), maxiter=50)
             line_fit.parinfo = pp_limits
             line_fit.fit(params0=pp0)
+            line_fit.params = self.newpp
             all_para_1comp[:, tra] = line_fit.params
             
             # further line properties
