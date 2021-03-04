@@ -386,7 +386,6 @@ class QSOFit():
         self._CalculateSN(self.wave, self.flux)
         self._OrignialSpec(self.wave, self.flux, self.err)
         
-
         # do host decomposition --------------
         if self.z < 1.16 and decomposition_host == True:
             self._DoDecomposition(self.wave, self.flux, self.err, self.path)
@@ -623,7 +622,7 @@ class QSOFit():
             fgal = interpolate.interp1d(wave_gal[ind_gal], flux_gal[i, ind_gal], bounds_error=False, fill_value=0)
             flux_gal_new[i, :] = fgal(wave[ind_data])
         for i in range(flux_qso.shape[0]):
-            fqso = interpolate.interp1d(wave_qso[ind_qso], flux_qso[0, ind_qso], bounds_error=False, fill_value=0)
+            fqso = interpolate.interp1d(wave_qso[ind_qso], flux_qso[i, ind_qso], bounds_error=False, fill_value=0)
             flux_qso_new[i, :] = fqso(wave[ind_data])
         
         wave_new = wave[ind_data]
@@ -1432,8 +1431,6 @@ class QSOFit():
         
         if self.save_fig == True:
             plt.savefig(save_fig_path+self.sdss_name+'.eps')
-        
-        plt.close()
     
     def CalFWHM(self, logsigma):
         """transfer the logFWHM to normal frame"""
