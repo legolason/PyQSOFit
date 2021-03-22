@@ -859,7 +859,7 @@ class QSOFit():
             all_para[:, tra] = conti_fit.params
             all_L[:, tra] = np.asarray(self._L_conti(x, conti_fit.params))
             
-            if self.Fe_flux_range:
+            if self.Fe_flux_range is not None:
                 Fe_flux_result, Fe_flux_type, Fe_flux_name = self.Get_Fe_flux(self.Fe_flux_range, conti_fit.params[:6])
                 all_Fe_flux[:, tra] = Fe_flux_result
         
