@@ -23,7 +23,7 @@ from kapteyn import kmpfit
 from PyAstronomy import pyasl
 from astropy.io import fits
 from astropy.cosmology import FlatLambdaCDM
-from astropy.modeling.blackbody import blackbody_lambda
+from astropy.modeling.physical_models import BlackBody
 from astropy.table import Table
 import warnings
 
@@ -1506,7 +1506,8 @@ class QSOFit():
         # pp=[norm, Te, tau_BE] -- in units of [--, K, --]
         
         lambda_BE = 3646.  # A
-        bbflux = blackbody_lambda(xval, pp[1]).value*3.14  # in units of ergs/cm2/s/A
+        bb_lam = BlackBody(pp[1]*u.K, scale=1.0 * u.erg / (u.cm ** 2 * u.AA * u.s * u.sr))
+        bbflux = bb_lam(xval).value*3.14   # in units of ergs/cm2/s/A
         tau = pp[2]*(xval/lambda_BE)**3
         result = pp[0]*bbflux*(1.-np.exp(-tau))
         ind = np.where(xval > lambda_BE, True, False)
