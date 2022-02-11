@@ -1,6 +1,6 @@
 #!/usr/bin/python3
 # A code for quasar spectrum fitting
-# Last modified on 3/4/2021
+# Last modified on 2/11/2022
 # Auther: Hengxiao Guo AT UCI
 # Email: hengxiaoguo AT gmail DOT com
 # Co-Auther Shu Wang, Yue Shen, Wenke Ren
