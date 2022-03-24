@@ -240,7 +240,7 @@ class QSOFit():
             the model of a quasar from PCA method.
             
         .SN_ratio_conti: float
-            the mean S/N ratio of 1350, 3000 and 5100A.
+            the mean S/N ratio of 1350, 2500 and 5100A.
             
         .conti_fit.: structure 
             all the kmpfit continuum fitting results, including best-fit parameters and Chisquare, etc. For details,
@@ -278,7 +278,7 @@ class QSOFit():
             3*n Gaussian parameters for all lines in the format of [scale, centerwave, sigma ], n is number of Gaussians for all complexes.
             
         .conti_result: array
-            continuum parameters, including widely used continuum parameters and monochromatic flux at 1350, 3000
+            continuum parameters, including widely used continuum parameters and monochromatic flux at 1350, 2500
             and5100 Angstrom, etc. The corresponding names are listed in .conti_result_name. For all continuum fitting results,
             go to .conti_fit.params. 
             
@@ -512,15 +512,15 @@ class QSOFit():
         self.err_prereduced = err
     
     def _CalculateSN(self, wave, flux):
-        """calculate the spectral SN ratio for 1350, 3000, 5100A, return the mean value of Three spots"""
-        if ((wave.min() < 1350. and wave.max() > 1350.) or (wave.min() < 3000. and wave.max() > 3000.) or (
+        """calculate the spectral SN ratio for 1350, 2500, 5100A, return the mean value of Three spots"""
+        if ((wave.min() < 1350. and wave.max() > 1350.) or (wave.min() < 2500. and wave.max() > 2500.) or (
                 wave.min() < 5100. and wave.max() > 5100.)):
             
             ind5100 = np.where((wave > 5080.) & (wave < 5130.), True, False)
-            ind3000 = np.where((wave > 3000.) & (wave < 3050.), True, False)
+            ind2500 = np.where((wave > 2475.) & (wave < 2525.), True, False)
             ind1350 = np.where((wave > 1325.) & (wave < 1375.), True, False)
             
-            tmp_SN = np.array([flux[ind5100].mean()/flux[ind5100].std(), flux[ind3000].mean()/flux[ind3000].std(),
+            tmp_SN = np.array([flux[ind5100].mean()/flux[ind5100].std(), flux[ind2500].mean()/flux[ind2500].std(),
                                flux[ind1350].mean()/flux[ind1350].std()])
             tmp_SN = tmp_SN[~np.isnan(tmp_SN)]
             self.SN_ratio_conti = tmp_SN.mean()
@@ -732,7 +732,7 @@ class QSOFit():
                  'Fe_op_FWHM', 'Fe_op_FWHM_err', 'Fe_op_shift', 'Fe_op_shift_err', 'PL_norm', 'PL_norm_err', 'PL_slope',
                  'PL_slope_err', 'Blamer_norm', 'Blamer_norm_err', 'Balmer_Te', 'Balmer_Te_err', 'Balmer_Tau',
                  'Balmer_Tau_err', 'POLY_a', 'POLY_a_err', 'POLY_b', 'POLY_b_err', 'POLY_c', 'POLY_c_err', 'L1350',
-                 'L1350_err', 'L3000', 'L3000_err', 'L5100', 'L5100_err'])
+                 'L1350_err', 'L2500', 'L2500_err', 'L5100', 'L5100_err'])
             for iii in range(Fe_flux_result.shape[0]):
                 self.conti_result = np.append(self.conti_result, [Fe_flux_result[iii], Fe_flux_std[iii]])
                 self.conti_result_type = np.append(self.conti_result_type, [Fe_flux_type[iii], Fe_flux_type[iii]])
@@ -752,7 +752,7 @@ class QSOFit():
             self.conti_result_name = np.array(
                 ['ra', 'dec', 'plateid', 'MJD', 'fiberid', 'redshift', 'SN_ratio_conti', 'Fe_uv_norm', 'Fe_uv_FWHM',
                  'Fe_uv_shift', 'Fe_op_norm', 'Fe_op_FWHM', 'Fe_op_shift', 'PL_norm', 'PL_slope', 'Blamer_norm',
-                 'Balmer_Te', 'Balmer_Tau_e', 'POLY_a', 'POLY_b', 'POLY_c', 'L1350', 'L3000', 'L5100'])
+                 'Balmer_Te', 'Balmer_Tau_e', 'POLY_a', 'POLY_b', 'POLY_c', 'L1350', 'L2500', 'L5100'])
             self.conti_result = np.append(self.conti_result, Fe_flux_result)
             self.conti_result_type = np.append(self.conti_result_type, Fe_flux_type)
             self.conti_result_name = np.append(self.conti_result_name, Fe_flux_name)
@@ -781,17 +781,17 @@ class QSOFit():
         return self.conti_result, self.conti_result_name
     
     def _L_conti(self, wave, pp):
-        """Calculate continuum Luminoisity at 1350,3000,5100A"""
+        """Calculate continuum Luminoisity at 1350,2500,5100A"""
         conti_flux = pp[6]*(wave/3000.0)**pp[7]+self.F_poly_conti(wave, pp[11:])
         # plt.plot(wave,conti_flux)
         L = np.array([])
-        for LL in zip([1350., 3000., 5100.]):
+        for LL in zip([1350., 2500., 5100.]):
             if wave.max() > LL[0] and wave.min() < LL[0]:
                 L_tmp = np.asarray([np.log10(
                     LL[0]*self.Flux2L(conti_flux[np.where(abs(wave-LL[0]) < 5., True, False)].mean(), self.z))])
             else:
                 L_tmp = np.array([-1.])
-            L = np.concatenate([L, L_tmp])  # save log10(L1350,L3000,L5100)
+            L = np.concatenate([L, L_tmp])  # save log10(L1350,L2500,L5100)
         return L
     
     def _f_conti_all(self, xval, pp):
