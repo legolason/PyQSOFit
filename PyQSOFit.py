@@ -22,6 +22,7 @@ from scipy import integrate
 from kapteyn import kmpfit
 from PyAstronomy import pyasl
 from astropy.io import fits
+from astropy import units as u
 from astropy.cosmology import FlatLambdaCDM
 from astropy.modeling.physical_models import BlackBody
 from astropy.table import Table
