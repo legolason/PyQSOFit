@@ -22,7 +22,7 @@ with open('requirements.txt') as f:
 
 setup(name='PyQSOFit',
       version=__version__,
-      description="Efficient AGN light curve modeling and parameter estimation using celerite.",
+      description="A code to fit the spectrum of quasar.",
       long_description=long_description,
       author='Hengxiao Guo',
       author_email='hengxiaoguo@gmail.com',
