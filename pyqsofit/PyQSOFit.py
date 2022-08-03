@@ -20,7 +20,7 @@ import sfdmap
 from scipy import interpolate
 from scipy import integrate
 #from kapteyn import kmpfit
-from lmfit import minimize, Parameters
+from lmfit import minimize, Parameters, report_fit
 
 from PyAstronomy import pyasl
 
@@ -84,15 +84,16 @@ class QSOFit():
         self.plateid = plateid
         self.mjd = mjd
         self.fiberid = fiberid
-        self.path = os.path.dirname(os.path.abspath(__file__))
+        self.path = path
+        self.install_path = os.path.dirname(os.path.abspath(__file__))
         self.output_path = path
     
     def Fit(self, name=None, nsmooth=1, and_or_mask=True, reject_badpix=True, deredden=True, wave_range=None,
             wave_mask=None, decomposition_host=True, BC03=False, Mi=None, npca_gal=5, npca_qso=20, Fe_uv_op=True,
-            Fe_flux_range=None, poly=False, BC=False, rej_abs=False, initial_guess=None, MC=True, n_trails=1,
+            Fe_flux_range=None, poly=False, BC=False, rej_abs=False, initial_guess=None, method='leastsq', MC=True, n_trails=1,
             linefit=True, tie_lambda=True, tie_width=True, tie_flux_1=True, tie_flux_2=True, save_result=True,
             plot_fig=True, save_fig=True, plot_line_name=True, plot_legend=True, dustmap_path=None, save_fig_path=None,
-            save_fits_path=None, save_fits_name=None):
+            save_fits_path=None, save_fits_name=None, verbose=True):
         
         """
         Fit the QSO spectrum and get different decomposed components and corresponding parameters
@@ -326,6 +327,7 @@ class QSOFit():
         self.BC = BC
         self.rej_abs = rej_abs
         self.MC = MC
+        self.method = method
         self.n_trails = n_trails
         self.tie_lambda = tie_lambda
         self.tie_width = tie_width
@@ -334,6 +336,7 @@ class QSOFit():
         self.plot_line_name = plot_line_name
         self.plot_legend = plot_legend
         self.save_fig = save_fig
+        self.verbose = verbose
         
         # get the source name in plate-mjd-fiber, if no then None
         if name is None:
@@ -364,7 +367,7 @@ class QSOFit():
             save_fits_name = save_fits_name
             
         if dustmap_path is None:
-            dustmap_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'sfddata')
+            dustmap_path = os.path.join(self.install_path, 'sfddata')
         
         # deal with pixels with error equal 0 or inifity
         ind_gooderror = np.where((self.err != 0) & ~np.isinf(self.err), True, False)
@@ -403,7 +406,7 @@ class QSOFit():
         
         # do host decomposition --------------
         if self.z < 1.16 and decomposition_host == True:
-            self._DoDecomposition(self.wave, self.flux, self.err, self.path)
+            self._DoDecomposition(self.wave, self.flux, self.err, self.install_path)
         else:
             self.decomposed = False
             if self.z > 1.16 and decomposition_host == True:
@@ -414,10 +417,10 @@ class QSOFit():
         self._DoContiFit(self.wave, self.flux, self.err, self.ra, self.dec, self.plateid, self.mjd, self.fiberid)
         # fit line
         if linefit == True:
-            
             self._DoLineFit(self.wave, self.line_flux, self.err, self.conti_fit)
         else:
             self.ncomp = 0
+            
         # save data -------
         if save_result == True:
             if linefit == False:
@@ -517,11 +520,13 @@ class QSOFit():
         self.err = err*(1.+z)
         return self.wave, self.flux, self.err
     
+    
     def _OrignialSpec(self, wave, flux, err):
         """save the orignial spectrum before host galaxy decompsition"""
         self.wave_prereduced = wave
         self.flux_prereduced = flux
         self.err_prereduced = err
+        
     
     def _CalculateSN(self, wave, flux):
         """calculate the spectral SN ratio for 1350, 3000, 5100A, return the mean value of Three spots"""
@@ -540,6 +545,7 @@ class QSOFit():
             self.SN_ratio_conti = -1.
         
         return self.SN_ratio_conti
+    
     
     def _DoDecomposition(self, wave, flux, err, path):
         """Decompose the host galaxy from QSO"""
@@ -574,6 +580,7 @@ class QSOFit():
             self.qso = datacube[4, :]
             self.host_data = datacube[1, :]-self.qso
         return self.wave, self.flux, self.err
+    
     
     def _HostDecompose(self, wave, flux, err, z, Mi, npca_gal, npca_qso, path):
         """
@@ -659,12 +666,12 @@ class QSOFit():
         
         return data_cube  # ,frac_host_4200,frac_host_5100
     
+    
     def _DoContiFit(self, wave, flux, err, ra, dec, plateid, mjd, fiberid):
         """Fit the continuum with PL, Polynomial, UV/optical FeII, Balmer continuum"""
         global fe_uv, fe_op
-        fe_path = os.path.dirname(os.path.abspath(__file__))
-        fe_uv = np.genfromtxt(os.path.join(fe_path, 'fe_uv.txt'))
-        fe_op = np.genfromtxt(os.path.join(fe_path, 'fe_optical.txt'))
+        fe_uv = np.genfromtxt(os.path.join(self.install_path, 'fe_uv.txt'))
+        fe_op = np.genfromtxt(os.path.join(self.install_path, 'fe_optical.txt'))
         
         # do continuum fit--------------------------
         window_all = np.array(
@@ -710,7 +717,8 @@ class QSOFit():
         fit_params.add('conti_pl_2', value=pp0[13], min=None, max=None)
         
         
-        conti_fit = minimize(self._residuals, fit_params, args=(wave[tmp_all], flux[tmp_all], err[tmp_all]))
+        conti_fit = minimize(self._residuals, fit_params, args=(wave[tmp_all], flux[tmp_all], err[tmp_all]),
+                             calc_covar=False)
         params = list(conti_fit.params.valuesdict().values())
         
         # Perform one iteration to remove 3sigma pixel below the first continuum fit
@@ -724,7 +732,8 @@ class QSOFit():
             conti_fit = minimize(self._residuals, fit_params,
                                  args=(wave[tmp_all][ind_noBAL],
                                        self.Smooth(flux[tmp_all][ind_noBAL], 10),
-                                       err[tmp_all][ind_noBAL]))
+                                       err[tmp_all][ind_noBAL]),
+                                 calc_covar=False)
             params = list(conti_fit.params.valuesdict().values())
         
         # calculate continuum luminoisty
@@ -807,6 +816,7 @@ class QSOFit():
         
         return self.conti_result, self.conti_result_name
     
+    
     def _L_conti(self, wave, pp):
         """Calculate continuum Luminoisity at 1350,3000,5100A"""
         conti_flux = pp[6]*(wave/3000.0)**pp[7] + self.F_poly_conti(wave, pp[11:])
@@ -820,6 +830,7 @@ class QSOFit():
                 L_tmp = np.array([-1.])
             L = np.concatenate([L, L_tmp])  # save log10(L1350,L3000,L5100)
         return L
+    
     
     def _f_conti_all(self, xval, pp):
         """
@@ -864,10 +875,12 @@ class QSOFit():
             raise RuntimeError('No this option for Fe_uv_op, poly and BC!')
         return yval
     
+    
     def _residuals(self, p, xval, yval, weight):
         """Continual residual function used in kmpfit"""
         v = list(p.valuesdict().values())
         return (yval-self._f_conti_all(xval, v))/weight
+    
     
     # ---------MC error for continuum parameters-------------------
     def _conti_mc(self, x, y, err, pp0, pp_limits, n_trails):
@@ -896,6 +909,7 @@ class QSOFit():
         
         return all_para_std, all_L_std, all_Fe_flux_std
     
+    
     # line function-----------
     def _DoLineFit(self, wave, line_flux, err, f):
         """Fit the emission lines with Gaussian profile """
@@ -908,8 +922,11 @@ class QSOFit():
         
         # read line parameter
         linepara = fits.open(os.path.join(self.path, 'qsopar.fits'))
+        print(os.path.join(self.path, 'qsopar.fits'))
         linelist = linepara[1].data
         self.linelist = linelist
+        
+        # This should be read as a dictionary
         
         ind_kind_line = np.where((linelist['lambda'] > wave.min()) & (linelist['lambda'] < wave.max()), True, False)
         if ind_kind_line.any() == True:
@@ -933,55 +950,178 @@ class QSOFit():
             fur_result_type = np.array([])
             fur_result_name = np.array([])
             
+            """
+            Setup parameters for fitting
+            
+            Loop through each line complex and set the parameter limits and initial conditions
+            """
+            
+            #fit_params = Parameters()
+            args = [None]*ncomp
+            num_good_pixels = [None]*ncomp
+            
+            # Number of emission lines complexes loop
             for ii in range(ncomp):
+                                
+                # Get the number of emission lines in the complex
                 compcenter = allcompcenter[ii]
                 ind_line = np.where(linelist['compname'] == uniq_linecomp_sort[ii], True, False)  # get line index
                 nline_fit = np.sum(ind_line)  # n line in one complex
                 linelist_fit = linelist[ind_line]
-                # n gauss in each line
+                
+                # Get the number Gaussian components that make up each line
                 ngauss_fit = np.asarray(linelist_fit['ngauss'], dtype=int)
                 
-                # for iitmp in range(nline_fit):   # line fit together
+                # Restrict fitting to wavelength range covered by spectrum
                 comp_range = [linelist_fit[0]['minwav'], linelist_fit[0]['maxwav']]  # read complex range from table
                 all_comp_range = np.concatenate([all_comp_range, comp_range])
                 
-                # ----tie lines--------
-                self._do_tie_line(linelist, ind_line)
-                
-                # get the pixel index in complex region and remove negtive abs in line region
+                # Get the pixel index in complex region and remove negtive abs in line region
                 ind_n = np.where((wave > comp_range[0]) & (wave < comp_range[1]) & (ind_neg_line == True), True, False)
+                num_good_pixels[ii] = ind_n
                 
+                # Ensure there are at least 10 pixels in the data
                 if np.sum(ind_n) > 10:
-                    # call kmpfit for lines
                     
-                    line_fit = self._do_line_kmpfit(linelist, line_flux, ind_line, ind_n, nline_fit, ngauss_fit)
+                    fit_params = Parameters()
+                    ln_lambda_0s = []
+                    
+                    # Number of emission lines within line complex loop
+                    for n in range(nline_fit):
+                        
+                        line_name = linelist['linename'][ind_line][n] # Must be unique
+
+                        # Get parameter limits
+                        ln_lambda_0 = np.log(linelist['lambda'][ind_line][n]) # ln line center
+                        voff = linelist['voff'][ind_line][n]
+                        
+                        sig_0 = linelist['inisig'][ind_line][n]
+                        sig_low = linelist['minsig'][ind_line][n]
+                        sig_up = linelist['maxsig'][ind_line][n]
+
+                        # Number of Gaussians loop
+                        for nn in range(ngauss_fit[n]):
+
+                            fit_params.add(f'{line_name}_{nn+1}_scale', value=0.1, min=0, max=1e10) # scale
+                            fit_params.add(f'{line_name}_{nn+1}_dwave', value=0, min=-voff, max=voff) # change in wav relative to complex center
+                            ln_lambda_0s.append(ln_lambda_0)
+                            fit_params.add(f'{line_name}_{nn+1}_sigma', value=sig_0, min=sig_low, max=sig_up) # sigma
+                            
+                    """
+                    Tie lines
+
+                    Tie line properties together during the fitting using the "expr" keyword in lmfit
+                    
+                    Right now only lines in the same line complex can be tied together
+                    
+                    We will always tie to the 1st parameter with the same index
+                    and skip tiing the first parameter itself, which is redundant and gives a recusion error
+                    """
+                    
+                    # Number of emission lines within line complex loop
+                    for n in range(nline_fit):
+                        
+                        line_name = linelist['linename'][ind_line][n] # Must be unique
+                        
+                        # Tie velocity
+                        vindex = linelist['vindex'][ind_line][n]
+                        
+                        if vindex > 0:
+                            # Find all the line_names within the complex that have the same tie index
+                            mask_index = linelist['vindex'][ind_line]==vindex
+                            line_name_mask = linelist['linename'][ind_line][mask_index][0]
+                            # Generate constraint expression
+                            expr = f'{line_name_mask}_1_dwave'
+                            
+                            # Don't assign expr constraint to the first line, which has already been constrained
+                            if f'{line_name}_{nn+1}_dwave' != expr:
+                            
+                                # Number of Gaussians loop
+                                for nn in range(ngauss_fit[n]):
+                                    fit_params[f'{line_name}_{nn+1}_dwave'].expr = expr
+                                
+                        # Tie width
+                        windex = linelist['windex'][ind_line][n]
+                        
+                        if windex > 0:
+                            # Find all the line_names within the complex that have the same tie index
+                            mask_index = linelist['windex'][ind_line]==windex
+                            line_name_mask = linelist['linename'][ind_line][mask_index][0]
+                            # Generate constraint expression
+                            expr = f'{line_name_mask}_1_sigma'
+                            
+                            # Don't assign expr constraint to itself
+                            if f'{line_name}_{nn+1}_sigma' != expr:
+                                
+                                # Number of Gaussians loop
+                                for nn in range(ngauss_fit[n]):
+                                    fit_params[f'{line_name}_{nn+1}_sigma'].expr = expr
+                                    
+                        # Tie flux ratios
+                        findex = linelist['findex'][ind_line][n]
+                        fvalue = linelist['fvalue'][ind_line][n]
+                        
+                        if findex > 0:
+                            # Find all the line_names within the complex that have the same tie index
+                            mask_index = linelist['findex'][ind_line]==findex
+                            # Tie to first line
+                            line_name_mask = linelist['linename'][ind_line][mask_index][0]
+                            
+                            # Generate constraint expression
+                            expr = f'{line_name_mask}_1_scale'
+                            
+                            # Don't assign expr constraint to the first line, which has already been constrained
+                            if (f'{line_name}_{nn+1}_scale' != expr):
+                                
+                                fvalue_tie = linelist['fvalue'][ind_line][mask_index][0]
+                                fratio = fvalue/fvalue_tie # All masked fvalues should be the same
+                                expr = f'{fratio} * {expr}'
+                                                                
+                                # Number of Gaussians loop
+                                for nn in range(ngauss_fit[n]):
+                                    fit_params[f'{line_name}_{nn+1}_scale'].expr = expr
+                        
+                    """
+                    Perform the fitting
+                    """
+                    
+                    # Print parameters to be fit
+                    if self.verbose:
+                        fit_params.pretty_print()
+                        print(f'Fitting complex {linelist["compname"][ind_line]}')
+                    
+                    # Fit wavelength in ln space
+                    line_fit = minimize(self._residual_line, fit_params, args=(np.log(self.wave[ind_n]), line_flux[ind_n], self.err[ind_n], ln_lambda_0s),
+                                        method=self.method, calc_covar=False)
                     params = list(line_fit.params.valuesdict().values())
                     
+                    # Reshape parameters array for vectorization
+                    ngauss = len(params)//3
+                    params_shaped = np.reshape(params, (ngauss, 3))
+                    params_shaped[:,1] += ln_lambda_0s # Transform ln lambda ~ d ln lambda + ln lambda0
+                    params = params_shaped.reshape(-1)
+
+                    # Print fit report
+                    if self.verbose:
+                        report_fit(line_fit.params)
+                                    
                     # calculate MC err
                     if self.MC == True and self.n_trails > 0:
-                        all_para_std, fwhm_std, sigma_std, ew_std, peak_std, area_std = self._line_mc(
-                            np.log(wave[ind_n]), line_flux[ind_n], err[ind_n], self.line_fit_ini, self.line_fit_par,
-                            self.n_trails, compcenter)
+                        samples = lmfit.minimize(residual, method='emcee', nan_policy='omit',
+                                                 burn=50, steps=500, thin=10,
+                                                 params=line_fit.params, is_weighted=True)
+                        
+                        #all_para_std, fwhm_std, sigma_std, ew_std, peak_std, area_std = self._line_mc(
+                        #    np.log(wave[ind_n]), line_flux[ind_n], err[ind_n], self.line_fit_ini, self.line_fit_par,
+                        #    self.n_trails, compcenter)
                     
                     # ----------------------get line fitting results----------------------
                     # complex parameters
-                    
-                    # tie lines would reduce the number of parameters increasing the dof
-                    dof_fix = 0
-                    if self.tie_lambda == True:
-                        dof_fix += np.max((len(self.ind_tie_vindex1), 1))-1
-                        dof_fix += np.max((len(self.ind_tie_vindex2), 1))-1
-                    if self.tie_width == True:
-                        dof_fix += np.max((len(self.ind_tie_windex1), 1))-1
-                        dof_fix += np.max((len(self.ind_tie_windex2), 1))-1
-                    if self.tie_flux_1 == True:
-                        dof_fix += np.max((len(self.ind_tie_findex1), 1))-1
-                        dof_fix += np.max((len(self.ind_tie_findex2), 1))-1
-                    
+                                        
                     comp_result_tmp = np.array(
                         [[linelist['compname'][ind_line][0]], [0], [line_fit.chisqr], # line_fit.status
-                         [line_fit.chisqr/(line_fit.nfree + dof_fix)], [line_fit.nfev],
-                         [line_fit.nfree + dof_fix]]).flatten()
+                         [line_fit.redchi], [line_fit.nfev],
+                         [line_fit.nfree]]).flatten()
                     comp_result_type_tmp = np.array(['str', 'int', 'float', 'float', 'int', 'int'])
                     comp_result_name_tmp = np.array(
                         [str(ii+1)+'_complex_name', str(ii+1)+'_line_status', str(ii+1)+'_line_min_chi2',
@@ -1026,30 +1166,9 @@ class QSOFit():
                     fwhm, sigma, ew, peak, area = self.line_prop(compcenter, params, 'broad')
                     br_name = uniq_linecomp_sort[ii]
                     
-                    if self.MC == True and self.n_trails > 0:
-                        fur_result_tmp = np.array(
-                            [fwhm, fwhm_std, sigma, sigma_std, ew, ew_std, peak, peak_std, area, area_std])
-                        fur_result_type_tmp = np.concatenate([fur_result_type_tmp,
-                                                              ['float', 'float', 'float', 'float', 'float', 'float',
-                                                               'float', 'float', 'float', 'float']])
-                        fur_result_name_tmp = np.array(
-                            [br_name+'_whole_br_fwhm', br_name+'_whole_br_fwhm_err', br_name+'_whole_br_sigma',
-                             br_name+'_whole_br_sigma_err', br_name+'_whole_br_ew', br_name+'_whole_br_ew_err',
-                             br_name+'_whole_br_peak', br_name+'_whole_br_peak_err', br_name+'_whole_br_area',
-                             br_name+'_whole_br_area_err'])
-                    else:
-                        fur_result_tmp = np.array([fwhm, sigma, ew, peak, area])
-                        fur_result_type_tmp = np.concatenate(
-                            [fur_result_type_tmp, ['float', 'float', 'float', 'float', 'float']])
-                        fur_result_name_tmp = np.array(
-                            [br_name+'_whole_br_fwhm', br_name+'_whole_br_sigma', br_name+'_whole_br_ew',
-                             br_name+'_whole_br_peak', br_name+'_whole_br_area'])
-                    fur_result = np.concatenate([fur_result, fur_result_tmp])
-                    fur_result_type = np.concatenate([fur_result_type, fur_result_type_tmp])
-                    fur_result_name = np.concatenate([fur_result_name, fur_result_name_tmp])
-                
                 else:
                     print("less than 10 pixels in line fitting!")
+
             
             line_result = np.concatenate([comp_result, gauss_result, fur_result])
             line_result_type = np.concatenate([comp_result_type, gauss_result_type, fur_result_type])
@@ -1065,7 +1184,7 @@ class QSOFit():
             ncomp = 0
             all_comp_range = np.array([])
             uniq_linecomp_sort = np.array([])
-            print("No line to fit! Pleasse set Line_fit to FALSE or enlarge wave_range!")
+            print("No line to fit! Please set Line_fit to FALSE or enlarge wave_range!")
         
         self.comp_result = comp_result
         self.gauss_result = gauss_result
@@ -1079,112 +1198,8 @@ class QSOFit():
         self.uniq_linecomp_sort = uniq_linecomp_sort
         return self.line_result, self.line_result_name
     
-    def _do_line_kmpfit(self, linelist, line_flux, ind_line, ind_n, nline_fit, ngauss_fit):
-        """The key function to do the line fit with kmpfit"""
-    
-        fit_params = Parameters()
-        for n in range(nline_fit):
-            linename = linelist['linename'][ind_line][n]
-            # set up parameter limits
-            ln_lambda_0 = np.log(linelist['lambda'][ind_line][n])
-            voff = linelist['voff'][ind_line][n]
-            sig_0 = linelist['inisig'][ind_line][n]
-            sig_low = linelist['minsig'][ind_line][n]
-            sig_up = linelist['maxsig'][ind_line][n]
-            # Number of Gaussians loop
-            for nn in range(ngauss_fit[n]):
-                # Vacuum wavelength in Angstroms
-                fit_params.add(f'{linename}_{nn}_amp', value=0, min=0, max=1e10)
-                fit_params.add(f'{linename}_{nn}_lnlambda', value=ln_lambda_0, min=ln_lambda_0-voff, max=ln_lambda_0+voff)
-                fit_params.add(f'{linename}_{nn}_sigma', value=sig_0, min=sig_low, max=sig_up)
+    #def _get
         
-        # fitting wavelength in ln space
-        line_fit = minimize(self._residuals_line, fit_params, args=(np.log(self.wave[ind_n]), line_flux[ind_n], self.err[ind_n]))
-        
-        #line_fit.params = self.newpp
-        self.line_fit = line_fit
-        #self.line_fit_ini = line_fit_ini
-        self.line_fit_par = fit_params #line_fit_par
-        return line_fit
-    
-    def _do_tie_line(self, linelist, ind_line):
-        """Tie line's central"""
-        # --------------- tie parameter-----------
-        # so far, only two groups of each properties are support for tying
-        ind_tie_v1 = np.where(linelist['vindex'][ind_line] == 1., True, False)
-        ind_tie_v2 = np.where(linelist['vindex'][ind_line] == 2., True, False)
-        ind_tie_w1 = np.where(linelist['windex'][ind_line] == 1., True, False)
-        ind_tie_w2 = np.where(linelist['windex'][ind_line] == 2., True, False)
-        ind_tie_f1 = np.where(linelist['findex'][ind_line] == 1., True, False)
-        ind_tie_f2 = np.where(linelist['findex'][ind_line] == 2., True, False)
-        
-        ind_tie_vindex1 = np.array([])
-        ind_tie_vindex2 = np.array([])
-        ind_tie_windex1 = np.array([])
-        ind_tie_windex2 = np.array([])
-        ind_tie_findex1 = np.array([])
-        ind_tie_findex2 = np.array([])
-        
-        # get index of vindex windex in initial parameters
-        for iii in range(len(ind_tie_v1)):
-            if ind_tie_v1[iii] == True:
-                ind_tie_vindex1 = np.concatenate(
-                    [ind_tie_vindex1, np.array([int(np.sum(linelist['ngauss'][ind_line][0:iii])*3+1)])])
-        if np.any(ind_tie_v1):
-            self.delta_lambda1 = (np.log(linelist['lambda'][ind_line][ind_tie_v1])-np.log(
-                linelist['lambda'][ind_line][ind_tie_v1][0]))[1:]
-        else:
-            self.delta_lambda1 = np.array([])
-        self.ind_tie_vindex1 = ind_tie_vindex1
-        
-        for iii in range(len(ind_tie_v2)):
-            if ind_tie_v2[iii] == True:
-                ind_tie_vindex2 = np.concatenate(
-                    [ind_tie_vindex2, np.array([int(np.sum(linelist['ngauss'][ind_line][0:iii])*3+1)])])
-        if np.any(ind_tie_v2):
-            self.delta_lambda2 = (np.log(linelist['lambda'][ind_line][ind_tie_v2])-np.log(
-                linelist['lambda'][ind_line][ind_tie_v2][0]))[1:]
-        else:
-            self.delta_lambda2 = np.array([])
-        self.ind_tie_vindex2 = ind_tie_vindex2
-        
-        for iii in range(len(ind_tie_w1)):
-            if ind_tie_w1[iii] == True:
-                ind_tie_windex1 = np.concatenate(
-                    [ind_tie_windex1, np.array([int(np.sum(linelist['ngauss'][ind_line][0:iii])*3+2)])])
-        self.ind_tie_windex1 = ind_tie_windex1
-        
-        for iii in range(len(ind_tie_w2)):
-            if ind_tie_w2[iii] == True:
-                ind_tie_windex2 = np.concatenate(
-                    [ind_tie_windex2, np.array([int(np.sum(linelist['ngauss'][ind_line][0:iii])*3+2)])])
-        self.ind_tie_windex2 = ind_tie_windex2
-        
-        # get index of findex for 1&2 case in initial parameters
-        for iii_1 in range(len(ind_tie_f1)):
-            if ind_tie_f1[iii_1] == True:
-                ind_tie_findex1 = np.concatenate(
-                    [ind_tie_findex1, np.array([int(np.sum(linelist['ngauss'][ind_line][0:iii_1])*3)])])
-        
-        for iii_2 in range(len(ind_tie_f2)):
-            if ind_tie_f2[iii_2] == True:
-                ind_tie_findex2 = np.concatenate(
-                    [ind_tie_findex2, np.array([int(np.sum(linelist['ngauss'][ind_line][0:iii_2])*3)])])
-        
-        # get tied fvalue for case 1 and case 2
-        if np.sum(ind_tie_f1) > 0:
-            self.fvalue_factor_1 = linelist['fvalue'][ind_line][ind_tie_f1][1]/linelist['fvalue'][ind_line][ind_tie_f1][
-                0]
-        else:
-            self.fvalue_factor_1 = np.array([])
-        if np.sum(ind_tie_f2) > 0:
-            self.fvalue_factor_2 = linelist['fvalue'][ind_line][ind_tie_f2][1]/linelist['fvalue'][ind_line][ind_tie_f2][
-                0]
-        else:
-            self.fvalue_factor_2 = np.array([])
-        
-        self.ind_tie_findex1 = ind_tie_findex1
-        self.ind_tie_findex2 = ind_tie_findex2
     
     # ---------MC error for emission line parameters-------------------
     def _line_mc(self, x, y, err, pp0, pp_limits, n_trails, compcenter):
@@ -1215,6 +1230,7 @@ class QSOFit():
         
         return all_para_std, all_fwhm.std(), all_sigma.std(), all_ew.std(), all_peak.std(), all_area.std()
     
+    
     # -----line properties calculation function--------
     def line_prop(self, compcenter, pp, linetype):
         """
@@ -1238,14 +1254,17 @@ class QSOFit():
         pp = p
         
         c = 299792.458  # km/s
-        n_gauss = int(len(pp)/3)
-        if n_gauss == 0:
+        ngauss = int(len(pp)/3)
+        
+        pp_shaped = pp.reshape([ngauss, 3])
+        
+        if ngauss == 0:
             fwhm, sigma, ew, peak, area = 0., 0., 0., 0., 0.
         else:
-            cen = np.zeros(n_gauss)
-            sig = np.zeros(n_gauss)
+            cen = np.zeros(ngauss)
+            sig = np.zeros(ngauss)
             
-            for i in range(n_gauss):
+            for i in range(ngauss):
                 cen[i] = pp[3*i+1]
                 sig[i] = pp[3*i+2]
             
@@ -1256,7 +1275,7 @@ class QSOFit():
             npix = int((right-left)/disp)
             
             xx = np.linspace(left, right, npix)
-            yy = self.Manygauss(xx, pp)
+            yy = self._Manygauss(xx, pp_shaped)
             
             # here I directly use the continuum model to avoid the inf bug of EW when the spectrum range passed in is too short
             contiflux = self.conti_params[6]*(np.exp(xx)/3000.0)**self.conti_params[7]+self.F_poly_conti(
@@ -1270,18 +1289,21 @@ class QSOFit():
             # find the FWHM in km/s
             # take the broad line we focus and ignore other broad components such as [OIII], HeII
             
-            if n_gauss > 3:
+            if ngauss > 3:
+                pp_temp = pp[0:9]
+                pp_shaped_temp = pp.reshape([len(pp)//3, 3])
                 spline = interpolate.UnivariateSpline(xx,
-                                                      self.Manygauss(xx, pp[0:9])-np.max(self.Manygauss(xx, pp[0:9]))/2,
+                                                      self._Manygauss(xx, pp_shaped_temp) - np.max(self._Manygauss(xx, pp_shaped_temp))/2,
                                                       s=0)
             else:
                 spline = interpolate.UnivariateSpline(xx, yy-np.max(yy)/2, s=0)
+                
             if len(spline.roots()) > 0:
                 fwhm_left, fwhm_right = spline.roots().min(), spline.roots().max()
                 fwhm = abs(np.exp(fwhm_left)-np.exp(fwhm_right))/compcenter*c
                 
                 # calculate the line sigma and EW in normal wavelength
-                line_flux = self.Manygauss(xx, pp)
+                line_flux = self._Manygauss(xx, pp_shaped)
                 line_wave = np.exp(xx)
                 lambda0 = integrate.trapz(line_flux, line_wave)  # calculate the total broad line flux
                 lambda1 = integrate.trapz(line_flux*line_wave, line_wave)
@@ -1295,39 +1317,24 @@ class QSOFit():
         
         return fwhm, sigma, ew, peak, area
     
-    def _residuals_line(self, pp, xval, yval, weight):
-        "The line residual function used in kmpfit"
+    
+    def _residual_line(self, params, xval, yval, weight, ln_lambda_0s):
+        """
+        Calculate total residual for simulatnous fitting of line complexes
         
-        v = list(pp.valuesdict().values())
+        https://lmfit.github.io/lmfit-py/examples/example_fit_multi_datasets.html
+        """
         
-        # ------tie parameter------------
-        if self.tie_lambda == True:
-            if len(self.ind_tie_vindex1) > 1:
-                for xx in range(len(self.ind_tie_vindex1)-1):
-                    v[int(self.ind_tie_vindex1[xx+1])] = v[int(self.ind_tie_vindex1[0])]+self.delta_lambda1[xx]
-            
-            if len(self.ind_tie_vindex2) > 1:
-                for xx in range(len(self.ind_tie_vindex2)-1):
-                    v[int(self.ind_tie_vindex2[xx+1])] = v[int(self.ind_tie_vindex2[0])]+self.delta_lambda2[xx]
+        pp = list(params.valuesdict().values())
         
-        if self.tie_width == True:
-            if len(self.ind_tie_windex1) > 1:
-                for xx in range(len(self.ind_tie_windex1)-1):
-                    v[int(self.ind_tie_windex1[xx+1])] = v[int(self.ind_tie_windex1[0])]
-            
-            if len(self.ind_tie_windex2) > 1:
-                for xx in range(len(self.ind_tie_windex2)-1):
-                    v[int(self.ind_tie_windex2[xx+1])] = v[int(self.ind_tie_windex2[0])]
+        # Reshape parameters array for vectorization
+        ngauss = len(pp)//3
+        pp_shaped = np.reshape(pp, (ngauss, 3))
+        pp_shaped[:,1] += ln_lambda_0s # Transform ln lambda ~ d ln lambda + ln lambda0
         
-        if len(self.ind_tie_findex1) > 0 and self.tie_flux_1 == True:
-            v[int(self.ind_tie_findex1[1])] = v[int(self.ind_tie_findex1[0])]*self.fvalue_factor_1
-        if len(self.ind_tie_findex2) > 0 and self.tie_flux_2 == True:
-            v[int(self.ind_tie_findex2[1])] = v[int(self.ind_tie_findex2[0])]*self.fvalue_factor_2
-        # ---------------------------------
-        
-        # restore parameters
-        self.newpp = v.copy()
-        return (yval-self.Manygauss(xval, v))/weight
+        resid = (yval - self._Manygauss(xval, pp_shaped))/weight
+        return resid
+    
     
     def _SaveResult(self, conti_result, conti_result_type, conti_result_name, line_result, line_result_type,
                     line_result_name, save_fits_path, save_fits_name):
@@ -1337,7 +1344,28 @@ class QSOFit():
         self.all_result_name = np.concatenate([conti_result_name, line_result_name])
         
         t = Table(self.all_result, names=(self.all_result_name), dtype=self.all_result_type)
-        t.write(save_fits_path+save_fits_name+'.fits', format='fits', overwrite=True)
+        t.write(os.path.join(save_fits_path, save_fits_name+'.fits'), format='fits', overwrite=True)
+        
+        
+    def set_mpl_style(fsize=15, tsize=18, tdir='in', major=5.0, minor=3.0, lwidth=1.8, lhandle=2.0):
+    
+        """Function to set MPL style"""
+
+        plt.style.use('default')
+        plt.rcParams['text.usetex'] = False
+        plt.rcParams['font.size'] = fsize
+        plt.rcParams['legend.fontsize'] = tsize
+        plt.rcParams['xtick.direction'] = tdir
+        plt.rcParams['ytick.direction'] = tdir
+        plt.rcParams['xtick.major.size'] = major
+        plt.rcParams['xtick.minor.size'] = minor
+        plt.rcParams['ytick.major.size'] = 5.0
+        plt.rcParams['ytick.minor.size'] = 3.0
+        plt.rcParams['axes.linewidth'] = lwidth
+        plt.rcParams['legend.handlelength'] = lhandle
+
+        return
+        
     
     def _PlotFig(self, ra, dec, z, wave, flux, err, decomposition_host, linefit, tmp_all, gauss_result, f_conti_model,
                  conti_fit, all_comp_range, uniq_linecomp_sort, line_flux, save_fig_path):
@@ -1391,7 +1419,7 @@ class QSOFit():
                 axn[1][c].set_xticks([all_comp_range[2*c], np.round((all_comp_range[2*c]+all_comp_range[2*c+1])/2, -1),
                                       all_comp_range[2*c+1]])
                 axn[1][c].text(0.02, 0.9, uniq_linecomp_sort[c], fontsize=20, transform=axn[1][c].transAxes)
-                axn[1][c].text(0.02, 0.80, r'$\chi ^2_r=$'+str(np.round(float(self.comp_result[c*6+3]), 2)),
+                axn[1][c].text(0.02, 0.80, r'$\chi ^2_\nu=$'+str(np.round(float(self.comp_result[c*6+3]), 2)),
                                fontsize=16, transform=axn[1][c].transAxes)
         else:
             fig, ax = plt.subplots(nrows=1, ncols=1,
@@ -1459,11 +1487,25 @@ class QSOFit():
             ax.text(-0.1, -0.1, r'$\rm f_{\lambda}$ ($\rm 10^{-17} erg\;s^{-1}\;cm^{-2}\;\AA^{-1}$)', fontsize=20,
                     transform=ax.transAxes, rotation=90, ha='center', rotation_mode='anchor')
         else:
-            plt.xlabel(r'$\rm Rest \, Wavelength$ ($\rm \AA$)', fontsize=20)
-            plt.ylabel(r'$\rm f_{\lambda}$ ($\rm 10^{-17} erg\;s^{-1}\;cm^{-2}\;\AA^{-1}$)', fontsize=20)
+            fig.set_xlabel(r'$\rm Rest \, Wavelength$ ($\rm \AA$)', fontsize=20)
+            fig.set_ylabel(r'$\rm f_{\lambda}$ ($\rm 10^{-17} erg\;s^{-1}\;cm^{-2}\;\AA^{-1}$)', fontsize=20)
+            
+        """    
+        for ax in axn.reshape(-1):
+            print(ax)
+            ax.tick_params('both', labelsize=18)
+            #ax.tick_params(axis='both', which='both', direction='in')
+            ax.tick_params(axis='both', which='major', length=6)
+            ax.tick_params(axis='both', which='minor', length=3)
+            ax.xaxis.set_ticks_position('both')
+            ax.yaxis.set_ticks_position('both')
+        """
+        #fig.tight_layout()
         
         if self.save_fig == True:
-            plt.savefig(save_fig_path+self.sdss_name+'.eps')
+            if self.verbose:
+                print('Saving figure as', os.path.join(save_fig_path, self.sdss_name+'.pdf'))
+            plt.savefig(os.path.join(save_fig_path, self.sdss_name+'.pdf'))
     
     def CalFWHM(self, logsigma):
         """transfer the logFWHM to normal frame"""
@@ -1562,22 +1604,62 @@ class QSOFit():
     def Onegauss(self, xval, pp):
         """The single Gaussian model used to fit the emission lines 
         Parameter: the scale factor, central wavelength in logwave, line FWHM in logwave
+        
+        This is evaluated many times within the scipy optimize, so we want to keep the code as fast as possible
+        Hence, we avoid calling any external libraries like astropy's Gaussian here
+        
+        It is slightly faster to fit the (un-normalized) amplitude directly to avoid blow-up at small sigma
+        
+        xval: wavelength array in AA
+        
+        pp: Paramaters [3]
+            scale: line amplitude
+            wave: central ln wavelength in AA
+            sigma: width in km/s
         """
-        amplitude = pp[0]/(pp[2]*np.sqrt(2.*np.pi))
-        model = Gaussian1D(amplitude=amplitude, mean=pp[1], stddev=pp[2])
-        return model(xval)
-        #term1 = np.exp(- (xval-pp[1])**2/(2.*pp[2]**2))
-        #yval = pp[0]*term1/(np.sqrt(2.*np.pi)*pp[2])
-        #return yval
+        
+        return  pp[0] * np.exp(-(xval - pp[1])**2 / (2*pp[2]**2))
+    
+    def _Manygauss(self, xval, pp):
+        """
+        Fast multi-Gaussian model used to fit the emission lines
+        
+        This is evaluated many times within the scipy optimize, so we want to keep the code as fast as possible
+        Hence, we avoid calling any external libraries like astropy's Gaussian here
+        It is vectorized so pp must have shape [ngauss, 3]
+        
+        It is slightly faster to fit the (un-normalized) amplitude directly to avoid blow-up at small sigma
+        
+        xval: wavelength array in AA
+        
+        pp: Paramaters array [ngauss, 3]
+            scale: line amplitude
+            wave: central ln wavelength in AA
+            sigma: width in km/s
+        """
+        
+        return  np.sum(pp[:,0] * np.exp(-(xval[:, np.newaxis] - pp[:,1])**2 / (2*pp[:,2]**2)), axis=1)
     
     def Manygauss(self, xval, pp):
-        """The multi-Gaussian model used to fit the emission lines, it will call the onegauss function"""
-        ngauss = int(len(pp)/3)
-        if ngauss != 0:
-            yval = 0.
-            for i in range(ngauss):
-                yval = yval+self.Onegauss(xval, pp[i*3:(i+1)*3])
-            return yval
+        """
+        Robust function for multi-Gaussian model used to fit the emission lines
+        
+        This is evaluated many times within the scipy optimize, so we want to keep the code as fast as possible
+        Hence, it is vectorized so pp must have shape [ngauss, 3]
+        
+        xval: wavelength array in AA
+        
+        pp: Paramaters [ngauss*3]
+            scale: line amplitude
+            wave: central ln wavelength in AA
+            sigma: width in km/s
+        """
+        
+        # Reshape parameters array for vectorization
+        ngauss = len(pp)//3
+        if ngauss > 0:
+            pp_shaped = np.reshape(pp, (ngauss, 3))
+            return self._Manygauss(xval, pp_shaped)
         else:
             return np.zeros_like(xval)
     
@@ -1591,7 +1673,7 @@ class QSOFit():
             If the range give excess either template, an error would be arose.
             If 6 parameters were given (recommended), function would adopt the first three for the MgII template and the last three for the balmer."""
         if pp is None:
-            pp = self.conti_fit.params[:6]
+            pp = self.conti_params[:6]
         
         Fe_flux_result = np.array([])
         Fe_flux_type = np.array([])

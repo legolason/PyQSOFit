@@ -32,8 +32,7 @@ setup(name='PyQSOFit',
       package_data={'pyqsofit': ['fe_uv.txt','fe_optical.txt',
                     'bc03/*.spec.gz',
                     'pca/Yip_pca_templates/*.fits',
-                    'sfddata/*.fits',
-                    'qsopar.fits']
+                    'sfddata/*.fits']
                    },
       #data_files=[('bc03',['bc03/*.spec.gz']), ('pca/Yip_pca_templates', ['pca/Yip_pca_templates/*.fits']), ('stddata',['stddata/*.fits'])],
       packages=['pyqsofit'],
