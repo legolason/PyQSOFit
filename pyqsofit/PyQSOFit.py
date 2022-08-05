@@ -90,10 +90,10 @@ class QSOFit():
     
     def Fit(self, name=None, nsmooth=1, and_or_mask=True, reject_badpix=True, deredden=True, wave_range=None,
             wave_mask=None, decomposition_host=True, BC03=False, Mi=None, npca_gal=5, npca_qso=20, Fe_uv_op=True,
-            Fe_flux_range=None, poly=False, BC=False, rej_abs=False, initial_guess=None, method='leastsq', MC=True, n_trails=1,
-            linefit=True, tie_lambda=True, tie_width=True, tie_flux_1=True, tie_flux_2=True, save_result=True,
-            plot_fig=True, save_fig=True, plot_line_name=True, plot_legend=True, dustmap_path=None, save_fig_path=None,
-            save_fits_path=None, save_fits_name=None, verbose=True):
+            Fe_flux_range=None, poly=False, BC=False, rej_abs=False, initial_guess=None, method='leastsq',
+            MCMC=True, nburn=20, nsamp=200, nthin=10, epsilon_jitter=1e-4, linefit=True, save_result=True, plot_fig=True,
+            save_fig=True, plot_line_name=True, plot_legend=True, plot_corner=True, dustmap_path=None, save_fig_path=None,
+            save_fits_path=None, save_fits_name=None, verbose=True, kwargs_conti_emcee={}, kwargs_line_emcee={}):
         
         """
         Fit the QSO spectrum and get different decomposed components and corresponding parameters
@@ -326,16 +326,18 @@ class QSOFit():
         self.poly = poly
         self.BC = BC
         self.rej_abs = rej_abs
-        self.MC = MC
+        self.MCMC = MCMC
         self.method = method
-        self.n_trails = n_trails
-        self.tie_lambda = tie_lambda
-        self.tie_width = tie_width
-        self.tie_flux_1 = tie_flux_1
-        self.tie_flux_2 = tie_flux_2
+        self.nburn = nburn
+        self.nsamp = nsamp
+        self.nthin = nthin
+        self.epsilon_jitter = epsilon_jitter
+        self.kwargs_conti_emcee = kwargs_conti_emcee
+        self.kwargs_line_emcee = kwargs_line_emcee
         self.plot_line_name = plot_line_name
         self.plot_legend = plot_legend
         self.save_fig = save_fig
+        self.plot_corner = plot_corner
         self.verbose = verbose
         
         # get the source name in plate-mjd-fiber, if no then None
@@ -673,115 +675,266 @@ class QSOFit():
         fe_uv = np.genfromtxt(os.path.join(self.install_path, 'fe_uv.txt'))
         fe_op = np.genfromtxt(os.path.join(self.install_path, 'fe_optical.txt'))
         
-        # do continuum fit--------------------------
+        # Define the windows where we will fit the continuum
         window_all = np.array(
             [[1150., 1170.], [1275., 1290.], [1350., 1360.], [1445., 1465.], [1690., 1705.], [1770., 1810.],
              [1970., 2400.], [2480., 2675.], [2925., 3400.], [3775., 3832.], [4000., 4050.], [4200., 4230.],
              [4435., 4640.], [5100., 5535.], [6005., 6035.], [6110., 6250.], [6800., 7000.], [7160., 7180.],
              [7500., 7800.], [8050., 8150.], ])
         
+        # Convert the windows to a mask
         tmp_all = np.array([np.repeat(False, len(wave))]).flatten()
         for jj in range(len(window_all)):
             tmp = np.where((wave > window_all[jj, 0]) & (wave < window_all[jj, 1]), True, False)
             tmp_all = np.any([tmp_all, tmp], axis=0)
         
         if wave[tmp_all].shape[0] < 10:
-            print('Continuum fitting pixel < 10.  ')
+            print('Less than 10 total pixels in the continuum fitting.')
+            
+        """
+        Setup parameters for fitting
+        """
         
-        # set initial parameters for continuum
+        # Set initial parameters for continuum
         if self.initial_guess is not None:
             pp0 = self.initial_guess
         else:
-            pp0 = np.array([0., 3000., 0., 0., 3000., 0., 1., -1.5, 0., 15000., 0.5, 0., 0., 0.])
+            pp0 = np.array([1.0, 3000, 0, 1.0, 3000, 0, 1, -1.5, 0, 15000, 0.5, 0, 0, 0])
+            
+        # It's usually a good idea to jitter the parameters a bit
+        pp0 += np.abs(np.random.normal(0, self.epsilon_jitter, len(pp0)))
         
         fit_params = Parameters()
         # norm_factor, FWHM, and small shift of wavelength for the MgII Fe_template
-        fit_params.add('Fe_template_MgII_norm', value=pp0[0], min=0, max=1e10)
-        fit_params.add('Fe_template_MgII_fwhm', value=pp0[1], min=1200, max=10000)
-        fit_params.add('Fe_template_MgII_dwav', value=pp0[2], min=-0.01, max=0.01)
+        fit_params.add('Fe_uv_norm', value=pp0[0], min=0, max=1e10)
+        fit_params.add('Fe_uv_FWHM', value=pp0[1], min=1200, max=18000)
+        fit_params.add('Fe_uv_shift', value=pp0[2], min=-0.01, max=0.01)        
         # same as above but for the Hbeta/Halpha Fe template
-        fit_params.add('Fe_template_Balmer_norm', value=pp0[3], min=0, max=1e10)
-        fit_params.add('Fe_template_Balmer_fwhm', value=pp0[4], min=1200, max=10000)
-        fit_params.add('Fe_template_Balmer_dwav', value=pp0[5], min=-0.01, max=0.01)
+        fit_params.add('Fe_op_norm', value=pp0[3], min=0, max=1e10)
+        fit_params.add('Fe_op_FWHM', value=pp0[4], min=1200, max=18000)
+        fit_params.add('Fe_op_shift', value=pp0[5], min=-0.01, max=0.01)
         # norm_factor for continuum f_lambda = (lambda/3000.0)^{-alpha}
-        fit_params.add('conti_norm', value=pp0[6], min=0, max=1e10)
+        fit_params.add('PL_norm', value=pp0[6], min=0, max=1e10)
         # slope for the power-law continuum
-        fit_params.add('conti_alpha', value=pp0[7], min=-5, max=3)
+        fit_params.add('PL_slope', value=pp0[7], min=-5, max=3)
         # norm, Te and Tau_e for the Balmer continuum at <3646 A
-        fit_params.add('Balmer_conti_norm', value=pp0[8], min=0, max=1e10)
-        fit_params.add('Balmer_conti_Te', value=pp0[9], min=10000, max=50000)
-        fit_params.add('Balmer_conti_tau_e', value=pp0[10], min=0.1, max=2)
+        fit_params.add('Blamer_norm', value=pp0[8], min=0, max=1e10)
+        fit_params.add('Balmer_Te', value=pp0[9], min=10000, max=50000)
+        fit_params.add('Balmer_Tau', value=pp0[10], min=0.1, max=2)
         # polynomial for the continuum
         fit_params.add('conti_pl_0', value=pp0[11], min=None, max=None)
         fit_params.add('conti_pl_1', value=pp0[12], min=None, max=None)
         fit_params.add('conti_pl_2', value=pp0[13], min=None, max=None)
+                
+        """
+        Tie parameters
+
+        Tie parameters together during the fitting using the "expr" keyword in lmfit
+        """
+        #fit_params['Fe_op_shift'].expr = 'Fe_uv_shift'
         
+        # Check if we will attempt to fit the UV FeII continuum region
+        ind_uv = np.where((wave[tmp_all] > 1200) & (wave[tmp_all] < 3500), True, False)
+        if np.sum(ind_uv) <= 100:
+            fit_params['Fe_uv_norm'].value = 0
+            fit_params['Fe_uv_norm'].vary = False
+            fit_params['Fe_uv_FWHM'].vary = False
+            fit_params['Fe_uv_shift'].vary = False
+            
+        # Check if we will attempt to fit the optical FeII continuum region
+        ind_opt = np.where((wave[tmp_all] > 3686.) & (wave[tmp_all] < 7484.), True, False)
+        if np.sum(ind_opt) <= 100:
+            fit_params['Fe_opt_norm'].value = 0
+            fit_params['Fe_opt_norm'].vary = False
+            fit_params['Fe_opt_FWHM'].vary = False
+            fit_params['Fe_opt_shift'].vary = False
+            
+        # Check if we will attempt to fit the Balmer continuum region
+        ind_BC = np.where(wave[tmp_all] < 3646, True, False)
+        if np.sum(ind_BC) <= 100:
+            fit_params['Blamer_norm'].value = 0
+            fit_params['Blamer_norm'].vary = False
+            fit_params['Balmer_Te'].vary = False
+            fit_params['Balmer_Tau'].vary = False
+            
+        """
+        Perform the fitting
         
+        Perform two iterations to remove 3-sigma pixels below the first continuum fit
+        to avoid the continuum windows that fall within a BAL trough
+        """
+        
+        # Print parameters to be fit
+        if self.verbose:
+            fit_params.pretty_print()
+            print('Fitting continuum')
+        
+        # Initial fit of the continuum
         conti_fit = minimize(self._residuals, fit_params, args=(wave[tmp_all], flux[tmp_all], err[tmp_all]),
                              calc_covar=False)
-        params = list(conti_fit.params.valuesdict().values())
+        params_dict = conti_fit.params.valuesdict()
+        par_names = list(params_dict.keys())
+        params = list(params_dict.values())
         
-        # Perform one iteration to remove 3sigma pixel below the first continuum fit
-        # to avoid the continuum windows falls within a BAL trough
+        # Calculate the continuum fit and mask the absorption lines before re-fitting
         if self.rej_abs == True:
             if self.poly == True:
-                tmp_conti = (params[6]*(wave[tmp_all]/3000.0)**params[7] + self.F_poly_conti(wave[tmp_all], params[11:]))
+                tmp_conti = (params[6]*(wave[tmp_all]/3000)**params[7] + self.F_poly_conti(wave[tmp_all], params[11:]))
             else:
-                tmp_conti = (params[6]*(wave[tmp_all]/3000.0)**params[7])
-
+                tmp_conti = (params[6]*(wave[tmp_all]/3000)**params[7])
+                
+            ind_noBAL = ~np.where((flux[tmp_all] < tmp_conti - 3*err[tmp_all]) & (wave[tmp_all] < 3500), True, False)
+            
+            # Second fit of the continuum
             conti_fit = minimize(self._residuals, fit_params,
                                  args=(wave[tmp_all][ind_noBAL],
                                        self.Smooth(flux[tmp_all][ind_noBAL], 10),
                                        err[tmp_all][ind_noBAL]),
                                  calc_covar=False)
-            params = list(conti_fit.params.valuesdict().values())
-        
-        # calculate continuum luminoisty
-        L = self._L_conti(wave, params)
-        
-        # calculate FeII flux
-        Fe_flux_result = np.array([])
-        Fe_flux_type = np.array([])
-        Fe_flux_name = np.array([])
-        if self.Fe_flux_range is not None:
-            Fe_flux_result, Fe_flux_type, Fe_flux_name = self.Get_Fe_flux(self.Fe_flux_range, params[:6])
-        
-        # get conti result -----------------------------
-        if self.MC == True and self.n_trails > 0:
-            # calculate MC err
-            conti_para_std, all_L_std, Fe_flux_std = self._conti_mc(self.wave[tmp_all], self.flux[tmp_all],
-                                                                    self.err[tmp_all], pp0, conti_fit.parinfo,
-                                                                    self.n_trails)
+            params_dict = conti_fit.params.valuesdict()
+            params = list(params_dict.values())
             
-            self.conti_result = np.array(
-                [ra, dec, str(plateid), str(mjd), str(fiberid), self.z, self.SN_ratio_conti, conti_fit.params[0],
-                 conti_para_std[0], conti_fit.params[1], conti_para_std[1], conti_fit.params[2], conti_para_std[2],
-                 conti_fit.params[3], conti_para_std[3], conti_fit.params[4], conti_para_std[4], conti_fit.params[5],
-                 conti_para_std[5], conti_fit.params[6], conti_para_std[6], conti_fit.params[7], conti_para_std[7],
-                 conti_fit.params[8], conti_para_std[8], conti_fit.params[9], conti_para_std[9], conti_fit.params[10],
-                 conti_para_std[10], conti_fit.params[11], conti_para_std[11], conti_fit.params[12], conti_para_std[12],
-                 conti_fit.params[13], conti_para_std[13], L[0], all_L_std[0], L[1], all_L_std[1], L[2], all_L_std[2]])
+        else:
+            ind_noBAL = np.full(len(wave[tmp_all]), True)
+            
+        # Print fit report
+        if self.verbose:
+            print('Fit report')
+            report_fit(conti_fit.params)
+            
+        """
+        MCMC sampling
+        """
+        if self.MCMC and self.nsamp > 0:
+            # Sample with MCMC, using the initial minima
+            conti_samples = minimize(self._residuals, params=conti_fit.params,
+                                     args=(wave[tmp_all][ind_noBAL],
+                                           self.Smooth(flux[tmp_all][ind_noBAL], 10),
+                                           err[tmp_all][ind_noBAL]),
+                                     method='emcee', nan_policy='omit',
+                                     burn=self.nburn, steps=self.nsamp, thin=self.nthin,
+                                     **self.kwargs_conti_emcee, is_weighted=True)
+            samples_dict = conti_samples.params.valuesdict()
+
+            # Print fit report
+            if self.verbose:
+                print(f'acceptance fraction = {np.mean(conti_samples.acceptance_fraction)} +/- {np.std(conti_samples.acceptance_fraction)}')
+                # As a rule of thumb the value should be between 0.2 and 0.5
+                print('median of posterior probability distribution')
+                print('--------------------------------------------')
+                report_fit(conti_samples.params)
+
+            if self.plot_corner:
+                import corner
+                emcee_plot = corner.corner(conti_samples.flatchain, labels=conti_samples.var_names, quantiles=[0.16, 0.5, 0.84])
+                
+            # After doing MCMC, the samples array will not include fixed parameters
+            # We need to add their fixed values back in so the order is preserved
+            df_samples = conti_samples.flatchain
+            
+            # Loop through each parameter
+            for k, name in enumerate(par_names):
+                # Add a column with all zeros if the parameter is fixed
+                if fit_params[name].vary == False:
+                    df_samples[name] = fit_params[name].value
+                    
+            # Sort the samples dataframe back to its original order
+            df_samples = df_samples[par_names]
+            samples = df_samples.to_numpy()
+            
+            # Parameter error estimates
+            params_err = np.full(len(params), np.nan)
+            
+            # Parameters loop
+            for k, name in enumerate(df_samples.columns.values.tolist()):
+                lo = np.percentile(df_samples[name], 0.16)
+                hi = np.percentile(df_samples[name], 0.84)
+                median = np.median(df_samples[name])
+                std = np.mean([hi - median, median - lo])
+                params[k] = median # Use the new MCMC median
+                params_err[k] = std
+                
+            """
+            Calculate physical properties
+            """
+
+            # Calculate continuum luminosity errors
+            Ls = np.empty((np.shape(samples)[0], 3))
+            # Samples loop
+            for k, s in enumerate(samples):
+                Ls[k] = self._L_conti(wave, s)
+                
+            lo = np.percentile(Ls, 0.16, axis=0)
+            hi = np.percentile(Ls, 0.84, axis=0)
+            median = np.median(Ls, axis=0)
+            L_std = np.mean([hi - median, median - lo], axis=0)
+
+            # Calculate FeII flux errors
+            Fe_flux_results = np.empty(len(samples))
+
+            if self.Fe_flux_range is not None:
+                # Samples loop
+                for k, s in enumerate(samples):
+                    Fe_flux_results[k], Fe_flux_type, Fe_flux_name = self.Get_Fe_flux(self.Fe_flux_range, s[:6])
+
+            lo = np.percentile(Fe_flux_results, 0.16)
+            hi = np.percentile(Fe_flux_results, 0.84)
+            median = np.percentile(Fe_flux_results, 0.5)
+            Fe_flux_std = np.mean([hi - median, median - lo], axis=0)
+            
+            # Point estimates
+            # Calculate continuum luminosities
+            L = self._L_conti(wave, params)
+
+            # Calculate FeII flux
+            Fe_flux_result = np.array([])
+            Fe_flux_type = np.array([])
+            Fe_flux_name = np.array([])
+            if self.Fe_flux_range is not None:
+                Fe_flux_result, Fe_flux_type, Fe_flux_name = self.Get_Fe_flux(self.Fe_flux_range, params[:6])
+
+            """
+            Save the results
+            """
+            par_names = list(params_dict.keys())
+            par_err_names = [n+'_err' for n in par_names]
+            
+            self.conti_result = np.array([ra, dec, str(plateid), str(mjd), str(fiberid), self.z, self.SN_ratio_conti,
+                                          list(zip(params, params_err)), L[0], L_std[0], L[1], L_std[1], L[2], L_std[2]])
             self.conti_result_type = np.array(
                 ['float', 'float', 'int', 'int', 'int', 'float', 'float', 'float', 'float', 'float', 'float', 'float',
                  'float', 'float', 'float', 'float', 'float', 'float', 'float', 'float', 'float', 'float', 'float',
                  'float', 'float', 'float', 'float', 'float', 'float', 'float', 'float', 'float', 'float', 'float',
                  'float', 'float', 'float', 'float', 'float', 'float', 'float'])
-            self.conti_result_name = np.array(
-                ['ra', 'dec', 'plateid', 'MJD', 'fiberid', 'redshift', 'SN_ratio_conti', 'Fe_uv_norm', 'Fe_uv_norm_err',
-                 'Fe_uv_FWHM', 'Fe_uv_FWHM_err', 'Fe_uv_shift', 'Fe_uv_shift_err', 'Fe_op_norm', 'Fe_op_norm_err',
-                 'Fe_op_FWHM', 'Fe_op_FWHM_err', 'Fe_op_shift', 'Fe_op_shift_err', 'PL_norm', 'PL_norm_err', 'PL_slope',
-                 'PL_slope_err', 'Blamer_norm', 'Blamer_norm_err', 'Balmer_Te', 'Balmer_Te_err', 'Balmer_Tau',
-                 'Balmer_Tau_err', 'POLY_a', 'POLY_a_err', 'POLY_b', 'POLY_b_err', 'POLY_c', 'POLY_c_err', 'L1350',
-                 'L1350_err', 'L3000', 'L3000_err', 'L5100', 'L5100_err'])
+            self.conti_result_name = np.array(['ra', 'dec', 'plateid', 'MJD', 'fiberid', 'redshift', 'SN_ratio_conti',
+                 list(zip(par_names, par_err_names)), 'L1350', 'L1350_err', 'L3000', 'L3000_err', 'L5100', 'L5100_err'])
+            # TODO
             for iii in range(Fe_flux_result.shape[0]):
                 self.conti_result = np.append(self.conti_result, [Fe_flux_result[iii], Fe_flux_std[iii]])
                 self.conti_result_type = np.append(self.conti_result_type, [Fe_flux_type[iii], Fe_flux_type[iii]])
-                self.conti_result_name = np.append(self.conti_result_name,
-                                                   [Fe_flux_name[iii], Fe_flux_name[iii]+'_err'])
+                self.conti_result_name = np.append(self.conti_result_name, [Fe_flux_name[iii], Fe_flux_name[iii]+'_err'])
         else:
+            
+            """
+            Calculate physical properties
+            """
+            
+            # Point estimates
+            # Calculate continuum luminosities
+            L = self._L_conti(wave, params)
+
+            # Calculate FeII flux
+            Fe_flux_result = np.array([])
+            Fe_flux_type = np.array([])
+            Fe_flux_name = np.array([])
+            if self.Fe_flux_range is not None:
+                Fe_flux_result, Fe_flux_type, Fe_flux_name = self.Get_Fe_flux(self.Fe_flux_range, params[:6])
+            
+            """
+            Save the results
+            """
             self.conti_result = np.array(
-                [ra, dec, str(plateid), str(mjd), str(fiberid), self.z, self.SN_ratio_conti,
-                 conti_fit.params.valuesdict(), L[0], L[1], L[2]])
+                [ra, dec, str(plateid), str(mjd), str(fiberid), self.z, self.SN_ratio_conti, params, L[0], L[1], L[2]])
             self.conti_result_type = np.array(
                 ['float', 'float', 'int', 'int', 'int', 'float', 'float', 'float', 'float', 'float', 'float', 'float',
                  'float', 'float', 'float', 'float', 'float', 'float', 'float', 'float', 'float', 'float', 'float',
@@ -796,29 +949,21 @@ class QSOFit():
         self.conti_params = params
         self.tmp_all = tmp_all
         
-        # save different models--------------------
-        f_fe_mgii_model = self.Fe_flux_mgii(wave, params[0:3])
-        f_fe_balmer_model = self.Fe_flux_balmer(wave, params[3:6])
-        f_pl_model = params[6]*(wave/3000.0)**params[7]
-        f_bc_model = self.Balmer_conti(wave, params[8:11])
-        f_poly_model = self.F_poly_conti(wave, params[11:])
-        f_conti_model = (f_pl_model+f_fe_mgii_model+f_fe_balmer_model+f_poly_model+f_bc_model)
-        line_flux = flux-f_conti_model
-        
-        self.f_conti_model = f_conti_model
-        self.f_bc_model = f_bc_model
-        self.f_fe_uv_model = f_fe_mgii_model
-        self.f_fe_op_model = f_fe_balmer_model
-        self.f_pl_model = f_pl_model
-        self.f_poly_model = f_poly_model
-        self.line_flux = line_flux
-        self.PL_poly_BC = f_pl_model+f_poly_model+f_bc_model
+        # Save individual models
+        self.f_fe_mgii_model = self.Fe_flux_mgii(wave, params[0:3])
+        self.f_fe_balmer_model = self.Fe_flux_balmer(wave, params[3:6])
+        self.f_pl_model = params[6]*(wave/3000.0)**params[7]
+        self.f_bc_model = self.Balmer_conti(wave, params[8:11])
+        self.f_poly_model = self.F_poly_conti(wave, params[11:])
+        self.f_conti_model = self.f_pl_model + self.f_fe_mgii_model + self.f_fe_balmer_model + self.f_poly_model + self.f_bc_model
+        self.line_flux = flux - self.f_conti_model
+        self.PL_poly_BC = self.f_pl_model + self.f_poly_model + self.f_bc_model
         
         return self.conti_result, self.conti_result_name
     
     
     def _L_conti(self, wave, pp):
-        """Calculate continuum Luminoisity at 1350,3000,5100A"""
+        """Calculate continuum Luminoisity at 1350, 3000, 5100 A"""
         conti_flux = pp[6]*(wave/3000.0)**pp[7] + self.F_poly_conti(wave, pp[11:])
         # plt.plot(wave,conti_flux)
         L = np.array([])
@@ -855,22 +1000,24 @@ class QSOFit():
         # polynormal conponent for reddened spectra
         f_poly = self.F_poly_conti(xval, pp[11:])
         
+        # TODO, do this check ahead of time and pass the yval components into the residuals
+        
         if self.Fe_uv_op == True and self.poly == False and self.BC == False:
-            yval = f_pl+f_Fe_MgII+f_Fe_Balmer
+            yval = f_pl + f_Fe_MgII + f_Fe_Balmer
         elif self.Fe_uv_op == True and self.poly == True and self.BC == False:
-            yval = f_pl+f_Fe_MgII+f_Fe_Balmer+f_poly
+            yval = f_pl + f_Fe_MgII + f_Fe_Balmer + f_poly
         elif self.Fe_uv_op == True and self.poly == False and self.BC == True:
-            yval = f_pl+f_Fe_MgII+f_Fe_Balmer+f_conti_BC
+            yval = f_pl + f_Fe_MgII + f_Fe_Balmer + f_conti_BC
         elif self.Fe_uv_op == False and self.poly == True and self.BC == False:
             yval = f_pl+f_poly
         elif self.Fe_uv_op == False and self.poly == False and self.BC == False:
             yval = f_pl
         elif self.Fe_uv_op == False and self.poly == False and self.BC == True:
-            yval = f_pl+f_conti_BC
+            yval = f_pl + f_conti_BC
         elif self.Fe_uv_op == True and self.poly == True and self.BC == True:
-            yval = f_pl+f_Fe_MgII+f_Fe_Balmer+f_poly+f_conti_BC
+            yval = f_pl + f_Fe_MgII + f_Fe_Balmer + f_poly + f_conti_BC
         elif self.Fe_uv_op == False and self.poly == True and self.BC == True:
-            yval = f_pl+f_Fe_Balmer+f_poly+f_conti_BC
+            yval = f_pl + f_Fe_Balmer + f_poly + f_conti_BC
         else:
             raise RuntimeError('No this option for Fe_uv_op, poly and BC!')
         return yval
@@ -879,7 +1026,7 @@ class QSOFit():
     def _residuals(self, p, xval, yval, weight):
         """Continual residual function used in kmpfit"""
         v = list(p.valuesdict().values())
-        return (yval-self._f_conti_all(xval, v))/weight
+        return (yval - self._f_conti_all(xval, v))/weight
     
     
     # ---------MC error for continuum parameters-------------------
@@ -910,35 +1057,33 @@ class QSOFit():
         return all_para_std, all_L_std, all_Fe_flux_std
     
     
-    # line function-----------
     def _DoLineFit(self, wave, line_flux, err, f):
-        """Fit the emission lines with Gaussian profile """
+        """Fit the emission lines with Gaussian profiles """
         
-        # remove abosorbtion line in emission line region
-        # remove the pixels below continuum 
-        ind_neg_line = ~np.where(((((wave > 2700.) & (wave < 2900.)) | ((wave > 1700.) & (wave < 1970.)) | (
-                (wave > 1500.) & (wave < 1700.)) | ((wave > 1290.) & (wave < 1450.)) | (
-                                           (wave > 1150.) & (wave < 1290.))) & (line_flux < -err)), True, False)
+        # Remove abosorbtion lines in emission line region, pixels below continuum 
+        ind_neg_line = ~np.where(((((wave > 2700.) & (wave < 2900.)) | ((wave > 1700.) & (wave < 1970.)) |
+                                   ((wave > 1500.) & (wave < 1700.)) | ((wave > 1290.) & (wave < 1450.)) |
+                                   ((wave > 1150.) & (wave < 1290.))) & (line_flux < -err)), True, False)
         
         # read line parameter
         linepara = fits.open(os.path.join(self.path, 'qsopar.fits'))
-        print(os.path.join(self.path, 'qsopar.fits'))
+        print('Reading parameter file:', os.path.join(self.path, 'qsopar.fits'))
         linelist = linepara[1].data
         self.linelist = linelist
+        # This should be read more robustly
         
-        # This should be read as a dictionary
-        
+        # Ensure the spectrum covers the rest-frame wavelengths of the line complexes
         ind_kind_line = np.where((linelist['lambda'] > wave.min()) & (linelist['lambda'] < wave.max()), True, False)
+        
         if ind_kind_line.any() == True:
-            # sort complex name with line wavelength
+            
+            # Sort complex name with line wavelength
             uniq_linecomp, uniq_ind = np.unique(linelist['compname'][ind_kind_line], return_index=True)
             uniq_linecomp_sort = uniq_linecomp[linelist['lambda'][ind_kind_line][uniq_ind].argsort()]
             ncomp = len(uniq_linecomp_sort)
             compname = linelist['compname']
             allcompcenter = np.sort(linelist['lambda'][ind_kind_line][uniq_ind])
-            
-            # loop over each complex and fit n lines simutaneously
-            
+                        
             comp_result = np.array([])
             comp_result_type = np.array([])
             comp_result_name = np.array([])
@@ -955,11 +1100,7 @@ class QSOFit():
             
             Loop through each line complex and set the parameter limits and initial conditions
             """
-            
-            #fit_params = Parameters()
-            args = [None]*ncomp
-            num_good_pixels = [None]*ncomp
-            
+                        
             # Number of emission lines complexes loop
             for ii in range(ncomp):
                                 
@@ -976,9 +1117,8 @@ class QSOFit():
                 comp_range = [linelist_fit[0]['minwav'], linelist_fit[0]['maxwav']]  # read complex range from table
                 all_comp_range = np.concatenate([all_comp_range, comp_range])
                 
-                # Get the pixel index in complex region and remove negtive abs in line region
+                # Get the pixel indicies within the line complex region and remove absorption lines in line region
                 ind_n = np.where((wave > comp_range[0]) & (wave < comp_range[1]) & (ind_neg_line == True), True, False)
-                num_good_pixels[ii] = ind_n
                 
                 # Ensure there are at least 10 pixels in the data
                 if np.sum(ind_n) > 10:
@@ -1094,29 +1234,57 @@ class QSOFit():
                     line_fit = minimize(self._residual_line, fit_params, args=(np.log(self.wave[ind_n]), line_flux[ind_n], self.err[ind_n], ln_lambda_0s),
                                         method=self.method, calc_covar=False)
                     params = list(line_fit.params.valuesdict().values())
+
+                    # Print fit report
+                    if self.verbose:
+                        print('Fit report')
+                        report_fit(line_fit.params)
                     
+                    """
+                    MCMC sampling
+                    """
+                    if self.MCMC and self.nsamp > 0:
+                        # Sample with MCMC, using the initial minima
+                        samples = minimize(self._residual_line, params=line_fit.params,
+                                           args=(np.log(self.wave[ind_n]), line_flux[ind_n], self.err[ind_n], ln_lambda_0s),
+                                           method='emcee', nan_policy='omit', burn=self.nburn, steps=self.nsamp, thin=self.nthin,
+                                           is_weighted=True, **self.kwargs_line_emcee)
+                        p = samples.params.valuesdict()
+                        
+                        # Print fit report
+                        if self.verbose:
+                            print(f'acceptance fraction = {np.mean(samples.acceptance_fraction)} +/- {np.std(samples.acceptance_fraction)}')
+                            # As a rule of thumb the value should be between 0.2 and 0.5
+                            print('median of posterior probability distribution')
+                            print('--------------------------------------------')
+                            report_fit(samples.params)
+
+                        if self.plot_corner:
+                            import corner
+                            emcee_plot = corner.corner(samples.flatchain, labels=samples.var_names)
+                        
+                        # Error estimates
+                        params_err = np.full(len(params), np.nan)
+                        for k, name in enumerate(p.keys()):
+                            lo, median, hi = np.percentile(p[name], [0.16, 0.5, 0.84])
+                            std = np.mean([hi - median, median - lo])
+                            params[k] = median # Use the new MCMC median
+                            params_err[k] = std
+                            
+                        """
+                        Calculate physical properties
+                        """
+                        
+                        # TODO
+                            
                     # Reshape parameters array for vectorization
                     ngauss = len(params)//3
                     params_shaped = np.reshape(params, (ngauss, 3))
                     params_shaped[:,1] += ln_lambda_0s # Transform ln lambda ~ d ln lambda + ln lambda0
                     params = params_shaped.reshape(-1)
-
-                    # Print fit report
-                    if self.verbose:
-                        report_fit(line_fit.params)
-                                    
-                    # calculate MC err
-                    if self.MC == True and self.n_trails > 0:
-                        samples = lmfit.minimize(residual, method='emcee', nan_policy='omit',
-                                                 burn=50, steps=500, thin=10,
-                                                 params=line_fit.params, is_weighted=True)
-                        
-                        #all_para_std, fwhm_std, sigma_std, ew_std, peak_std, area_std = self._line_mc(
-                        #    np.log(wave[ind_n]), line_flux[ind_n], err[ind_n], self.line_fit_ini, self.line_fit_par,
-                        #    self.n_trails, compcenter)
                     
                     # ----------------------get line fitting results----------------------
-                    # complex parameters
+                    # TODO: Get line properties results ###
                                         
                     comp_result_tmp = np.array(
                         [[linelist['compname'][ind_line][0]], [0], [line_fit.chisqr], # line_fit.status
@@ -1138,15 +1306,15 @@ class QSOFit():
                                         
                     for gg in range(len(params)):
                         gauss_tmp = np.concatenate([gauss_tmp, np.array([params[gg]])])
-                        if self.MC == True and self.n_trails > 0:
-                            gauss_tmp = np.concatenate([gauss_tmp, np.array([all_para_std[gg]])])
+                        if self.MCMC == True and self.nsamp > 0:
+                            gauss_tmp = np.concatenate([gauss_tmp, np.array([params_err[gg]])])
                     gauss_result = np.concatenate([gauss_result, gauss_tmp])
                     
                     # gauss result name -----------------
                     for n in range(nline_fit):
                         for nn in range(int(ngauss_fit[n])):
                             line_name = linelist['linename'][ind_line][n]+'_'+str(nn+1)
-                            if self.MC == True and self.n_trails > 0:
+                            if self.MCMC == True and self.nsamp > 0:
                                 gauss_type_tmp_tmp = ['float', 'float', 'float', 'float', 'float', 'float']
                                 gauss_name_tmp_tmp = [line_name+'_scale', line_name+'_scale_err',
                                                       line_name+'_centerwave', line_name+'_centerwave_err',
@@ -1196,10 +1364,7 @@ class QSOFit():
         self.line_flux = line_flux
         self.all_comp_range = all_comp_range
         self.uniq_linecomp_sort = uniq_linecomp_sort
-        return self.line_result, self.line_result_name
-    
-    #def _get
-        
+        return self.line_result, self.line_result_name        
     
     # ---------MC error for emission line parameters-------------------
     def _line_mc(self, x, y, err, pp0, pp_limits, n_trails, compcenter):
@@ -1278,8 +1443,8 @@ class QSOFit():
             yy = self._Manygauss(xx, pp_shaped)
             
             # here I directly use the continuum model to avoid the inf bug of EW when the spectrum range passed in is too short
-            contiflux = self.conti_params[6]*(np.exp(xx)/3000.0)**self.conti_params[7]+self.F_poly_conti(
-                np.exp(xx), self.conti_params[11:])+self.Balmer_conti(np.exp(xx), self.conti_params[8:11])
+            contiflux = self.conti_params[6]*(np.exp(xx)/3000.0)**self.conti_params[7] + self.F_poly_conti(
+                np.exp(xx), self.conti_params[11:]) + self.Balmer_conti(np.exp(xx), self.conti_params[8:11])
             
             # find the line peak location
             ypeak = yy.max()
@@ -1381,7 +1546,7 @@ class QSOFit():
             fig, axn = plt.subplots(nrows=2, ncols=np.max([self.ncomp, 1]), figsize=(15, 8),
                                     squeeze=False)  # prepare for the emission line subplots in the second row
             ax = plt.subplot(2, 1, 1)  # plot the first subplot occupying the whole first row
-            if self.MC == True:
+            if self.MCMC == True:
                 mc_flag = 2
             else:
                 mc_flag = 1
@@ -1447,7 +1612,7 @@ class QSOFit():
         ax.plot([0, 0], [0, 0], 'g', label='line na', zorder=5)
         ax.plot(wave, f_conti_model, 'c', lw=2, label='FeII', zorder=7)
         if self.BC == True:
-            ax.plot(wave, self.f_pl_model + self.f_poly_model+self.f_bc_model, 'y', lw=2, label='BC', zorder=8)
+            ax.plot(wave, self.f_pl_model + self.f_poly_model + self.f_bc_model, 'y', lw=2, label='BC', zorder=8)
         ax.plot(wave,
                 pp[6]*(wave/3000.0)**pp[7] + self.F_poly_conti(wave, pp[11:]),
                 color='orange', lw=2, label='conti', zorder=9)
@@ -1518,7 +1683,7 @@ class QSOFit():
         return y_smooth
     
     def Fe_flux_mgii(self, xval, pp):
-        "Fit the UV Fe compoent on the continuum from 1200 to 3500 A based on the Boroson & Green 1992."
+        "Fit the UV FeII component on the continuum from 1200 to 3500 A based on Boroson & Green 1992."
         yval = np.zeros_like(xval)
         wave_Fe_mgii = 10**fe_uv[:, 0]
         flux_Fe_mgii = fe_uv[:, 1]*10**15
@@ -1580,10 +1745,10 @@ class QSOFit():
         bb_lam = BlackBody(pp[1]*u.K, scale=1.0 * u.erg / (u.cm ** 2 * u.AA * u.s * u.sr))
         bbflux = bb_lam(xval).value*3.14   # in units of ergs/cm2/s/A
         tau = pp[2]*(xval/lambda_BE)**3
-        result = pp[0]*bbflux*(1.-np.exp(-tau))
+        result = pp[0] * bbflux * (1 - np.exp(-tau))
         ind = np.where(xval > lambda_BE, True, False)
         if ind.any() == True:
-            result[ind] = 0.
+            result[ind] = 0
         return result
     
     def F_poly_conti(self, xval, pp):
