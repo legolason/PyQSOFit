@@ -758,11 +758,19 @@ class QSOFit():
             
         # Check if we will attempt to fit the Balmer continuum region
         ind_BC = np.where(wave[tmp_all] < 3646, True, False)
-        if np.sum(ind_BC) <= 100:
+        if (self.BC == False) or (np.sum(ind_BC) <= 100):
             fit_params['Blamer_norm'].value = 0
             fit_params['Blamer_norm'].vary = False
             fit_params['Balmer_Te'].vary = False
             fit_params['Balmer_Tau'].vary = False
+            
+        if self.poly == False:
+            fit_params['conti_pl_0'].value = 0
+            fit_params['conti_pl_1'].value = 0
+            fit_params['conti_pl_2'].value = 0
+            fit_params['conti_pl_0'].vary = False
+            fit_params['conti_pl_1'].vary = False
+            fit_params['conti_pl_2'].vary = False
             
         """
         Perform the fitting
@@ -1107,15 +1115,19 @@ class QSOFit():
                         ln_lambda_0 = np.log(linelist['lambda'][ind_line][n]) # ln line center
                         voff = linelist['voff'][ind_line][n]
                         
-                        sig_0 = linelist['inisig'][ind_line][n]
+                        # It's usually a good idea to jitter the parameters a bit
+                        sig_0 = linelist['inisig'][ind_line][n] + np.abs(np.random.normal(0, self.epsilon_jitter))
                         sig_low = linelist['minsig'][ind_line][n]
                         sig_up = linelist['maxsig'][ind_line][n]
 
+                        scale_0 = 0.1 + np.abs(np.random.normal(0, self.epsilon_jitter))
+                        dwave_0 = np.random.normal(0, self.epsilon_jitter)
+                        
                         # Number of Gaussians loop
                         for nn in range(ngauss_fit[n]):
 
-                            fit_params.add(f'{line_name}_{nn+1}_scale', value=0.1, min=0, max=1e10) # scale
-                            fit_params.add(f'{line_name}_{nn+1}_dwave', value=0, min=-voff, max=voff) # change in wav relative to complex center
+                            fit_params.add(f'{line_name}_{nn+1}_scale', value=scale_0, min=0, max=1e10) # scale
+                            fit_params.add(f'{line_name}_{nn+1}_dwave', value=dwave_0, min=-voff, max=voff) # change in wav relative to complex center
                             ln_lambda_0s.append(ln_lambda_0)
                             fit_params.add(f'{line_name}_{nn+1}_sigma', value=sig_0, min=sig_low, max=sig_up) # sigma
                             
@@ -1668,14 +1680,13 @@ class QSOFit():
         
         ax.set_xlim(wave.min(), wave.max())
         
+        # Label axes
         if linefit == True:
-            ax.text(0.5, -1.4, r'$\rm Rest \, Wavelength$ ($\rm \AA$)', fontsize=20, transform=ax.transAxes,
-                    ha='center')
-            ax.text(-0.1, -0.1, r'$\rm f_{\lambda}$ ($\rm 10^{-17} erg\;s^{-1}\;cm^{-2}\;\AA^{-1}$)', fontsize=20,
-                    transform=ax.transAxes, rotation=90, ha='center', rotation_mode='anchor')
+            fig.supxlabel(r'$\rm Rest \, Wavelength$ ($\rm \AA$)', fontsize=20)
+            fig.supylabel(r'$\rm f_{\lambda}$ ($\rm 10^{-17} erg\;s^{-1}\;cm^{-2}\;\AA^{-1}$)', fontsize=20)
         else:
-            fig.set_xlabel(r'$\rm Rest \, Wavelength$ ($\rm \AA$)', fontsize=20)
-            fig.set_ylabel(r'$\rm f_{\lambda}$ ($\rm 10^{-17} erg\;s^{-1}\;cm^{-2}\;\AA^{-1}$)', fontsize=20)
+            fig.supxlabel(r'$\rm Rest \, Wavelength$ ($\rm \AA$)', fontsize=20)
+            fig.supylabel(r'$\rm f_{\lambda}$ ($\rm 10^{-17} erg\;s^{-1}\;cm^{-2}\;\AA^{-1}$)', fontsize=20)
         
         if self.save_fig == True:
             if self.verbose:
