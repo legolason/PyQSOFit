@@ -1026,12 +1026,9 @@ class QSOFit():
                                    ((wave > 1500.) & (wave < 1700.)) | ((wave > 1290.) & (wave < 1450.)) |
                                    ((wave > 1150.) & (wave < 1290.))) & (line_flux < -err)), True, False)
         
-        # read line parameter
-        linepara = fits.open(os.path.join(self.path, 'qsopar.fits'))
-        print('Reading parameter file:', os.path.join(self.path, 'qsopar.fits'))
-        linelist = linepara[1].data
+        # Read line parameter file
+        linelist = self.read_line_params('qsopar.fits')
         self.linelist = linelist
-        # TODO This should be read more robustly
         
         # Ensure the spectrum covers the rest-frame wavelengths of the line complexes
         ind_kind_line = np.where((linelist['lambda'] > wave.min()) & (linelist['lambda'] < wave.max()), True, False)
@@ -1101,13 +1098,16 @@ class QSOFit():
                         sig_low = linelist['minsig'][ind_line][n]
                         sig_up = linelist['maxsig'][ind_line][n]
 
-                        scale_0 = 0.1 + np.abs(np.random.normal(0, self.epsilon_jitter))
+                        scale_0 = linelist['inisca'][ind_line][n] + np.abs(np.random.normal(0, self.epsilon_jitter))
+                        scale_low = linelist['minsca'][ind_line][n]
+                        scale_up = linelist['maxsca'][ind_line][n]
+                        
                         dwave_0 = np.random.normal(0, self.epsilon_jitter)
                         
                         # Number of Gaussians loop
                         for nn in range(ngauss_fit[n]):
 
-                            fit_params.add(f'{line_name}_{nn+1}_scale', value=scale_0, min=0, max=1e10) # scale
+                            fit_params.add(f'{line_name}_{nn+1}_scale', value=scale_0, min=scale_low, max=scale_up) # scale
                             fit_params.add(f'{line_name}_{nn+1}_dwave', value=dwave_0, min=-voff, max=voff) # change in wav relative to complex center
                             ln_lambda_0s.append(ln_lambda_0)
                             fit_params.add(f'{line_name}_{nn+1}_sigma', value=sig_0, min=sig_low, max=sig_up) # sigma
@@ -1478,7 +1478,7 @@ class QSOFit():
                 
             if len(spline.roots()) > 0:
                 fwhm_left, fwhm_right = spline.roots().min(), spline.roots().max()
-                fwhm = abs(np.exp(fwhm_left)-np.exp(fwhm_right))/compcenter*c
+                fwhm = abs(np.exp(fwhm_left) - np.exp(fwhm_right))/compcenter*c
                 
                 # calculate the line sigma and EW in normal wavelength
                 line_flux = self._Manygauss(xx, pp_shaped)
@@ -1489,7 +1489,7 @@ class QSOFit():
                 ew = integrate.trapz(np.abs(line_flux/contiflux), line_wave)
                 area = lambda0
                 
-                sigma = np.sqrt(lambda2/lambda0-(lambda1/lambda0)**2)/compcenter*c
+                sigma = np.sqrt(lambda2/lambda0 - (lambda1/lambda0)**2)/compcenter*c
             else:
                 fwhm, sigma, ew, peak, area = 0., 0., 0., 0., 0.
         
@@ -1512,6 +1512,15 @@ class QSOFit():
         
         resid = (yval - self._Manygauss(xval, pp_shaped))/weight
         return resid
+    
+    def read_line_params(self, param_file_name='qsopar.fits'):
+        # read line parameter
+        hdul = fits.open(os.path.join(self.path, param_file_name))
+        data = hdul[1].data
+        
+        print('Reading parameter file:', os.path.join(self.path, param_file_name))
+        
+        return data
     
     
     def _SaveResult(self, conti_result, conti_result_type, conti_result_name, line_result, line_result_type,
