@@ -88,7 +88,7 @@ class QSOFit():
     
     def Fit(self, name=None, nsmooth=1, and_or_mask=True, reject_badpix=True, deredden=True, wave_range=None,
             wave_mask=None, decomposition_host=True, BC03=False, Mi=None, npca_gal=5, npca_qso=20, Fe_uv_op=True,
-            Fe_flux_range=None, poly=False, BC=False, rej_abs=False, initial_guess=None, method='leastsq',
+            Fe_flux_range=None, poly=False, BC=False, rej_abs=False, initial_guess=None, method='leastsq', 
             MCMC=True, nburn=20, nsamp=200, nthin=10, epsilon_jitter=1e-4, linefit=True, save_result=True, plot_fig=True,
             save_fig=True, plot_line_name=True, plot_legend=True, plot_corner=True, dustmap_path=None, save_fig_path=None,
             save_fits_path=None, save_fits_name=None, verbose=False, kwargs_conti_emcee={}, kwargs_line_emcee={}):
@@ -1087,31 +1087,35 @@ class QSOFit():
                     # Number of emission lines within line complex loop
                     for n in range(nline_fit):
                         
-                        line_name = linelist['linename'][ind_line][n] # Must be unique
-
-                        # Get parameter limits
-                        ln_lambda_0 = np.log(linelist['lambda'][ind_line][n]) # ln line center
-                        voff = linelist['voff'][ind_line][n]
+                        if ngauss_fit[n] > 0:
                         
-                        # It's usually a good idea to jitter the parameters a bit
-                        sig_0 = linelist['inisig'][ind_line][n] + np.abs(np.random.normal(0, self.epsilon_jitter))
-                        sig_low = linelist['minsig'][ind_line][n]
-                        sig_up = linelist['maxsig'][ind_line][n]
+                            line_name = linelist['linename'][ind_line][n] # Must be unique
 
-                        scale_0 = linelist['inisca'][ind_line][n] + np.abs(np.random.normal(0, self.epsilon_jitter))
-                        scale_low = linelist['minsca'][ind_line][n]
-                        scale_up = linelist['maxsca'][ind_line][n]
-                        
-                        dwave_0 = np.random.normal(0, self.epsilon_jitter)
-                        
-                        # Number of Gaussians loop
-                        for nn in range(ngauss_fit[n]):
+                            # Get parameter limits
+                            ln_lambda_0 = np.log(linelist['lambda'][ind_line][n]) # ln line center
+                            voff = linelist['voff'][ind_line][n]
 
-                            fit_params.add(f'{line_name}_{nn+1}_scale', value=scale_0, min=scale_low, max=scale_up) # scale
-                            fit_params.add(f'{line_name}_{nn+1}_dwave', value=dwave_0, min=-voff, max=voff) # change in wav relative to complex center
-                            ln_lambda_0s.append(ln_lambda_0)
-                            fit_params.add(f'{line_name}_{nn+1}_sigma', value=sig_0, min=sig_low, max=sig_up) # sigma
+                            # It's usually a good idea to jitter the parameters a bit
+                            sig_0 = linelist['inisig'][ind_line][n] + np.abs(np.random.normal(0, self.epsilon_jitter))
+                            sig_low = linelist['minsig'][ind_line][n]
+                            sig_up = linelist['maxsig'][ind_line][n]
+
+                            scale_0 = linelist['inisca'][ind_line][n] + np.abs(np.random.normal(0, self.epsilon_jitter))
+                            scale_low = linelist['minsca'][ind_line][n]
+                            scale_up = linelist['maxsca'][ind_line][n]
                             
+                            vary = bool(linelist['vary'][ind_line][n])
+
+                            dwave_0 = np.random.normal(0, self.epsilon_jitter)
+
+                            # Number of Gaussians loop
+                            for nn in range(ngauss_fit[n]):
+
+                                fit_params.add(f'{line_name}_{nn+1}_scale', value=scale_0, min=scale_low, max=scale_up, vary=vary) # scale
+                                fit_params.add(f'{line_name}_{nn+1}_dwave', value=dwave_0, min=-voff, max=voff, vary=vary) # change in wav relative to complex center
+                                ln_lambda_0s.append(ln_lambda_0)
+                                fit_params.add(f'{line_name}_{nn+1}_sigma', value=sig_0, min=sig_low, max=sig_up, vary=vary) # sigma
+                                                            
                     """
                     Tie lines
 
@@ -1286,12 +1290,12 @@ class QSOFit():
                     
                     # ----------------------get line fitting results----------------------                                        
                     comp_result_tmp = np.array(
-                        [[linelist['compname'][ind_line][0]], [0], [line_fit.chisqr], # line_fit.status
+                        [[linelist['compname'][ind_line][0]], [int(line_fit.success)], [line_fit.chisqr], [line_fit.bic], 
                          [line_fit.redchi], [line_fit.nfev],
                          [line_fit.nfree]]).flatten()
-                    comp_result_type_tmp = np.array(['str', 'int', 'float', 'float', 'int', 'int'])
+                    comp_result_type_tmp = np.array(['str', 'int', 'float', 'float', 'float', 'int', 'int'])
                     comp_result_name_tmp = np.array(
-                        [str(ii+1)+'_complex_name', str(ii+1)+'_line_status', str(ii+1)+'_line_min_chi2',
+                        [str(ii+1)+'_complex_name', str(ii+1)+'_line_status', str(ii+1)+'_line_min_chi2', str(ii+1)+'_line_bic',
                          str(ii+1)+'_line_red_chi2', str(ii+1)+'_niter', str(ii+1)+'_ndof'])
                     comp_result = np.concatenate([comp_result, comp_result_tmp])
                     comp_result_name = np.concatenate([comp_result_name, comp_result_name_tmp])
@@ -1607,7 +1611,7 @@ class QSOFit():
                 axn[1][c].set_xticks([all_comp_range[2*c], np.round((all_comp_range[2*c]+all_comp_range[2*c+1])/2, -1),
                                       all_comp_range[2*c+1]])
                 axn[1][c].text(0.02, 0.9, uniq_linecomp_sort[c], fontsize=20, transform=axn[1][c].transAxes)
-                axn[1][c].text(0.02, 0.80, r'$\chi ^2_\nu=$'+str(np.round(float(self.comp_result[c*6+3]), 2)),
+                axn[1][c].text(0.02, 0.80, r'$\chi ^2_\nu=$'+str(np.round(float(self.comp_result[c*7+4]), 2)),
                                fontsize=16, transform=axn[1][c].transAxes)
         else:
             # If no lines are fitted, there would be only one row
