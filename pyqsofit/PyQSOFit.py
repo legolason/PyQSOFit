@@ -324,6 +324,7 @@ class QSOFit():
         self.poly = poly
         self.BC = BC
         self.rej_abs = rej_abs
+        self.n_pix_min_conti = 100 # pixels
         self.MCMC = MCMC
         self.method = method
         self.nburn = nburn
@@ -733,16 +734,9 @@ class QSOFit():
         fit_params.add('conti_pl_1', value=pp0[12], min=None, max=None)
         fit_params.add('conti_pl_2', value=pp0[13], min=None, max=None)
                 
-        """
-        Tie parameters
-
-        Tie parameters together during the fitting using the "expr" keyword in lmfit
-        """
-        #fit_params['Fe_op_shift'].expr = 'Fe_uv_shift'
-        
         # Check if we will attempt to fit the UV FeII continuum region
         ind_uv = np.where((wave[tmp_all] > 1200) & (wave[tmp_all] < 3500), True, False)
-        if np.sum(ind_uv) <= 100:
+        if np.sum(ind_uv) <= self.n_pix_min_conti:
             fit_params['Fe_uv_norm'].value = 0
             fit_params['Fe_uv_norm'].vary = False
             fit_params['Fe_uv_FWHM'].vary = False
@@ -750,7 +744,7 @@ class QSOFit():
             
         # Check if we will attempt to fit the optical FeII continuum region
         ind_opt = np.where((wave[tmp_all] > 3686.) & (wave[tmp_all] < 7484.), True, False)
-        if np.sum(ind_opt) <= 100:
+        if np.sum(ind_opt) <= self.n_pix_min_conti:
             fit_params['Fe_opt_norm'].value = 0
             fit_params['Fe_opt_norm'].vary = False
             fit_params['Fe_opt_FWHM'].vary = False
@@ -764,6 +758,7 @@ class QSOFit():
             fit_params['Balmer_Te'].vary = False
             fit_params['Balmer_Tau'].vary = False
             
+        # Check if we will fit the polynomial component
         if self.poly == False:
             fit_params['conti_pl_0'].value = 0
             fit_params['conti_pl_1'].value = 0
@@ -771,6 +766,38 @@ class QSOFit():
             fit_params['conti_pl_0'].vary = False
             fit_params['conti_pl_1'].vary = False
             fit_params['conti_pl_2'].vary = False
+            
+        """
+        Continuum components described by 14 parameters
+         pp[0]: norm_factor for the MgII Fe_template
+         pp[1]: FWHM for the MgII Fe_template
+         pp[2]: small shift of wavelength for the MgII Fe template
+         pp[3:5]: same as pp[0:2] but for the Hbeta/Halpha Fe template
+         pp[6]: norm_factor for continuum f_lambda = (lambda/3000.0)^{-alpha}
+         pp[7]: slope for the power-law continuum
+         pp[8:10]: norm, Te and Tau_e for the Balmer continuum at <3646 A
+         pp[11:13]: polynomial for the continuum
+        """
+            
+        # Get continuum model ahead of time and pass it to the residuals function
+        if self.Fe_uv_op == True and self.poly == False and self.BC == False:
+            _conti_model = lambda xval, pp : self.PL(xval, pp) + self.Fe_flux_mgii(xval, pp[0:3]) + self.Fe_flux_balmer(xval, pp[3:6])
+        elif self.Fe_uv_op == True and self.poly == True and self.BC == False:
+            _conti_model = lambda xval, pp : self.PL(xval, pp) + self.Fe_flux_mgii(xval, pp[0:3]) + self.Fe_flux_balmer(xval, pp[3:6]) + self.F_poly_conti(xval, pp[11:])
+        elif self.Fe_uv_op == True and self.poly == False and self.BC == True:
+             _conti_model = lambda xval, pp : self.PL(xval, pp) + self.Fe_flux_mgii(xval, pp[0:3]) + self.Fe_flux_balmer(xval, pp[3:6]) + self.Balmer_conti(xval, pp[8:11])
+        elif self.Fe_uv_op == False and self.poly == True and self.BC == False:
+            yval = self.PL(xval, pp) + self.F_poly_conti(xval, pp[11:])
+        elif self.Fe_uv_op == False and self.poly == False and self.BC == False:
+            yval = self.PL(xval, pp)
+        elif self.Fe_uv_op == False and self.poly == False and self.BC == True:
+            yval = self.PL(xval, pp) + self.Balmer_conti(xval, pp[8:11])
+        elif self.Fe_uv_op == True and self.poly == True and self.BC == True:
+            _conti_model = lambda xval, pp : self.PL(xval, pp) + self.Fe_flux_mgii(xval, pp[0:3]) + self.Fe_flux_balmer(xval, pp[3:6]) + self.F_poly_conti(xval, pp[11:]) + self.Balmer_conti(xval, pp[8:11])
+        elif self.Fe_uv_op == False and self.poly == True and self.BC == True:
+            _conti_model = lambda xval, pp : self.PL(xval, pp) + self.Fe_flux_balmer(xval, pp[3:6]) + self.F_poly_conti(xval, pp[11:]) + self.Balmer_conti(xval, pp[8:11])            
+        else:
+            raise RuntimeError('Invalid options for continuum model!')    
             
         """
         Perform the fitting
@@ -785,7 +812,7 @@ class QSOFit():
             print('Fitting continuum')
         
         # Initial fit of the continuum
-        conti_fit = minimize(self._residuals, fit_params, args=(wave[tmp_all], flux[tmp_all], err[tmp_all]),
+        conti_fit = minimize(self._residuals, fit_params, args=(wave[tmp_all], flux[tmp_all], err[tmp_all], _conti_model),
                              calc_covar=False)
         params_dict = conti_fit.params.valuesdict()
         par_names = list(params_dict.keys())
@@ -804,7 +831,7 @@ class QSOFit():
             conti_fit = minimize(self._residuals, fit_params,
                                  args=(wave[tmp_all][ind_noBAL],
                                        self.Smooth(flux[tmp_all][ind_noBAL], 10),
-                                       err[tmp_all][ind_noBAL]),
+                                       err[tmp_all][ind_noBAL], _conti_model),
                                  calc_covar=False)
             params_dict = conti_fit.params.valuesdict()
             params = list(params_dict.values())
@@ -815,7 +842,7 @@ class QSOFit():
         # Print fit report
         if self.verbose:
             print('Fit report')
-            report_fit(conti_fit.params)
+            report_fit(conti_fit.params)    
             
         """
         MCMC sampling
@@ -825,7 +852,7 @@ class QSOFit():
             conti_samples = minimize(self._residuals, params=conti_fit.params,
                                      args=(wave[tmp_all][ind_noBAL],
                                            self.Smooth(flux[tmp_all][ind_noBAL], 10),
-                                           err[tmp_all][ind_noBAL]),
+                                           err[tmp_all][ind_noBAL], _conti_model),
                                      method='emcee', nan_policy='omit',
                                      burn=self.nburn, steps=self.nsamp, thin=self.nthin,
                                      **self.kwargs_conti_emcee, is_weighted=True)
@@ -983,58 +1010,12 @@ class QSOFit():
                 L_tmp = np.array([-1.])
             L = np.concatenate([L, L_tmp])  # save log10(L1350,L3000,L5100)
         return L
+
     
-    
-    def _f_conti_all(self, xval, pp):
-        """
-        Continuum components described by 14 parameters
-         pp[0]: norm_factor for the MgII Fe_template
-         pp[1]: FWHM for the MgII Fe_template
-         pp[2]: small shift of wavelength for the MgII Fe template
-         pp[3:5]: same as pp[0:2] but for the Hbeta/Halpha Fe template
-         pp[6]: norm_factor for continuum f_lambda = (lambda/3000.0)^{-alpha}
-         pp[7]: slope for the power-law continuum
-         pp[8:10]: norm, Te and Tau_e for the Balmer continuum at <3646 A
-         pp[11:13]: polynomial for the continuum
-        """
-        # iron flux for MgII line region
-        f_Fe_MgII = self.Fe_flux_mgii(xval, pp[0:3])
-        # iron flux for balmer line region
-        f_Fe_Balmer = self.Fe_flux_balmer(xval, pp[3:6])
-        # power-law continuum
-        f_pl = self.PL(xval, pp)
-        # Balmer continuum
-        f_conti_BC = self.Balmer_conti(xval, pp[8:11])
-        # polynormal conponent for reddened spectra
-        f_poly = self.F_poly_conti(xval, pp[11:])
-        
-        # TODO, do this check ahead of time and pass the yval components into the residuals
-        
-        if self.Fe_uv_op == True and self.poly == False and self.BC == False:
-            yval = f_pl + f_Fe_MgII + f_Fe_Balmer
-        elif self.Fe_uv_op == True and self.poly == True and self.BC == False:
-            yval = f_pl + f_Fe_MgII + f_Fe_Balmer + f_poly
-        elif self.Fe_uv_op == True and self.poly == False and self.BC == True:
-            yval = f_pl + f_Fe_MgII + f_Fe_Balmer + f_conti_BC
-        elif self.Fe_uv_op == False and self.poly == True and self.BC == False:
-            yval = f_pl+f_poly
-        elif self.Fe_uv_op == False and self.poly == False and self.BC == False:
-            yval = f_pl
-        elif self.Fe_uv_op == False and self.poly == False and self.BC == True:
-            yval = f_pl + f_conti_BC
-        elif self.Fe_uv_op == True and self.poly == True and self.BC == True:
-            yval = f_pl + f_Fe_MgII + f_Fe_Balmer + f_poly + f_conti_BC
-        elif self.Fe_uv_op == False and self.poly == True and self.BC == True:
-            yval = f_pl + f_Fe_Balmer + f_poly + f_conti_BC
-        else:
-            raise RuntimeError('No this option for Fe_uv_op, poly and BC!')
-        return yval
-    
-    
-    def _residuals(self, p, xval, yval, weight):
-        """Continual residual function used in kmpfit"""
-        v = list(p.valuesdict().values())
-        return (yval - self._f_conti_all(xval, v))/weight
+    def _residuals(self, p, xval, yval, weight, _conti_model):
+        """Continual residual function used in lmfit"""
+        pp = list(p.valuesdict().values())
+        return (yval - _conti_model(xval, pp))/weight
     
     
     def _DoLineFit(self, wave, line_flux, err, f):
@@ -1660,7 +1641,7 @@ class QSOFit():
         if self.plot_legend == True:
             ax.legend(loc='best', frameon=False, ncol=2, fontsize=10)
         
-        # plot line name--------
+        # Plot line names
         if self.plot_line_name == True:
             line_cen = np.array(
                 [6564.60, 6549.85, 6585.27, 6718.29, 6732.66, 4862.68, 5008.24, 4687.02, 4341.68, 3934.78, 3728.47,
@@ -1668,9 +1649,9 @@ class QSOFit():
                  1215.67])
             
             line_name = np.array(
-                ['', '', 'Ha+[NII]', '', '[SII]6718,6732', 'Hb', '[OIII]', 'HeII4687', 'Hr', 'CaII3934', '[OII]3728',
+                ['', '', r'H$\alpha$+[NII]', '', '[SII]6718,6732', r'H$\beta$', '[OIII]', 'HeII4687', 'Hr', 'CaII3934', '[OII]3728',
                  'NeV3426', 'MgII', 'CIII]', 'SiII1816', 'NIII]1750', 'NIV]1718', 'CIV', 'HeII1640', '', 'SiIV+OIV',
-                 'CII1335', 'Lya'])
+                 'CII1335', r'Ly$\alpha$'])
             
             for ll in range(len(line_cen)):
                 if wave.min() < line_cen[ll] < wave.max():
@@ -1687,7 +1668,7 @@ class QSOFit():
         else:
             fig.supxlabel(r'$\rm Rest \, Wavelength$ ($\rm \AA$)', fontsize=20)
             fig.supylabel(r'$\rm f_{\lambda}$ ($\rm 10^{-17} erg\;s^{-1}\;cm^{-2}\;\AA^{-1}$)', fontsize=20)
-        
+        # Save figure
         if self.save_fig == True:
             if self.verbose:
                 print('Saving figure as', os.path.join(save_fig_path, self.sdss_name+'.pdf'))
@@ -1712,7 +1693,7 @@ class QSOFit():
         xval_new = xval*(1.0+pp[2])
         
         ind = np.where((xval_new > 1200.) & (xval_new < 3500.), True, False)
-        if np.sum(ind) > 100:
+        if np.sum(ind) > self.n_pix_min_conti:
             if Fe_FWHM < 900.0:
                 sig_conv = np.sqrt(910.0**2-900.0**2)/2./np.sqrt(2.*np.log(2.))
             else:
@@ -1741,7 +1722,7 @@ class QSOFit():
         Fe_FWHM = pp[1]
         xval_new = xval*(1.0+pp[2])
         ind = np.where((xval_new > 3686.) & (xval_new < 7484.), True, False)
-        if np.sum(ind) > 100:
+        if np.sum(ind) > self.n_pix_min_conti:
             if Fe_FWHM < 900.0:
                 sig_conv = np.sqrt(910.0**2-900.0**2)/2./np.sqrt(2.*np.log(2.))
             else:
