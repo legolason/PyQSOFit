@@ -787,11 +787,11 @@ class QSOFit():
         elif self.Fe_uv_op == True and self.poly == False and self.BC == True:
              _conti_model = lambda xval, pp : self.PL(xval, pp) + self.Fe_flux_mgii(xval, pp[0:3]) + self.Fe_flux_balmer(xval, pp[3:6]) + self.Balmer_conti(xval, pp[8:11])
         elif self.Fe_uv_op == False and self.poly == True and self.BC == False:
-            yval = self.PL(xval, pp) + self.F_poly_conti(xval, pp[11:])
+            _conti_model = lambda xval, pp : self.PL(xval, pp) + self.F_poly_conti(xval, pp[11:])
         elif self.Fe_uv_op == False and self.poly == False and self.BC == False:
-            yval = self.PL(xval, pp)
+            _conti_model = lambda xval, pp : self.PL(xval, pp)
         elif self.Fe_uv_op == False and self.poly == False and self.BC == True:
-            yval = self.PL(xval, pp) + self.Balmer_conti(xval, pp[8:11])
+            _conti_model = lambda xval, pp : self.PL(xval, pp) + self.Balmer_conti(xval, pp[8:11])
         elif self.Fe_uv_op == True and self.poly == True and self.BC == True:
             _conti_model = lambda xval, pp : self.PL(xval, pp) + self.Fe_flux_mgii(xval, pp[0:3]) + self.Fe_flux_balmer(xval, pp[3:6]) + self.F_poly_conti(xval, pp[11:]) + self.Balmer_conti(xval, pp[8:11])
         elif self.Fe_uv_op == False and self.poly == True and self.BC == True:
