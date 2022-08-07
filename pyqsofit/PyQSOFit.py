@@ -91,7 +91,7 @@ class QSOFit():
             Fe_flux_range=None, poly=False, BC=False, rej_abs=False, initial_guess=None, method='leastsq',
             MCMC=True, nburn=20, nsamp=200, nthin=10, epsilon_jitter=1e-4, linefit=True, save_result=True, plot_fig=True,
             save_fig=True, plot_line_name=True, plot_legend=True, plot_corner=True, dustmap_path=None, save_fig_path=None,
-            save_fits_path=None, save_fits_name=None, verbose=True, kwargs_conti_emcee={}, kwargs_line_emcee={}):
+            save_fits_path=None, save_fits_name=None, verbose=False, kwargs_conti_emcee={}, kwargs_line_emcee={}):
         
         """
         Fit the QSO spectrum and get different decomposed components and corresponding parameters
@@ -904,11 +904,10 @@ class QSOFit():
             
             self.conti_result = np.concatenate(([ra, dec, str(plateid), str(mjd), str(fiberid), self.z, self.SN_ratio_conti],
                                                list(chain.from_iterable(zip(params, params_err))), [L[0], L_std[0], L[1], L_std[1], L[2], L_std[2]]))
-            self.conti_result_type = np.array(
-                ['float', 'float', 'int', 'int', 'int', 'float', 'float', 'float', 'float', 'float', 'float', 'float',
-                 'float', 'float', 'float', 'float', 'float', 'float', 'float', 'float', 'float', 'float', 'float',
-                 'float', 'float', 'float', 'float', 'float', 'float', 'float', 'float', 'float', 'float', 'float',
-                 'float', 'float', 'float', 'float', 'float', 'float', 'float'])
+            self.conti_result_type = np.full(len(self.conti_result), 'float')
+            self.conti_result_type[2] = 'int'
+            self.conti_result_type[3] = 'int'
+            self.conti_result_type[4] = 'int'
             self.conti_result_name = np.concatenate((['ra', 'dec', 'plateid', 'MJD', 'fiberid', 'redshift', 'SN_ratio_conti'],
                                                      list(chain.from_iterable(zip(par_names, par_err_names))), ['L1350', 'L1350_err',
                                                      'L3000', 'L3000_err', 'L5100', 'L5100_err']))
@@ -937,14 +936,11 @@ class QSOFit():
             """
             Save the results
             """
-            self.conti_result = np.array(
-                [ra, dec, str(plateid), str(mjd), str(fiberid), self.z, self.SN_ratio_conti, params, L[0], L[1], L[2]])
-            self.conti_result_type = np.array(
-                ['float', 'float', 'int', 'int', 'int', 'float', 'float', 'float', 'float', 'float', 'float', 'float',
-                 'float', 'float', 'float', 'float', 'float', 'float', 'float', 'float', 'float', 'float', 'float',
-                 'float'])
-            self.conti_result_name = np.array(
-                ['ra', 'dec', 'plateid', 'MJD', 'fiberid', 'redshift', 'SN_ratio_conti', 'fit_pars', 'L1350', 'L3000', 'L5100'])
+            self.conti_result = np.concatenate(([ra, dec, str(plateid), str(mjd), str(fiberid), self.z, self.SN_ratio_conti],
+                                                params, [L[0], L[1], L[2]]))
+            self.conti_result_type = np.full(len(self.conti_result), 'float')
+            self.conti_result_name = np.concatenate((['ra', 'dec', 'plateid', 'MJD', 'fiberid', 'redshift', 'SN_ratio_conti'],
+                                                      par_names, ['L1350', 'L3000', 'L5100']))
             self.conti_result = np.append(self.conti_result, Fe_flux_result)
             self.conti_result_type = np.append(self.conti_result_type, Fe_flux_type)
             self.conti_result_name = np.append(self.conti_result_name, Fe_flux_name)
@@ -1397,6 +1393,28 @@ class QSOFit():
         self.uniq_linecomp_sort = uniq_linecomp_sort
         return self.line_result, self.line_result_name
     
+    def line_prop_from_name(self, line_name, line_type='broad'):
+        """
+        line_name: line name e.g., 'Ha_br'
+        """
+
+        # Get the complex center wavelength of the line_name component
+        mask_name = self.linelist['linename'] == line_name
+        compcenter = self.linelist[mask_name]['lambda'][0]
+
+        # Get each Gaussian component
+        ngauss = int(self.linelist[mask_name]['ngauss'][0])
+        pp = np.zeros(ngauss*3)
+
+        for n in range(ngauss):
+
+            # Get the Gaussian properties
+            pp[n] = float(self.line_result[self.line_result_name == f'{line_name}_{n+1}_scale'][0])
+            pp[n+1] = float(self.line_result[self.line_result_name == f'{line_name}_{n+1}_centerwave'][0])
+            pp[n+2] = float(self.line_result[self.line_result_name == f'{line_name}_{n+1}_sigma'][0])
+
+        return self.line_prop(compcenter, pp, line_type)
+    
     
     # -----line properties calculation function--------
     def line_prop(self, compcenter, pp, linetype):
@@ -1658,23 +1676,11 @@ class QSOFit():
         else:
             fig.set_xlabel(r'$\rm Rest \, Wavelength$ ($\rm \AA$)', fontsize=20)
             fig.set_ylabel(r'$\rm f_{\lambda}$ ($\rm 10^{-17} erg\;s^{-1}\;cm^{-2}\;\AA^{-1}$)', fontsize=20)
-            
-        """    
-        for ax in axn.reshape(-1):
-            print(ax)
-            ax.tick_params('both', labelsize=18)
-            #ax.tick_params(axis='both', which='both', direction='in')
-            ax.tick_params(axis='both', which='major', length=6)
-            ax.tick_params(axis='both', which='minor', length=3)
-            ax.xaxis.set_ticks_position('both')
-            ax.yaxis.set_ticks_position('both')
-        """
-        #fig.tight_layout()
         
         if self.save_fig == True:
             if self.verbose:
                 print('Saving figure as', os.path.join(save_fig_path, self.sdss_name+'.pdf'))
-            plt.savefig(os.path.join(save_fig_path, self.sdss_name+'.pdf'))
+            fig.savefig(os.path.join(save_fig_path, self.sdss_name+'.pdf'))
     
     def CalFWHM(self, logsigma):
         """transfer the logFWHM to normal frame"""
