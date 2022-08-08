@@ -89,7 +89,7 @@ class QSOFit():
     def Fit(self, name=None, nsmooth=1, and_or_mask=True, reject_badpix=True, deredden=True, wave_range=None,
             wave_mask=None, decomposition_host=True, BC03=False, Mi=None, npca_gal=5, npca_qso=20, Fe_uv_op=True,
             badpix_max_outliers=100, badpix_alpha=0.05, Fe_flux_range=None, poly=False, BC=False, rej_abs=False, initial_guess=None, method='leastsq', 
-            MCMC=True, nburn=20, nsamp=200, nthin=10, epsilon_jitter=1e-4, linefit=True, save_result=True, plot_fig=True,
+            MC=False, MCMC=False, nburn=20, nsamp=200, nthin=10, epsilon_jitter=1e-4, linefit=True, save_result=True, plot_fig=True,
             save_fig=True, plot_line_name=True, plot_legend=True, plot_corner=True, dustmap_path=None, save_fig_path=None,
             save_fits_path=None, save_fits_name=None, verbose=False, kwargs_conti_emcee={}, kwargs_line_emcee={}):
         
@@ -327,6 +327,7 @@ class QSOFit():
         self.maxOLs = badpix_max_outliers
         self.alpha = badpix_alpha
         self.n_pix_min_conti = 100 # pixels
+        self.MC = MC
         self.MCMC = MCMC
         self.method = method
         self.nburn = nburn
@@ -844,58 +845,87 @@ class QSOFit():
         # Print fit report
         if self.verbose:
             print('Fit report')
-            report_fit(conti_fit.params)    
+            report_fit(conti_fit.params)
             
         """
-        MCMC sampling
+        Uncertainty estimation
         """
-        if self.MCMC and self.nsamp > 0:
-            # Sample with MCMC, using the initial minima
-            conti_samples = minimize(self._residuals, params=conti_fit.params,
-                                     args=(wave[tmp_all][ind_noBAL],
-                                           self.Smooth(flux[tmp_all][ind_noBAL], 10),
-                                           err[tmp_all][ind_noBAL], _conti_model),
-                                     method='emcee', nan_policy='omit',
-                                     burn=self.nburn, steps=self.nsamp, thin=self.nthin,
-                                     **self.kwargs_conti_emcee, is_weighted=True)
-            samples_dict = conti_samples.params.valuesdict()
-            df_samples = conti_samples.flatchain
+        if (self.MCMC == True or self.MC == True) and self.nsamp > 0:
+            
+            """
+            MCMC sampling
+            """
+            if (self.MCMC == True) and (self.MC == False):
+                # Sample with MCMC, using the initial minima
+                conti_samples = minimize(self._residuals, params=conti_fit.params,
+                                         args=(wave[tmp_all][ind_noBAL],
+                                               self.Smooth(flux[tmp_all][ind_noBAL], 10),
+                                               err[tmp_all][ind_noBAL], _conti_model),
+                                         method='emcee', nan_policy='omit',
+                                         burn=self.nburn, steps=self.nsamp, thin=self.nthin,
+                                         **self.kwargs_conti_emcee, is_weighted=True)
+                samples_dict = conti_samples.params.valuesdict()
+                df_samples = conti_samples.flatchain
 
-            # Print fit report
-            if self.verbose:
-                print(f'acceptance fraction = {np.mean(conti_samples.acceptance_fraction)} +/- {np.std(conti_samples.acceptance_fraction)}')
-                # As a rule of thumb the value should be between 0.2 and 0.5
-                print('median of posterior probability distribution')
-                print('--------------------------------------------')
-                report_fit(conti_samples.params)
+                # Print fit report
+                if self.verbose:
+                    print(f'acceptance fraction = {np.mean(conti_samples.acceptance_fraction)} +/- {np.std(conti_samples.acceptance_fraction)}')
+                    # As a rule of thumb the value should be between 0.2 and 0.5
+                    print('median of posterior probability distribution')
+                    print('--------------------------------------------')
+                    report_fit(conti_samples.params)
 
-            if self.plot_corner:
-                import corner
-                truths = [params_dict[k] for k in df_samples.columns.values.tolist()]
-                emcee_plot = corner.corner(conti_samples.flatchain, labels=conti_samples.var_names,
-                                           quantiles=[0.16, 0.5, 0.84], truths=truths)
+                if self.plot_corner:
+                    import corner
+                    truths = [params_dict[k] for k in df_samples.columns.values.tolist()]
+                    emcee_plot = corner.corner(conti_samples.flatchain, labels=conti_samples.var_names,
+                                               quantiles=[0.16, 0.5, 0.84], truths=truths)
+
+                # After doing MCMC, the samples array will not include fixed parameters
+                # We need to add their fixed values back in so the order is preserved
+
+                # Loop through each parameter
+                for k, name in enumerate(par_names):
+                    # Add a column with all zeros if the parameter is fixed
+                    if name not in df_samples.columns.values.tolist():
+                        df_samples[name] = params_dict[name]
+                        
+                # Sort the samples dataframe back to its original order
+                df_samples = df_samples[par_names]
+                samples = df_samples.to_numpy()
+
+            """
+            MC resampling
+            """
+            if (self.MCMC == False) and (self.MC == True):
+                # Resample the spectrum using the measurement error
                 
-            # After doing MCMC, the samples array will not include fixed parameters
-            # We need to add their fixed values back in so the order is preserved
-            
-            # Loop through each parameter
-            for k, name in enumerate(par_names):
-                # Add a column with all zeros if the parameter is fixed
-                if name not in df_samples.columns.values.tolist():
-                    df_samples[name] = params_dict[name] #.value
-                    
-            # Sort the samples dataframe back to its original order
-            df_samples = df_samples[par_names]
-            samples = df_samples.to_numpy()
+                samples = np.zeros((self.nsamp, len(pp0)))
+                
+                for k in range(self.nsamp):
+                
+                    flux_resampled = flux + np.random.randn(len(flux))*err
+
+                    conti_fit = minimize(self._residuals, conti_fit.params,
+                                     args=(wave[tmp_all][ind_noBAL],
+                                           self.Smooth(flux_resampled[tmp_all][ind_noBAL], 10),
+                                           err[tmp_all][ind_noBAL], _conti_model),
+                                     calc_covar=False)
+                    params_dict = conti_fit.params.valuesdict()
+                    params = list(params_dict.values())
+                    samples[k] = params
+                
+            if (self.MCMC == True) and (self.MC == True):
+                RuntimeError('MCMC and MC modes are both True')
             
             # Parameter error estimates
             params_err = np.full(len(params), np.nan)
             
             # Parameters loop
-            for k, name in enumerate(df_samples.columns.values.tolist()):
-                lo = np.percentile(df_samples[name], 0.16)
-                hi = np.percentile(df_samples[name], 0.84)
-                median = np.median(df_samples[name])
+            for k, s in enumerate(samples.T):
+                lo = np.percentile(s, 0.16)
+                hi = np.percentile(s, 0.84)
+                median = np.median(s)
                 std = np.mean([hi - median, median - lo])
                 params[k] = median # Use the new MCMC median
                 params_err[k] = std
@@ -1217,48 +1247,75 @@ class QSOFit():
                         report_fit(line_fit.params)
                     
                     """
-                    MCMC sampling
+                    Uncertainty estimation
                     """
-                    if self.MCMC and self.nsamp > 0:
-                        # Sample with MCMC, using the initial minima
-                        line_samples = minimize(self._residual_line, params=line_fit.params,
-                                                args=(np.log(self.wave[ind_n]), line_flux[ind_n], self.err[ind_n], ln_lambda_0s),
-                                                method='emcee', nan_policy='omit', burn=self.nburn, steps=self.nsamp, thin=self.nthin,
-                                                is_weighted=True, **self.kwargs_line_emcee)
-                        p = line_samples.params.valuesdict()
-                        df_samples = line_samples.flatchain
-                        samples = df_samples.to_numpy()
-                        
-                        # Print fit report
-                        if self.verbose:
-                            print(f'acceptance fraction = {np.mean(line_samples.acceptance_fraction)} +/- {np.std(line_samples.acceptance_fraction)}')
-                            # As a rule of thumb the value should be between 0.2 and 0.5
-                            print('median of posterior probability distribution')
-                            print('--------------------------------------------')
-                            report_fit(line_samples.params)
+                    if (self.MCMC == True or self.MC == True) and self.nsamp > 0:
 
-                        if self.plot_corner:
-                            import corner
-                            truths = [params_dict[k] for k in df_samples.columns.values.tolist()]
-                            emcee_plot = corner.corner(df_samples, labels=line_samples.var_names,
-                                                       quantiles=[0.16, 0.5, 0.84], truths=truths)
-                        
-                        # Loop through each parameter
-                        for k, name in enumerate(par_names):
-                            # Add a column with all zeros if the parameter is fixed
-                            if name not in df_samples.columns.values.tolist():
-                                df_samples[name] = params_dict[name]
+                        """
+                        MCMC sampling
+                        """
+                        if (self.MCMC == True) and (self.MC == False):
+                            # Sample with MCMC, using the initial minima
+                            line_samples = minimize(self._residual_line, params=line_fit.params,
+                                                    args=(np.log(self.wave[ind_n]), line_flux[ind_n], self.err[ind_n], ln_lambda_0s),
+                                                    method='emcee', nan_policy='omit', burn=self.nburn, steps=self.nsamp, thin=self.nthin,
+                                                    is_weighted=True, **self.kwargs_line_emcee)
+                            p = line_samples.params.valuesdict()
+                            df_samples = line_samples.flatchain
+                            samples = df_samples.to_numpy()
 
-                        # Sort the samples dataframe back to its original order
-                        df_samples = df_samples[par_names]
-                        samples = df_samples.to_numpy()
+                            # Print fit report
+                            if self.verbose:
+                                print(f'acceptance fraction = {np.mean(line_samples.acceptance_fraction)} +/- {np.std(line_samples.acceptance_fraction)}')
+                                # As a rule of thumb the value should be between 0.2 and 0.5
+                                print('median of posterior probability distribution')
+                                print('--------------------------------------------')
+                                report_fit(line_samples.params)
+
+                            if self.plot_corner:
+                                import corner
+                                truths = [params_dict[k] for k in df_samples.columns.values.tolist()]
+                                emcee_plot = corner.corner(df_samples, labels=line_samples.var_names,
+                                                           quantiles=[0.16, 0.5, 0.84], truths=truths)
+
+                            # Loop through each parameter
+                            for k, name in enumerate(par_names):
+                                # Add a column with all zeros if the parameter is fixed
+                                if name not in df_samples.columns.values.tolist():
+                                    df_samples[name] = params_dict[name]
+
+                            # Sort the samples dataframe back to its original order
+                            df_samples = df_samples[par_names]
+                            samples = df_samples.to_numpy()
+                            
+                        """
+                        MC resampling
+                        """
+                        if (self.MCMC == False) and (self.MC == True):
+                            # Resample the spectrum using the measurement error using the best-fit parameters as initial conditions
+
+                            samples = np.zeros((self.nsamp, len(params)))
+
+                            for k in range(self.nsamp):
+
+                                line_flux_resampled = line_flux + np.random.randn(len(line_flux))*self.err
+
+                                line_samples = minimize(self._residual_line, fit_params, ## or line_fit.params?
+                                                 args=(np.log(self.wave[ind_n]), line_flux_resampled[ind_n], self.err[ind_n], ln_lambda_0s),
+                                                 method=self.method, calc_covar=False)
+                                params_dict = line_samples.params.valuesdict()
+                                params = list(params_dict.values())
+                                samples[k] = params
+
+                        if (self.MCMC == True) and (self.MC == True):
+                            RuntimeError('MCMC and MC modes are both True')
                         
                         # Error estimates
                         params_err = np.full(len(params), np.nan)
-                        for k, name in enumerate(df_samples.columns.values.tolist()):
-                            lo = np.percentile(df_samples[name], 0.16)
-                            hi = np.percentile(df_samples[name], 0.84)
-                            median = np.median(df_samples[name])
+                        for k, s in enumerate(samples.T):
+                            lo = np.percentile(s, 0.16)
+                            hi = np.percentile(s, 0.84)
+                            median = np.median(s)
                             std = np.mean([hi - median, median - lo])
                             params[k] = median # Use the new MCMC median
                             params_err[k] = std
@@ -1313,7 +1370,7 @@ class QSOFit():
                                         
                     for gg in range(len(params)):
                         gauss_tmp = np.concatenate([gauss_tmp, np.array([params[gg]])])
-                        if self.MCMC == True and self.nsamp > 0:
+                        if (self.MCMC == True or self.MC == True) and self.nsamp > 0:
                             gauss_tmp = np.concatenate([gauss_tmp, np.array([params_err[gg]])])
                     gauss_result = np.concatenate([gauss_result, gauss_tmp])
                     
@@ -1321,7 +1378,7 @@ class QSOFit():
                     for n in range(nline_fit):
                         for nn in range(int(ngauss_fit[n])):
                             line_name = linelist['linename'][ind_line][n]+'_'+str(nn+1)
-                            if self.MCMC == True and self.nsamp > 0:
+                            if (self.MCMC == True or self.MC == True) and self.nsamp > 0:
                                 gauss_type_tmp_tmp = ['float', 'float', 'float', 'float', 'float', 'float']
                                 gauss_name_tmp_tmp = [line_name+'_scale', line_name+'_scale_err',
                                                       line_name+'_centerwave', line_name+'_centerwave_err',
@@ -1341,7 +1398,7 @@ class QSOFit():
                     fwhm, sigma, ew, peak, area = self.line_prop(compcenter, params, 'broad')
                     br_name = uniq_linecomp_sort[ii]
                     
-                    if self.MCMC == True and self.nsamp > 0:
+                    if (self.MCMC == True or self.MC == True) and self.nsamp > 0:
                         fur_result_tmp = np.array(
                             [fwhm, fwhm_std, sigma, sigma_std, ew, ew_std, peak, peak_std, area, area_std])
                         fur_result_type_tmp = np.concatenate([fur_result_type_tmp,
@@ -1577,7 +1634,7 @@ class QSOFit():
             fig, axn = plt.subplots(nrows=2, ncols=np.max([self.ncomp, 1]), figsize=(15, 8),
                                     squeeze=False)  # prepare for the emission line subplots in the second row
             ax = plt.subplot(2, 1, 1)  # plot the first subplot occupying the whole first row
-            if self.MCMC == True:
+            if (self.MCMC == True or self.MC == True) and self.nsamp > 0:
                 mc_flag = 2
             else:
                 mc_flag = 1
@@ -1603,27 +1660,6 @@ class QSOFit():
             # supplement the emission lines in the first subplot
             ax.plot(wave_eval, lines_total + f_conti_model_eval, 'b', label='line', zorder=6)
             
-            # Wave mask
-            if self.wave_mask is not None:
-                for j, w in enumerate(self.wave_mask):
-                    ax.axvspan(w[0], w[1], color='k', alpha=0.25)
-                    # Plot avoiding drawing lines between masked values
-                    if j==0:
-                        mask = self.wave_prereduced < w[0]
-                        ax.plot(self.wave_prereduced[mask], self.flux_prereduced[mask], 'k', label='data', lw=1, zorder=2)
-                        ax.plot(self.wave_prereduced[mask], self.err_prereduced[mask], 'gray', label='error', lw=1, zorder=1)
-                    if j==len(self.wave_mask) - 1:
-                        mask = self.wave_prereduced > w[1]
-                        ax.plot(self.wave_prereduced[mask], self.flux_prereduced[mask], 'k', lw=1, zorder=2)
-                        ax.plot(self.wave_prereduced[mask], self.err_prereduced[mask], 'gray', lw=1, zorder=1)
-                    else:
-                        mask = (self.wave_prereduced > w[1]) & (self.wave_prereduced < self.wave_mask[j+1,0])
-                        ax.plot(self.wave_prereduced[mask], self.flux_prereduced[mask], 'k', lw=1, zorder=2)
-                        ax.plot(self.wave_prereduced[mask], self.err_prereduced[mask], 'gray', lw=1, zorder=1)
-            else:
-                ax.plot(self.wave_prereduced, self.flux_prereduced, 'k', label='data', lw=1, zorder=2)
-                ax.plot(self.wave_prereduced, self.err_prereduced, 'gray', label='error', lw=1, zorder=1)
-            
             # Line complex subplots 
             for c in range(self.ncomp):
                 axn[1][c].plot(wave_eval, lines_total, color='b', zorder=10)
@@ -1638,7 +1674,7 @@ class QSOFit():
                 df = np.abs(line_flux - np.interp(wave, wave_eval, lines_total))
                 
                 mask_outliers = np.where(df < 3*np.std(df), True, False)
-                axn[1][c].plot(wave, df, color='m') ######
+                #axn[1][c].plot(wave, df, color='m') ###### Residual
                 f_max = line_flux[mask_complex & mask_outliers].max()
                 f_min = np.min([-1, line_flux[mask_complex & mask_outliers].min()])
                 
@@ -1673,6 +1709,27 @@ class QSOFit():
         else:
             # If no lines are fitted, there would be only one row
             fig, ax = plt.subplots(nrows=1, ncols=1, figsize=(15, 5))
+            
+        # Wave mask
+        if self.wave_mask is not None:
+            for j, w in enumerate(self.wave_mask):
+                ax.axvspan(w[0], w[1], color='k', alpha=0.25)
+                # Plot avoiding drawing lines between masked values
+                if j==0:
+                    mask = self.wave_prereduced < w[0]
+                    ax.plot(self.wave_prereduced[mask], self.flux_prereduced[mask], 'k', label='data', lw=1, zorder=2)
+                    #ax.plot(self.wave_prereduced[mask], self.err_prereduced[mask], 'gray', label='error', lw=1, zorder=1)
+                if j==len(self.wave_mask) - 1:
+                    mask = self.wave_prereduced > w[1]
+                    ax.plot(self.wave_prereduced[mask], self.flux_prereduced[mask], 'k', lw=1, zorder=2)
+                    #ax.plot(self.wave_prereduced[mask], self.err_prereduced[mask], 'gray', lw=1, zorder=1)
+                else:
+                    mask = (self.wave_prereduced > w[1]) & (self.wave_prereduced < self.wave_mask[j+1,0])
+                    ax.plot(self.wave_prereduced[mask], self.flux_prereduced[mask], 'k', lw=1, zorder=2)
+                    #ax.plot(self.wave_prereduced[mask], self.err_prereduced[mask], 'gray', lw=1, zorder=1)
+        else:
+            ax.plot(self.wave_prereduced, self.flux_prereduced, 'k', label='data', lw=1, zorder=2)
+            #ax.plot(self.wave_prereduced, self.err_prereduced, 'gray', label='error', lw=1, zorder=1)
         
         if self.ra == -999. or self.dec == -999.:
             ax.set_title(str(self.sdss_name)+'   z = '+str(np.round(z, 4)), fontsize=20)
