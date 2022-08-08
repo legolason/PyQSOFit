@@ -88,7 +88,7 @@ class QSOFit():
     
     def Fit(self, name=None, nsmooth=1, and_or_mask=True, reject_badpix=True, deredden=True, wave_range=None,
             wave_mask=None, decomposition_host=True, BC03=False, Mi=None, npca_gal=5, npca_qso=20, Fe_uv_op=True,
-            Fe_flux_range=None, poly=False, BC=False, rej_abs=False, initial_guess=None, method='leastsq', 
+            badpix_max_outliers=100, badpix_alpha=0.05, Fe_flux_range=None, poly=False, BC=False, rej_abs=False, initial_guess=None, method='leastsq', 
             MCMC=True, nburn=20, nsamp=200, nthin=10, epsilon_jitter=1e-4, linefit=True, save_result=True, plot_fig=True,
             save_fig=True, plot_line_name=True, plot_legend=True, plot_corner=True, dustmap_path=None, save_fig_path=None,
             save_fits_path=None, save_fits_name=None, verbose=False, kwargs_conti_emcee={}, kwargs_line_emcee={}):
@@ -324,6 +324,8 @@ class QSOFit():
         self.poly = poly
         self.BC = BC
         self.rej_abs = rej_abs
+        self.maxOLs = badpix_max_outliers
+        self.alpha = badpix_alpha
         self.n_pix_min_conti = 100 # pixels
         self.MCMC = MCMC
         self.method = method
@@ -393,7 +395,7 @@ class QSOFit():
         if (and_or_mask == True) and (self.and_mask is not None or self.or_mask is not None):
             self._MaskSdssAndOr(self.lam, self.flux, self.err, self.and_mask, self.or_mask)
         if reject_badpix == True:
-            self._RejectBadPix(self.lam, self.flux, self.err)
+            self._RejectBadPix(self.lam, self.flux, self.err, self.maxOLs, self.alpha)
         if wave_range is not None:
             self._WaveTrim(self.lam, self.flux, self.err, self.z)
         if wave_mask is not None:
@@ -466,16 +468,16 @@ class QSOFit():
         return the same size array of wavelength, flux, error
         """
         ind_and_or = np.where((and_mask == 0) & (or_mask == 0), True, False)
-        del self.lam, self.flux, self.err
+        #del self.lam, self.flux, self.err
         self.lam, self.flux, self.err = lam[ind_and_or], flux[ind_and_or], err[ind_and_or]
     
-    def _RejectBadPix(self, lam, flux, err):
+    def _RejectBadPix(self, lam, flux, err, maxOLs=10, alpha=0.05):
         """
         Reject 10 most possiable outliers, input wavelength, flux and error. Return a different size wavelength,
         flux, and error.
         """
         # -----remove bad pixels, but not for high SN spectrum------------
-        ind_bad = pyasl.pointDistGESD(flux, 10)
+        ind_bad = pyasl.pointDistGESD(flux, maxOLs, alpha)
         wv = np.asarray([i for j, i in enumerate(lam) if j not in ind_bad[1]], dtype=np.float64)
         fx = np.asarray([i for j, i in enumerate(flux) if j not in ind_bad[1]], dtype=np.float64)
         er = np.asarray([i for j, i in enumerate(err) if j not in ind_bad[1]], dtype=np.float64)
@@ -488,7 +490,7 @@ class QSOFit():
         Trim spectrum with a range in the rest frame. 
         """
         # trim spectrum e.g., local fit emiision lines
-        ind_trim = np.where((lam/(1.+z) > self.wave_range[0]) & (lam/(1.+z) < self.wave_range[1]), True, False)
+        ind_trim = np.where((lam/(1 + z) > self.wave_range[0]) & (lam/(1 + z) < self.wave_range[1]), True, False)
         del self.lam, self.flux, self.err
         self.lam, self.flux, self.err = lam[ind_trim], flux[ind_trim], err[ind_trim]
         if len(self.lam) < 100:
@@ -500,7 +502,7 @@ class QSOFit():
         
         for msk in range(len(self.wave_mask)):
             try:
-                ind_not_mask = ~np.where((lam/(1.+z) > self.wave_mask[msk, 0]) & (lam/(1.+z) < self.wave_mask[msk, 1]),
+                ind_not_mask = ~np.where((lam/(1 + z) > self.wave_mask[msk, 0]) & (lam/(1 + z) < self.wave_mask[msk, 1]),
                                          True, False)
             except IndexError:
                 raise RuntimeError("Wave_mask should be 2D array,e.g., np.array([[2000,3000],[3100,4000]]).")
@@ -1096,25 +1098,28 @@ class QSOFit():
                             voff = linelist['voff'][ind_line][n]
 
                             # It's usually a good idea to jitter the parameters a bit
+                            # sigma
                             sig_0 = linelist['inisig'][ind_line][n] + np.abs(np.random.normal(0, self.epsilon_jitter))
                             sig_low = linelist['minsig'][ind_line][n]
                             sig_up = linelist['maxsig'][ind_line][n]
 
+                             # scale
                             scale_0 = linelist['inisca'][ind_line][n] + np.abs(np.random.normal(0, self.epsilon_jitter))
                             scale_low = linelist['minsca'][ind_line][n]
                             scale_up = linelist['maxsca'][ind_line][n]
                             
                             vary = bool(linelist['vary'][ind_line][n])
 
+                            # change in wav relative to complex center
                             dwave_0 = np.random.normal(0, self.epsilon_jitter)
 
                             # Number of Gaussians loop
                             for nn in range(ngauss_fit[n]):
 
-                                fit_params.add(f'{line_name}_{nn+1}_scale', value=scale_0, min=scale_low, max=scale_up, vary=vary) # scale
-                                fit_params.add(f'{line_name}_{nn+1}_dwave', value=dwave_0, min=-voff, max=voff, vary=vary) # change in wav relative to complex center
+                                fit_params.add(f'{line_name}_{nn+1}_scale', value=scale_0, min=scale_low, max=scale_up, vary=vary)
+                                fit_params.add(f'{line_name}_{nn+1}_dwave', value=dwave_0, min=-voff, max=voff, vary=vary)
                                 ln_lambda_0s.append(ln_lambda_0)
-                                fit_params.add(f'{line_name}_{nn+1}_sigma', value=sig_0, min=sig_low, max=sig_up, vary=vary) # sigma
+                                fit_params.add(f'{line_name}_{nn+1}_sigma', value=sig_0, min=sig_low, max=sig_up, vary=vary)
                                                             
                     """
                     Tie lines
@@ -1142,11 +1147,11 @@ class QSOFit():
                             # Generate constraint expression
                             expr = f'{line_name_mask}_1_dwave'
                             
-                            # Don't assign expr constraint to the first line, which has already been constrained
-                            if f'{line_name}_{nn+1}_dwave' != expr:
-                            
-                                # Number of Gaussians loop
-                                for nn in range(ngauss_fit[n]):
+                            # Number of Gaussians loop
+                            for nn in range(ngauss_fit[n]):
+
+                                # Don't assign expr constraint to the first line, which has already been constrained
+                                if f'{line_name}_{nn+1}_dwave' != expr:
                                     fit_params[f'{line_name}_{nn+1}_dwave'].expr = expr
                                 
                         # Tie width
@@ -1158,12 +1163,12 @@ class QSOFit():
                             line_name_mask = linelist['linename'][ind_line][mask_index][0]
                             # Generate constraint expression
                             expr = f'{line_name_mask}_1_sigma'
-                            
-                            # Don't assign expr constraint to itself
-                            if f'{line_name}_{nn+1}_sigma' != expr:
                                 
-                                # Number of Gaussians loop
-                                for nn in range(ngauss_fit[n]):
+                            # Number of Gaussians loop
+                            for nn in range(ngauss_fit[n]):
+                                
+                                # Don't assign expr constraint to the first line, which has already been constrained
+                                if f'{line_name}_{nn+1}_sigma' != expr:
                                     fit_params[f'{line_name}_{nn+1}_sigma'].expr = expr
                                     
                         # Tie flux ratios
@@ -1177,17 +1182,17 @@ class QSOFit():
                             line_name_mask = linelist['linename'][ind_line][mask_index][0]
                             
                             # Generate constraint expression
-                            expr = f'{line_name_mask}_1_scale'
-                            
-                            # Don't assign expr constraint to the first line, which has already been constrained
-                            if (f'{line_name}_{nn+1}_scale' != expr):
+                            expr_base = f'{line_name_mask}_1_scale'
                                 
-                                fvalue_tie = linelist['fvalue'][ind_line][mask_index][0]
-                                fratio = fvalue/fvalue_tie # All masked fvalues should be the same
-                                expr = f'{fratio} * {expr}'
-                                                                
-                                # Number of Gaussians loop
-                                for nn in range(ngauss_fit[n]):
+                            fvalue_tie = linelist['fvalue'][ind_line][mask_index][0]
+                            fratio = fvalue/fvalue_tie # All masked fvalues should be the same
+                            expr = f'{fratio} * {expr_base}'
+
+                            # Number of Gaussians loop
+                            for nn in range(ngauss_fit[n]):
+                                    
+                                # Don't assign expr constraint to the first line, which has already been constrained
+                                if (f'{line_name}_{nn+1}_scale' != expr_base):
                                     fit_params[f'{line_name}_{nn+1}_scale'].expr = expr
                         
                     """
@@ -1503,8 +1508,6 @@ class QSOFit():
     def _residual_line(self, params, xval, yval, weight, ln_lambda_0s):
         """
         Calculate total residual for simulatnous fitting of line complexes
-        
-        https://lmfit.github.io/lmfit-py/examples/example_fit_multi_datasets.html
         """
         
         pp = list(params.valuesdict().values())
@@ -1563,10 +1566,12 @@ class QSOFit():
         """Plot the results"""
         
         pp = list(conti_fit.params.valuesdict().values())
-        self.PL_poly = self.PL(wave, pp) + self.F_poly_conti(wave, pp[11:])
         
         matplotlib.rc('xtick', labelsize=20)
         matplotlib.rc('ytick', labelsize=20)
+        
+        wave_eval = np.linspace(np.min(wave) - 200, np.max(wave) + 200, 5000)
+        f_conti_model_eval = np.interp(wave_eval, wave, f_conti_model)
         
         if linefit == True:
             fig, axn = plt.subplots(nrows=2, ncols=np.max([self.ncomp, 1]), figsize=(15, 8),
@@ -1577,7 +1582,7 @@ class QSOFit():
             else:
                 mc_flag = 1
             
-            lines_total = np.zeros_like(wave)
+            lines_total = np.zeros_like(wave_eval)
             line_order = {'r': 3, 'g': 7}  # to make the narrow line plot above the broad line
             
             temp_gauss_result = gauss_result
@@ -1588,31 +1593,83 @@ class QSOFit():
                 else:
                     color = 'r'
                 
-                line_single = self.Onegauss(np.log(wave), temp_gauss_result[p*3*mc_flag:(p+1)*3*mc_flag:mc_flag])
+                line_single = self.Onegauss(np.log(wave_eval), temp_gauss_result[p*3*mc_flag:(p+1)*3*mc_flag:mc_flag])
                 
-                ax.plot(wave, line_single + f_conti_model, color=color, zorder=5)
+                ax.plot(wave_eval, line_single + f_conti_model_eval, color=color, zorder=5)
                 for c in range(self.ncomp):
-                    axn[1][c].plot(wave, line_single, color=color, zorder=line_order[color])
+                    axn[1][c].plot(wave_eval, line_single, color=color, zorder=line_order[color])
                 lines_total += line_single
             
-            ax.plot(wave, lines_total+f_conti_model, 'b', label='line',
-                    zorder=6)  # supplement the emission lines in the first subplot
+            # supplement the emission lines in the first subplot
+            ax.plot(wave_eval, lines_total + f_conti_model_eval, 'b', label='line', zorder=6)
             
+            # Wave mask
+            if self.wave_mask is not None:
+                for j, w in enumerate(self.wave_mask):
+                    ax.axvspan(w[0], w[1], color='k', alpha=0.25)
+                    # Plot avoiding drawing lines between masked values
+                    if j==0:
+                        mask = self.wave_prereduced < w[0]
+                        ax.plot(self.wave_prereduced[mask], self.flux_prereduced[mask], 'k', label='data', lw=1, zorder=2)
+                        ax.plot(self.wave_prereduced[mask], self.err_prereduced[mask], 'gray', label='error', lw=1, zorder=1)
+                    if j==len(self.wave_mask) - 1:
+                        mask = self.wave_prereduced > w[1]
+                        ax.plot(self.wave_prereduced[mask], self.flux_prereduced[mask], 'k', lw=1, zorder=2)
+                        ax.plot(self.wave_prereduced[mask], self.err_prereduced[mask], 'gray', lw=1, zorder=1)
+                    else:
+                        mask = (self.wave_prereduced > w[1]) & (self.wave_prereduced < self.wave_mask[j+1,0])
+                        ax.plot(self.wave_prereduced[mask], self.flux_prereduced[mask], 'k', lw=1, zorder=2)
+                        ax.plot(self.wave_prereduced[mask], self.err_prereduced[mask], 'gray', lw=1, zorder=1)
+            else:
+                ax.plot(self.wave_prereduced, self.flux_prereduced, 'k', label='data', lw=1, zorder=2)
+                ax.plot(self.wave_prereduced, self.err_prereduced, 'gray', label='error', lw=1, zorder=1)
+            
+            # Line complex subplots 
             for c in range(self.ncomp):
-                axn[1][c].plot(wave, lines_total, color='b', zorder=10)
-                axn[1][c].plot(wave, self.line_flux, 'k', zorder=0)
+                axn[1][c].plot(wave_eval, lines_total, color='b', zorder=10)
+                #axn[1][c].plot(wave, self.line_flux, 'k', zorder=0)
                 
+                # Set axis limits
                 axn[1][c].set_xlim(all_comp_range[2*c:2*c+2])
-                f_max = line_flux[
-                    np.where((wave > all_comp_range[2*c]) & (wave < all_comp_range[2*c+1]), True, False)].max()
-                f_min = line_flux[
-                    np.where((wave > all_comp_range[2*c]) & (wave < all_comp_range[2*c+1]), True, False)].min()
+                
+                mask_complex = np.where((wave > all_comp_range[2*c]) & (wave < all_comp_range[2*c+1]), True, False)
+                
+                # Mask outliers
+                df = np.abs(line_flux - np.interp(wave, wave_eval, lines_total))
+                
+                mask_outliers = np.where(df < 3*np.std(df), True, False)
+                axn[1][c].plot(wave, df, color='m') ######
+                f_max = line_flux[mask_complex & mask_outliers].max()
+                f_min = np.min([-1, line_flux[mask_complex & mask_outliers].min()])
+                
                 axn[1][c].set_ylim(f_min*0.9, f_max*1.1)
+                
                 axn[1][c].set_xticks([all_comp_range[2*c], np.round((all_comp_range[2*c]+all_comp_range[2*c+1])/2, -1),
                                       all_comp_range[2*c+1]])
+                
                 axn[1][c].text(0.02, 0.9, uniq_linecomp_sort[c], fontsize=20, transform=axn[1][c].transAxes)
                 axn[1][c].text(0.02, 0.80, r'$\chi ^2_\nu=$'+str(np.round(float(self.comp_result[c*7+4]), 2)),
                                fontsize=16, transform=axn[1][c].transAxes)
+                # Wave mask
+                if self.wave_mask is not None:
+                    for j, w in enumerate(self.wave_mask):
+                        axn[1][c].axvspan(w[0], w[1], color='k', alpha=0.25)
+                        # Plot avoiding drawing lines between masked values
+                        if j==0:
+                            mask = wave < w[0]
+                            axn[1][c].plot(wave[mask], self.line_flux[mask], 'k', label='data', lw=1, zorder=2)
+                            #axn[1][c].plot(wave[mask], err[mask], 'gray', label='error', zorder=1)
+                        if j==len(self.wave_mask) - 1:
+                            mask = self.wave_prereduced > w[1]
+                            axn[1][c].plot(wave[mask], self.line_flux[mask], 'k', lw=1, zorder=2)
+                            #axn[1][c].plot(wave[mask], err[mask], 'gray', zorder=1)
+                        else:
+                            mask = (wave > w[1]) & (wave < self.wave_mask[j+1,0])
+                            axn[1][c].plot(wave[mask], self.line_flux[mask], 'k', lw=1, zorder=2)
+                            #axn[1][c].plot(wave[mask], err[mask], 'gray', zorder=1)
+                else:
+                    axn[1][c].plot(wave, self.line_flux, 'k', label='data', lw=1, zorder=2)
+                    #axn[1][c].plot(wave, err, 'gray', label='error', zorder=1)
         else:
             # If no lines are fitted, there would be only one row
             fig, ax = plt.subplots(nrows=1, ncols=1, figsize=(15, 5))
@@ -1623,7 +1680,7 @@ class QSOFit():
             ax.set_title('ra,dec = ('+str(ra)+','+str(dec)+')   '+str(self.sdss_name)+'   z = '+str(np.round(z, 4)),
                          fontsize=20)
         
-        ax.plot(self.wave_prereduced, self.flux_prereduced, 'k', label='data', zorder=2)
+        ########ax.plot(self.wave_prereduced, self.flux_prereduced, 'k', label='data', zorder=2)
         
         if decomposition_host == True and self.decomposed == True:
             ax.plot(wave, self.qso+self.host, 'pink', label='host+qso temp', zorder=3)
@@ -1632,8 +1689,8 @@ class QSOFit():
         else:
             host = self.flux_prereduced.min()
         
-        ax.scatter(wave[tmp_all], np.repeat(self.flux_prereduced.max()*1.05, len(wave[tmp_all])), color='grey',
-                   marker='o')  # plot continuum region
+        # Plot continuum regions
+        ax.scatter(wave[tmp_all], np.repeat(self.flux_prereduced.max()*1.05, len(wave[tmp_all])), color='grey', marker='o')
         
         ax.plot([0, 0], [0, 0], 'r', label='line br', zorder=5)
         ax.plot([0, 0], [0, 0], 'g', label='line na', zorder=5)
@@ -1662,7 +1719,7 @@ class QSOFit():
                  1215.67])
             
             line_name = np.array(
-                ['', '', r'H$\alpha$+[NII]', '', '[SII]6718,6732', r'H$\beta$', '[OIII]', 'HeII4687', 'Hr', 'CaII3934', '[OII]3728',
+                ['', '', r'H$\alpha$+[NII]', '', '[SII]6718,6732', r'H$\beta$', '[OIII]', 'HeII4687', r'H$\gamma$', 'CaII3934', '[OII]3728',
                  'NeV3426', 'MgII', 'CIII]', 'SiII1816', 'NIII]1750', 'NIV]1718', 'CIV', 'HeII1640', '', 'SiIV+OIV',
                  'CII1335', r'Ly$\alpha$'])
             
@@ -1690,6 +1747,17 @@ class QSOFit():
     def CalFWHM(self, logsigma):
         """transfer the logFWHM to normal frame"""
         return 2*np.sqrt(2*np.log(2))*(np.exp(logsigma)-1)*300000.
+    
+    def calc_snr(self, line_flux, flux):
+        
+        n = len(flux)
+
+        if n > 4:
+            signal = np.median(line_flux)
+            noise  = 0.6052697*np.median(np.abs(2.0*flux[2:n-2] - flux[0:n-4] - flux[4:n]))
+            return signal / noise
+        else:
+            return 0.0
     
     def Smooth(self, y, box_pts):
         "Smooth the flux with n pixels"
