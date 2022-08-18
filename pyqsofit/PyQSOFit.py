@@ -927,7 +927,7 @@ class QSOFit():
                 hi = np.percentile(s, 0.84)
                 median = np.median(s)
                 std = np.mean([hi - median, median - lo])
-                params[k] = median # Use the new MCMC median
+                #params[k] = median # Use the new MCMC median
                 params_err[k] = std
                 
             """
@@ -994,11 +994,12 @@ class QSOFit():
             L = self._L_conti(wave, params)
 
             # Calculate FeII flux
-            Fe_flux_result = np.array([])
-            Fe_flux_type = np.array([])
-            Fe_flux_name = np.array([])
             if self.Fe_flux_range is not None:
                 Fe_flux_result, Fe_flux_type, Fe_flux_name = self.Get_Fe_flux(self.Fe_flux_range, params[:6])
+            else:
+                Fe_flux_result = np.array([])
+                Fe_flux_type = np.array([])
+                Fe_flux_name = np.array([])
 
             """
             Save the results
@@ -1065,6 +1066,19 @@ class QSOFit():
         # Ensure the spectrum covers the rest-frame wavelengths of the line complexes
         ind_kind_line = np.where((linelist['lambda'] > wave.min()) & (linelist['lambda'] < wave.max()), True, False)
         
+        # Initialize some lists
+        line_result = []
+        line_result_name = []
+        line_result_type = []
+        comp_result = []
+        comp_result_type = []
+        comp_result_name = []
+        gauss_result = []
+        gauss_result_all = []
+        gauss_result_type = []
+        gauss_result_name = []
+        all_comp_range = []
+        
         if ind_kind_line.any() == True:
             
             # Sort complex name with line wavelength
@@ -1074,16 +1088,9 @@ class QSOFit():
             compname = linelist['compname']
             allcompcenter = np.sort(linelist['lambda'][ind_kind_line][uniq_ind])
                         
-            comp_result = np.array([])
-            comp_result_type = np.array([])
-            comp_result_name = np.array([])
-            gauss_result = np.array([])
-            gauss_result_type = np.array([])
-            gauss_result_name = np.array([])
-            all_comp_range = np.array([])
-            fur_result = np.array([])
-            fur_result_type = np.array([])
-            fur_result_name = np.array([])
+            fur_result = [] 
+            fur_result_type = []
+            fur_result_name = []
             
             """
             Setup parameters for fitting
@@ -1240,6 +1247,9 @@ class QSOFit():
                     params_dict = line_fit.params.valuesdict()
                     par_names = list(params_dict.keys())
                     params = list(params_dict.values())
+                    chisqr = line_fit.chisqr
+                    bic = line_fit.bic
+                    redchi = line_fit.redchi
 
                     # Print fit report
                     if self.verbose:
@@ -1295,6 +1305,8 @@ class QSOFit():
                             # Resample the spectrum using the measurement error using the best-fit parameters as initial conditions
 
                             samples = np.zeros((self.nsamp, len(params)))
+                            chisqrs = np.zeros(self.nsamp)
+                            bics = np.zeros(self.nsamp)
 
                             for k in range(self.nsamp):
 
@@ -1308,7 +1320,7 @@ class QSOFit():
                                 samples[k] = params
 
                         if (self.MCMC == True) and (self.MC == True):
-                            RuntimeError('MCMC and MC modes are both True')
+                            RuntimeError('MCMC and MC modes cannot both be True')
                         
                         # Error estimates
                         params_err = np.full(len(params), np.nan)
@@ -1317,9 +1329,12 @@ class QSOFit():
                             hi = np.percentile(s, 0.84)
                             median = np.median(s)
                             std = np.mean([hi - median, median - lo])
-                            params[k] = median # Use the new MCMC median
+                            #params[k] = median # Use the new MCMC median
                             params_err[k] = std
                             
+                        # TODO: Recompute chi^2 for the best-fitting model
+                        # OR plot the MLE solution always
+                        
                         """
                         Calculate physical properties
                         """
@@ -1350,107 +1365,95 @@ class QSOFit():
                     params_shaped[:,1] += ln_lambda_0s # Transform ln lambda ~ d ln lambda + ln lambda0
                     params = params_shaped.reshape(-1)
                     
-                    # ----------------------get line fitting results----------------------                                        
-                    comp_result_tmp = np.array(
-                        [[linelist['compname'][ind_line][0]], [int(line_fit.success)], [line_fit.chisqr], [line_fit.bic], 
-                         [line_fit.redchi], [line_fit.nfev],
-                         [line_fit.nfree]]).flatten()
-                    comp_result_type_tmp = np.array(['str', 'int', 'float', 'float', 'float', 'int', 'int'])
-                    comp_result_name_tmp = np.array(
-                        [str(ii+1)+'_complex_name', str(ii+1)+'_line_status', str(ii+1)+'_line_min_chi2', str(ii+1)+'_line_bic',
-                         str(ii+1)+'_line_red_chi2', str(ii+1)+'_niter', str(ii+1)+'_ndof'])
-                    comp_result = np.concatenate([comp_result, comp_result_tmp])
-                    comp_result_name = np.concatenate([comp_result_name, comp_result_name_tmp])
-                    comp_result_type = np.concatenate([comp_result_type, comp_result_type_tmp])
+                    # Get line fitting results
+                    comp_name = linelist['compname'][ind_line][0]
+                    line_status = int(line_fit.success)
+                    comp_result.append([comp_name, line_status, chisqr, bic, redchi, line_fit.nfev, line_fit.nfree])
+                    comp_result_type.append(['str', 'int', 'float', 'float', 'float', 'int', 'int'])
+                    comp_result_name.append([str(ii+1)+'_complex_name', str(ii+1)+'_line_status', str(ii+1)+'_line_min_chi2',
+                                             str(ii+1)+'_line_bic', str(ii+1)+'_line_red_chi2', str(ii+1)+'_niter', str(ii+1)+'_ndof'])
                     
-                    # gauss result -------------
-                    gauss_tmp = np.array([])
-                    gauss_type_tmp = np.array([])
-                    gauss_name_tmp = np.array([])
-                                        
-                    for gg in range(len(params)):
-                        gauss_tmp = np.concatenate([gauss_tmp, np.array([params[gg]])])
-                        if (self.MCMC == True or self.MC == True) and self.nsamp > 0:
-                            gauss_tmp = np.concatenate([gauss_tmp, np.array([params_err[gg]])])
-                    gauss_result = np.concatenate([gauss_result, gauss_tmp])
-                    
-                    # gauss result name -----------------
-                    for n in range(nline_fit):
-                        for nn in range(int(ngauss_fit[n])):
-                            line_name = linelist['linename'][ind_line][n]+'_'+str(nn+1)
-                            if (self.MCMC == True or self.MC == True) and self.nsamp > 0:
-                                gauss_type_tmp_tmp = ['float', 'float', 'float', 'float', 'float', 'float']
-                                gauss_name_tmp_tmp = [line_name+'_scale', line_name+'_scale_err',
-                                                      line_name+'_centerwave', line_name+'_centerwave_err',
-                                                      line_name+'_sigma', line_name+'_sigma_err']
-                            else:
-                                gauss_type_tmp_tmp = ['float', 'float', 'float']
-                                gauss_name_tmp_tmp = [line_name+'_scale', line_name+'_centerwave', line_name+'_sigma']
-                            gauss_name_tmp = np.concatenate([gauss_name_tmp, gauss_name_tmp_tmp])
-                            gauss_type_tmp = np.concatenate([gauss_type_tmp, gauss_type_tmp_tmp])
-                    gauss_result_type = np.concatenate([gauss_result_type, gauss_type_tmp])
-                    gauss_result_name = np.concatenate([gauss_result_name, gauss_name_tmp])
-                    
-                    # Point estimates
-                    fur_result_tmp = np.array([])
-                    fur_result_type_tmp = np.array([])
-                    fur_result_name_tmp = np.array([])
+                    # Line properties
                     fwhm, sigma, ew, peak, area = self.line_prop(compcenter, params, 'broad')
                     br_name = uniq_linecomp_sort[ii]
                     
+                    # Gauss result
                     if (self.MCMC == True or self.MC == True) and self.nsamp > 0:
-                        fur_result_tmp = np.array(
-                            [fwhm, fwhm_std, sigma, sigma_std, ew, ew_std, peak, peak_std, area, area_std])
-                        fur_result_type_tmp = np.concatenate([fur_result_type_tmp,
-                                                              ['float', 'float', 'float', 'float', 'float', 'float',
-                                                               'float', 'float', 'float', 'float']])
-                        fur_result_name_tmp = np.array(
-                            [br_name+'_whole_br_fwhm', br_name+'_whole_br_fwhm_err', br_name+'_whole_br_sigma',
-                             br_name+'_whole_br_sigma_err', br_name+'_whole_br_ew', br_name+'_whole_br_ew_err',
-                             br_name+'_whole_br_peak', br_name+'_whole_br_peak_err', br_name+'_whole_br_area',
-                             br_name+'_whole_br_area_err'])
+                        # Gauss results
+                        gauss_result.append(list(chain.from_iterable(zip(params, params_err))))
+                        gauss_result_all.append(samples)
+                        
+                        for n in range(nline_fit):
+                            for nn in range(int(ngauss_fit[n])):
+                                line_name = linelist['linename'][ind_line][n]+'_'+str(nn+1)
+                                gauss_result_type.append(['float']*6)
+                                gauss_result_name.append([line_name+'_scale', line_name+'_scale_err', line_name+'_centerwave', 
+                                                          line_name+'_centerwave_err', line_name+'_sigma', line_name+'_sigma_err'])
+                                
+                        # Line properties
+                        fur_result.append([fwhm, fwhm_std, sigma, sigma_std, ew, ew_std, peak, peak_std, area, area_std])
+                        fur_result_type.append(['float']*10)
+                        fur_result_name.append([br_name+'_whole_br_fwhm', br_name+'_whole_br_fwhm_err', br_name+'_whole_br_sigma',
+                                                br_name+'_whole_br_sigma_err', br_name+'_whole_br_ew', br_name+'_whole_br_ew_err',
+                                                br_name+'_whole_br_peak', br_name+'_whole_br_peak_err', br_name+'_whole_br_area',
+                                                br_name+'_whole_br_area_err'])
+                        
                     else:
-                        fur_result_tmp = np.array([fwhm, sigma, ew, peak, area])
-                        fur_result_type_tmp = np.concatenate(
-                            [fur_result_type_tmp, ['float', 'float', 'float', 'float', 'float']])
-                        fur_result_name_tmp = np.array(
-                            [br_name+'_whole_br_fwhm', br_name+'_whole_br_sigma', br_name+'_whole_br_ew',
-                             br_name+'_whole_br_peak', br_name+'_whole_br_area'])
-                    fur_result = np.concatenate([fur_result, fur_result_tmp])
-                    fur_result_type = np.concatenate([fur_result_type, fur_result_type_tmp])
-                    fur_result_name = np.concatenate([fur_result_name, fur_result_name_tmp])
+                        # Gauss results
+                        gauss_result.append(params)
+                    
+                        for n in range(nline_fit):
+                            for nn in range(int(ngauss_fit[n])):
+                                line_name = linelist['linename'][ind_line][n]+'_'+str(nn+1)
+                                gauss_result_type.append(['float']*3)
+                                gauss_result_name.append([line_name+'_scale', line_name+'_centerwave', line_name+'_sigma'])
+                                
+                        # Line properties
+                        fur_result.append([fwhm, sigma, ew, peak, area])
+                        fur_result_type.append(['float']*5)
+                        fur_result_name.append([br_name+'_whole_br_fwhm', br_name+'_whole_br_sigma', br_name+'_whole_br_ew', 
+                                                br_name+'_whole_br_peak', br_name+'_whole_br_area'])
                     
                 else:
-                    print("less than 10 pixels in line fitting!")
+                    print("Less than 10 pixels in line fitting!")
 
+            # Flatten arrays
+            comp_result = np.concatenate(comp_result)
+            comp_result_type = np.concatenate(comp_result_type)
+            comp_result_name = np.concatenate(comp_result_name)
             
+            fur_result = np.concatenate(fur_result)
+            fur_result_type = np.concatenate(fur_result_type)
+            fur_result_name = np.concatenate(fur_result_name)
+            
+            gauss_result = np.concatenate(gauss_result)
+            if (self.MCMC == True or self.MC == True) and self.nsamp > 0:
+                gauss_result_all = np.concatenate(gauss_result_all, axis=1)
+            gauss_result_type = np.concatenate(gauss_result_type)
+            gauss_result_name = np.concatenate(gauss_result_name)
+            
+            # Add results to line_result
             line_result = np.concatenate([comp_result, gauss_result, fur_result])
             line_result_type = np.concatenate([comp_result_type, gauss_result_type, fur_result_type])
             line_result_name = np.concatenate([comp_result_name, gauss_result_name, fur_result_name])
-        
         else:
-            line_result = np.array([])
-            line_result_name = np.array([])
-            comp_result = np.array([])
-            gauss_result = np.array([])
-            gauss_result_name = np.array([])
-            line_result_type = np.array([])
             ncomp = 0
-            all_comp_range = np.array([])
             uniq_linecomp_sort = np.array([])
-            print("No line to fit! Please set Line_fit to FALSE or enlarge wave_range!")
+            print("No line to fit! Please set line_fit to FALSE or enlarge wave_range!")
         
-        self.comp_result = comp_result
-        self.gauss_result = gauss_result
-        self.gauss_result_name = gauss_result_name
-        self.line_result = line_result
-        self.line_result_type = line_result_type
-        self.line_result_name = line_result_name
+        self.comp_result = np.array(comp_result)
+        self.gauss_result = np.array(gauss_result)
+        self.gauss_result_all = np.array(gauss_result_all)
+        self.gauss_result_name = np.array(gauss_result_name)
+        self.line_result = np.array(line_result)
+        self.line_result_type = np.array(line_result_type)
+        self.line_result_name = np.array(line_result_name)
         self.ncomp = ncomp
         self.line_flux = line_flux
-        self.all_comp_range = all_comp_range
+        self.all_comp_range = np.array(all_comp_range)
         self.uniq_linecomp_sort = uniq_linecomp_sort
         return self.line_result, self.line_result_name
+    
     
     def line_prop_from_name(self, line_name, line_type='broad'):
         """
@@ -1476,17 +1479,21 @@ class QSOFit():
     
     
     # -----line properties calculation function--------
-    def line_prop(self, compcenter, pp, linetype):
+    def line_prop(self, compcenter, pp, linetype, ln_sigma_br=0.0017):
         """
         Calculate the further results for the broad component in emission lines, e.g., FWHM, sigma, peak, line flux
         The compcenter is the theortical vacuum wavelength for the broad compoenet.
+        compcenter
+        pp
+        linetype: 'broad' or 'narrow'
+        ln_sigma_br: AA??
         """
         pp = np.array(pp).astype(float)
-        if linetype == 'broad':
-            ind_br = np.repeat(np.where(pp[2::3] > 0.0017, True, False), 3)
+        if linetype.lower() == 'broad':
+            ind_br = np.repeat(np.where(pp[2::3] > ln_sigma_br, True, False), 3)
         
-        elif linetype == 'narrow':
-            ind_br = np.repeat(np.where(pp[2::3] <= 0.0017, True, False), 3)
+        elif linetype.lower() == 'narrow':
+            ind_br = np.repeat(np.where(pp[2::3] <= ln_sigma_br, True, False), 3)
         
         else:
             raise RuntimeError("line type should be 'broad' or 'narrow'!")
@@ -1497,8 +1504,8 @@ class QSOFit():
         del pp
         pp = p
         
-        c = 299792.458  # km/s
-        ngauss = int(len(pp)/3)
+        c = const.c.to(u.km/u.s).value  # km/s
+        ngauss = len(pp)//3
         
         pp_shaped = pp.reshape([ngauss, 3])
         
@@ -1513,10 +1520,10 @@ class QSOFit():
                 sig[i] = pp[3*i+2]
             
             # print cen,sig,area
-            left = min(cen-3*sig)
-            right = max(cen+3*sig)
-            disp = 1.e-4*np.log(10.)
-            npix = int((right-left)/disp)
+            left = min(cen - 3*sig)
+            right = max(cen + 3*sig)
+            disp = 1e-4*np.log(10)
+            npix = (right - left)//disp
             
             xx = np.linspace(left, right, npix)
             yy = self._Manygauss(xx, pp_shaped)
@@ -1536,11 +1543,10 @@ class QSOFit():
             if ngauss > 3:
                 pp_temp = pp[0:9]
                 pp_shaped_temp = pp.reshape([len(pp)//3, 3])
-                spline = interpolate.UnivariateSpline(xx,
-                                                      self._Manygauss(xx, pp_shaped_temp) - np.max(self._Manygauss(xx, pp_shaped_temp))/2,
-                                                      s=0)
+                line_temp = self._Manygauss(xx, pp_shaped_temp)
+                spline = interpolate.UnivariateSpline(xx, line_temp - np.max(line_temp)/2, s=0)
             else:
-                spline = interpolate.UnivariateSpline(xx, yy-np.max(yy)/2, s=0)
+                spline = interpolate.UnivariateSpline(xx, yy - np.max(yy)/2, s=0)
                 
             if len(spline.roots()) > 0:
                 fwhm_left, fwhm_right = spline.roots().min(), spline.roots().max()
@@ -1564,7 +1570,7 @@ class QSOFit():
     
     def _residual_line(self, params, xval, yval, weight, ln_lambda_0s):
         """
-        Calculate total residual for simulatnous fitting of line complexes
+        Calculate total residual for fitting of line complexes
         """
         
         pp = list(params.valuesdict().values())
@@ -1596,6 +1602,7 @@ class QSOFit():
         
         t = Table(self.all_result, names=(self.all_result_name), dtype=self.all_result_type)
         t.write(os.path.join(save_fits_path, save_fits_name+'.fits'), format='fits', overwrite=True)
+        return
         
         
     def set_mpl_style(fsize=15, tsize=18, tdir='in', major=5.0, minor=3.0, lwidth=1.8, lhandle=2.0):
@@ -1619,8 +1626,11 @@ class QSOFit():
         
     
     def _PlotFig(self, ra, dec, z, wave, flux, err, decomposition_host, linefit, tmp_all, gauss_result, f_conti_model,
-                 conti_fit, all_comp_range, uniq_linecomp_sort, line_flux, save_fig_path):
-        """Plot the results"""
+                 conti_fit, all_comp_range, uniq_linecomp_sort, line_flux, save_fig_path, sigma_br=1200):
+        """Plot the results
+        
+        sigma_br 1200 km/s (careful, 1200 km s-1 is not the exact separation used in line_prop)
+        """
         
         pp = list(conti_fit.params.valuesdict().values())
         
@@ -1631,8 +1641,8 @@ class QSOFit():
         f_conti_model_eval = np.interp(wave_eval, wave, f_conti_model)
         
         if linefit == True:
-            fig, axn = plt.subplots(nrows=2, ncols=np.max([self.ncomp, 1]), figsize=(15, 8),
-                                    squeeze=False)  # prepare for the emission line subplots in the second row
+            # Prepare for the emission line subplots in the second row
+            fig, axn = plt.subplots(nrows=2, ncols=np.max([self.ncomp, 1]), figsize=(15, 8), squeeze=False)
             ax = plt.subplot(2, 1, 1)  # plot the first subplot occupying the whole first row
             if (self.MCMC == True or self.MC == True) and self.nsamp > 0:
                 mc_flag = 2
@@ -1643,9 +1653,8 @@ class QSOFit():
             line_order = {'r': 3, 'g': 7}  # to make the narrow line plot above the broad line
             
             temp_gauss_result = gauss_result
-            for p in range(int(len(temp_gauss_result)/mc_flag/3)):
-                # warn that the width used to separate narrow from broad is not exact 1200 km s-1 which would lead to wrong judgement
-                if self.CalFWHM(temp_gauss_result[(2+p*3)*mc_flag]) < 1200.:
+            for p in range(len(temp_gauss_result)//(mc_flag*3)):
+                if self.CalFWHM(temp_gauss_result[(2+p*3)*mc_flag]) < sigma_br:
                     color = 'g'
                 else:
                     color = 'r'
@@ -1800,6 +1809,9 @@ class QSOFit():
             if self.verbose:
                 print('Saving figure as', os.path.join(save_fig_path, self.sdss_name+'.pdf'))
             fig.savefig(os.path.join(save_fig_path, self.sdss_name+'.pdf'))
+        
+        self.fig = fig
+        return
     
     def CalFWHM(self, logsigma):
         """transfer the logFWHM to normal frame"""
