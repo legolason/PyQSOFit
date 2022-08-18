@@ -23,6 +23,7 @@ from PyAstronomy import pyasl
 
 from astropy.io import fits
 from astropy import units as u
+from astropy import constants as const
 from astropy.cosmology import FlatLambdaCDM
 
 from astropy.modeling.physical_models import BlackBody
@@ -528,9 +529,9 @@ class QSOFit():
     
     def _RestFrame(self, lam, flux, err, z):
         """Move wavelenth and flux to rest frame"""
-        self.wave = lam/(1.+z)
-        self.flux = flux*(1.+z)
-        self.err = err*(1.+z)
+        self.wave = lam/(1 + z)
+        self.flux = flux*(1 + z)
+        self.err = err*(1 + z)
         return self.wave, self.flux, self.err
     
     
@@ -598,11 +599,14 @@ class QSOFit():
     def _HostDecompose(self, wave, flux, err, z, Mi, npca_gal, npca_qso, path):
         """
         core function to do host decomposition
-        #Wave is the obs frame wavelength, n_gal and n_qso are the number of eigenspectra used to fit
-        #If Mi is None then the qso use the globle ones to fit. If not then use the redshift-luminoisty binded ones to fit
-        #See details: 
-        #Yip, C. W., Connolly, A. J., Szalay, A. S., et al. 2004a, AJ, 128, 585
-        #Yip, C. W., Connolly, A. J., Vanden Berk, D. E., et al. 2004b, AJ, 128, 2603
+        wave: the obs frame wavelength, n_gal and n_qso are the number of eigenspectra used to fit
+        
+        
+        If Mi is None then the qso use the globle ones to fit. If not then use the redshift-luminoisty binded ones to fit
+        
+        See details: 
+        Yip, C. W., Connolly, A. J., Szalay, A. S., et al. 2004, AJ, 128, 585
+        Yip, C. W., Connolly, A. J., Vanden Berk, D. E., et al. 2004, AJ, 128, 2603
         """
         
         # read galaxy and qso eigenspectra -----------------------------------
@@ -682,9 +686,8 @@ class QSOFit():
     
     def _DoContiFit(self, wave, flux, err, ra, dec, plateid, mjd, fiberid):
         """Fit the continuum with PL, Polynomial, UV/optical FeII, Balmer continuum"""
-        global fe_uv, fe_op
-        fe_uv = np.genfromtxt(os.path.join(self.install_path, 'fe_uv.txt'))
-        fe_op = np.genfromtxt(os.path.join(self.install_path, 'fe_optical.txt'))
+        self.fe_uv = np.genfromtxt(os.path.join(self.install_path, 'fe_uv.txt'))
+        self.fe_op = np.genfromtxt(os.path.join(self.install_path, 'fe_optical.txt'))
         
         # Define the windows where we will fit the continuum
         window_all = np.array(
@@ -957,11 +960,7 @@ class QSOFit():
             L = self._L_conti(wave, params)
 
             # Calculate FeII flux
-            Fe_flux_result = np.array([])
-            Fe_flux_type = np.array([])
-            Fe_flux_name = np.array([])
-            if self.Fe_flux_range is not None:
-                Fe_flux_result, Fe_flux_type, Fe_flux_name = self.Get_Fe_flux(self.Fe_flux_range, params[:6])
+            Fe_flux_result, Fe_flux_type, Fe_flux_name = self.Get_Fe_flux(self.Fe_flux_range, params[:6])
 
             """
             Save the results
@@ -994,12 +993,7 @@ class QSOFit():
             L = self._L_conti(wave, params)
 
             # Calculate FeII flux
-            if self.Fe_flux_range is not None:
-                Fe_flux_result, Fe_flux_type, Fe_flux_name = self.Get_Fe_flux(self.Fe_flux_range, params[:6])
-            else:
-                Fe_flux_result = np.array([])
-                Fe_flux_type = np.array([])
-                Fe_flux_name = np.array([])
+            Fe_flux_result, Fe_flux_type, Fe_flux_name = self.Get_Fe_flux(self.Fe_flux_range, params[:6])
 
             """
             Save the results
@@ -1030,18 +1024,14 @@ class QSOFit():
         return self.conti_result, self.conti_result_name
     
     
-    def _L_conti(self, wave, pp):
+    def _L_conti(self, wave, pp, waves=[1350, 3000, 5100]):
         """Calculate continuum Luminoisity at 1350, 3000, 5100 A"""
         conti_flux = self.PL(wave, pp) + self.F_poly_conti(wave, pp[11:])
-        # plt.plot(wave,conti_flux)
-        L = np.array([])
-        for LL in zip([1350., 3000., 5100.]):
-            if wave.max() > LL[0] and wave.min() < LL[0]:
-                L_tmp = np.asarray([np.log10(
-                    LL[0]*self.Flux2L(conti_flux[np.where(abs(wave-LL[0]) < 5., True, False)].mean(), self.z))])
-            else:
-                L_tmp = np.array([-1.])
-            L = np.concatenate([L, L_tmp])  # save log10(L1350,L3000,L5100)
+        L = np.full(3, -1) # save log10(L1350, L3000, L5100)
+        for i, Li in enumerate(zip(waves)):
+            if wave.max() > Li[0] and wave.min() < Li[0]:
+                ind_L = np.where(abs(wave - Li[0]) < 5, True, False)
+                L[i] = np.log10(Li[0]*self.Flux2L(conti_flux[ind_L].mean(), self.z))
         return L
 
     
@@ -1477,16 +1467,14 @@ class QSOFit():
 
         return self.line_prop(compcenter, pp, line_type)
     
-    
-    # -----line properties calculation function--------
     def line_prop(self, compcenter, pp, linetype, ln_sigma_br=0.0017):
         """
         Calculate the further results for the broad component in emission lines, e.g., FWHM, sigma, peak, line flux
         The compcenter is the theortical vacuum wavelength for the broad compoenet.
-        compcenter
-        pp
+        compcenter:
+        pp:
         linetype: 'broad' or 'narrow'
-        ln_sigma_br: AA??
+        ln_sigma_br: line sigma separating broad and narrow lines (AA??)
         """
         pp = np.array(pp).astype(float)
         if linetype.lower() == 'broad':
@@ -1500,14 +1488,13 @@ class QSOFit():
         
         ind_br[9:] = False  # to exclude the broad OIII and broad He II
         
-        p = pp[ind_br]
-        del pp
-        pp = p
+        # Get parameters for only the broad (or narrow) lines
+        pp_br = pp[ind_br]
         
         c = const.c.to(u.km/u.s).value  # km/s
-        ngauss = len(pp)//3
+        ngauss = len(pp_br)//3
         
-        pp_shaped = pp.reshape([ngauss, 3])
+        pp_br_shaped = pp_br.reshape([ngauss, 3])
         
         if ngauss == 0:
             fwhm, sigma, ew, peak, area = 0., 0., 0., 0., 0.
@@ -1516,19 +1503,19 @@ class QSOFit():
             sig = np.zeros(ngauss)
             
             for i in range(ngauss):
-                cen[i] = pp[3*i+1]
-                sig[i] = pp[3*i+2]
+                cen[i] = pp_br[3*i+1]
+                sig[i] = pp_br[3*i+2]
             
             # print cen,sig,area
             left = min(cen - 3*sig)
             right = max(cen + 3*sig)
             disp = 1e-4*np.log(10)
-            npix = (right - left)//disp
+            npix = int((right - left)/disp)
             
             xx = np.linspace(left, right, npix)
-            yy = self._Manygauss(xx, pp_shaped)
+            yy = self._Manygauss(xx, pp_br_shaped)
             
-            # here I directly use the continuum model to avoid the inf bug of EW when the spectrum range passed in is too short
+            # Use the continuum model to avoid the inf bug of EW when the spectrum range passed in is too short
             contiflux = self.PL(np.exp(xx), self.conti_params) + self.F_poly_conti(
                 np.exp(xx), self.conti_params[11:]) + self.Balmer_conti(np.exp(xx), self.conti_params[8:11])
             
@@ -1537,13 +1524,13 @@ class QSOFit():
             ypeak_ind = np.argmax(yy)
             peak = np.exp(xx[ypeak_ind])
             
-            # find the FWHM in km/s
-            # take the broad line we focus and ignore other broad components such as [OIII], HeII
+            # Find the FWHM in km/s
+            # Take the broad line we focus and ignore other broad components such as [OIII], HeII
             
             if ngauss > 3:
-                pp_temp = pp[0:9]
-                pp_shaped_temp = pp.reshape([len(pp)//3, 3])
-                line_temp = self._Manygauss(xx, pp_shaped_temp)
+                pp_br_temp = pp_br[0:9]
+                pp_br_shaped_temp = pp.reshape([len(pp_br)//3, 3])
+                line_temp = self._Manygauss(xx, pp_br_shaped_temp)
                 spline = interpolate.UnivariateSpline(xx, line_temp - np.max(line_temp)/2, s=0)
             else:
                 spline = interpolate.UnivariateSpline(xx, yy - np.max(yy)/2, s=0)
@@ -1552,8 +1539,8 @@ class QSOFit():
                 fwhm_left, fwhm_right = spline.roots().min(), spline.roots().max()
                 fwhm = abs(np.exp(fwhm_left) - np.exp(fwhm_right))/compcenter*c
                 
-                # calculate the line sigma and EW in normal wavelength
-                line_flux = self._Manygauss(xx, pp_shaped)
+                # Calculate the line sigma and EW in normal wavelength
+                line_flux = self._Manygauss(xx, pp_br_shaped)
                 line_wave = np.exp(xx)
                 lambda0 = integrate.trapz(line_flux, line_wave)  # calculate the total broad line flux
                 lambda1 = integrate.trapz(line_flux*line_wave, line_wave)
@@ -1837,10 +1824,10 @@ class QSOFit():
     def Fe_flux_mgii(self, xval, pp):
         "Fit the UV FeII component on the continuum from 1200 to 3500 A based on Boroson & Green 1992."
         yval = np.zeros_like(xval)
-        wave_Fe_mgii = 10**fe_uv[:, 0]
-        flux_Fe_mgii = fe_uv[:, 1]*10**15
+        wave_Fe_mgii = 10**self.fe_uv[:, 0]
+        flux_Fe_mgii = self.fe_uv[:, 1]*1e15
         Fe_FWHM = pp[1]
-        xval_new = xval*(1.0+pp[2])
+        xval_new = xval*(1.0 + pp[2])
         
         ind = np.where((xval_new > 1200.) & (xval_new < 3500.), True, False)
         if np.sum(ind) > self.n_pix_min_conti:
@@ -1864,8 +1851,8 @@ class QSOFit():
         "Fit the optical FeII on the continuum from 3686 to 7484 A based on Vestergaard & Wilkes 2001"
         yval = np.zeros_like(xval)
         
-        wave_Fe_balmer = 10**fe_op[:, 0]
-        flux_Fe_balmer = fe_op[:, 1]*10**15
+        wave_Fe_balmer = 10**self.fe_op[:, 0]
+        flux_Fe_balmer = self.fe_op[:, 1]*1e15
         ind = np.where((wave_Fe_balmer > 3686.) & (wave_Fe_balmer < 7484.), True, False)
         wave_Fe_balmer = wave_Fe_balmer[ind]
         flux_Fe_balmer = flux_Fe_balmer[ind]
@@ -1996,19 +1983,21 @@ class QSOFit():
         Fe_flux_result = np.array([])
         Fe_flux_type = np.array([])
         Fe_flux_name = np.array([])
-        if np.array(ranges).ndim == 1:
-            Fe_flux_result = np.append(Fe_flux_result, self._calculate_Fe_flux(ranges, pp))
-            Fe_flux_name = np.append(Fe_flux_name, 'Fe_flux_'+str(int(np.min(ranges)))+'_'+str(int(np.max(ranges))))
-            Fe_flux_type = np.append(Fe_flux_type, 'float')
         
-        elif np.array(ranges).ndim == 2:
-            for iii in range(np.array(self.Fe_flux_range).shape[0]):
-                Fe_flux_result = np.append(Fe_flux_result, self._calculate_Fe_flux(ranges[iii], pp))
-                Fe_flux_name = np.append(Fe_flux_name,
-                                         'Fe_flux_'+str(int(np.min(ranges[iii])))+'_'+str(int(np.max(ranges[iii]))))
+        if ranges is not None:
+            if np.array(ranges).ndim == 1:
+                Fe_flux_result = np.append(Fe_flux_result, self._calculate_Fe_flux(ranges, pp))
+                Fe_flux_name = np.append(Fe_flux_name, 'Fe_flux_'+str(int(np.min(ranges)))+'_'+str(int(np.max(ranges))))
                 Fe_flux_type = np.append(Fe_flux_type, 'float')
-        else:
-            raise IndexError('The parameter ranges only adopts arrays with 1 or 2 dimensions.')
+
+            elif np.array(ranges).ndim == 2:
+                for iii in range(np.array(self.Fe_flux_range).shape[0]):
+                    Fe_flux_result = np.append(Fe_flux_result, self._calculate_Fe_flux(ranges[iii], pp))
+                    Fe_flux_name = np.append(Fe_flux_name,
+                                             'Fe_flux_'+str(int(np.min(ranges[iii])))+'_'+str(int(np.max(ranges[iii]))))
+                    Fe_flux_type = np.append(Fe_flux_type, 'float')
+            else:
+                raise IndexError('The parameter ranges only adopts arrays with 1 or 2 dimensions.')
         
         return Fe_flux_result, Fe_flux_type, Fe_flux_name
     
@@ -2026,7 +2015,7 @@ class QSOFit():
         if upper < np.max(range) or lower > np.min(range):
             print('Warning: The range given to calculate the flux of FeII pseudocontiuum (partially) exceeded '
                   'the boundary of spectrum wavelength range. The excess part would be set to zero!')
-        disp = 1.e-4*np.log(10.)
+        disp = 1e-4*np.log(10)
         xval = np.exp(np.arange(np.log(lower), np.log(upper), disp))
         if len(xval) < 10:
             print('Warning: Available part in range '+str(range)+' is less than 10 pixel. Flux = -999 would be given!')
