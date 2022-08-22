@@ -10,6 +10,11 @@ The code uses an input line-fitting parameter list to specify the fitting range 
 
 Use this code at your own risk, as we are not responsible for any errors. But if you report bugs, it will be greatly appreciated.
 
+## Install
+
+v1.1 (stable): https://github.com/legolason/PyQSOFit/releases/tag/v1.1
+
+
 ## Cite this code
 
 > The preferred citation for this code is Guo, Shen & Wang (2018), ascl:1809:008\

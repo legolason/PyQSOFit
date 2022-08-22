@@ -88,8 +88,9 @@ class QSOFit():
         
     
     def Fit(self, name=None, nsmooth=1, and_or_mask=True, reject_badpix=True, deredden=True, wave_range=None,
-            wave_mask=None, decomposition_host=True, BC03=False, Mi=None, npca_gal=5, npca_qso=20, Fe_uv_op=True,
+            wave_mask=None, decomposition_host=True, host_line_mask=True, BC03=False, Mi=None, npca_gal=5, npca_qso=20, Fe_uv_op=True, 
             badpix_max_outliers=100, badpix_alpha=0.05, Fe_flux_range=None, poly=False, BC=False, rej_abs=False, initial_guess=None, method='leastsq', 
+            n_pix_min_host=100, n_pix_min_conti=100, param_file_name='qsopar.fits',
             MC=False, MCMC=False, nburn=20, nsamp=200, nthin=10, epsilon_jitter=1e-4, linefit=True, save_result=True, plot_fig=True,
             save_fig=True, plot_line_name=True, plot_legend=True, plot_corner=True, dustmap_path=None, save_fig_path=None,
             save_fits_path=None, save_fits_name=None, verbose=False, kwargs_conti_emcee={}, kwargs_line_emcee={}):
@@ -171,30 +172,20 @@ class QSOFit():
             Dietrich et al. 2002. the last three parameters are a,b,c in polynomial function a*(x-3000)+b*x^2+c*x^3.
         
         MC: bool, optional 
-            if True, do the Monte Carlo simulation based on the input error array to produce the MC error array.
-            if False, the code will not save the error produced by kmpfit since it is biased and can not be trusted.
-            But it can be still output by in kmpfit attribute. Default: False
+            if True, do Monte Carlo resampling of the spectrum based on the input error array to produce the MC error array.
+            if False, the code will not save the MLE minimization error produced by lmfit since it is biased and can not be trusted.
+            But it can be still output by using the lmfit attribute. Default: False
+            
+        MCMC: bool, optional 
+            if True, do Markov Chain Monte Carlo sampling of the posterior probability densities after MLE fitting to produce the error array.
+            Note: An error will be thrown if both MC and MCMC are True. Default: False
         
-        n_trails: int, optional
-            the number of trails of the MC process to produce the error array. The conservative number should be larger than 20. It only works when MC is True. Default: 20
+        nsamp: int, optional
+            the number of trials of the MC process to produce the error array (if MC=True) or number samples to run MCMC chain (if MCMC=True). Should be larger than 20. It only works when either MC or MCMC is True. Default: 200
             
         linefit: bool, optional
             if True, the emission line will be fitted. Default: True
            
-        tie_lambda: bool, optional
-            if True, line center with the same "vindex" will be tied together in the same line complex, this is always used to tie e.g., NII. Default: False
-           
-        tie_width: bool, optional
-            if True, line sigma with the same "windex" will be tied together in the same line complex, Default: False
-        
-        tie_flux_1: bool, optional
-            if True, line flux with the flag "findex = 1" will be tied to the ratio of fvalue. To fix the narrow line flux, the user should fix the line width
-            "tie_width" first. Default: False
-            
-        tie_flux_2: bool, optional
-            if True, line flux with the flag "findex = 2" will be tied to the ratio of fvalue. To fix the narrow line flux, the user should fix the line width
-            "tie_width" first. Default: False
-        
         save_result: bool, optional
             if True, all the fitting results will be saved to a fits file, Default: True
             
@@ -252,8 +243,8 @@ class QSOFit():
             the mean S/N ratio of 1350, 3000 and 5100A.
             
         .conti_fit.: structure 
-            all the kmpfit continuum fitting results, including best-fit parameters and Chisquare, etc. For details,
-            see https://www.astro.rug.nl/software/kapteyn/kmpfittutorial.html
+            all the continuum fitting results, including best-fit parameters and Chisquare, etc. For details,
+            see https://lmfit.github.io/lmfit-py/fitting.html
             
         .f_conti_model: array
             the continuum model including power-law, polynomial, optical/UV FeII, Balmer continuum.
@@ -280,15 +271,20 @@ class QSOFit():
             the emission line flux after subtracting the .f_conti_model.
         
         .line_fit: structrue
-            kmpfit line fitting results for last complexes (From Lya to Ha) , including best-fit parameters, errors (kmpfit derived) and Chisquare, etc. For details,
-            see https://www.astro.rug.nl/software/kapteyn/kmpfittutorial.html
+            Line fitting results for last complexes (From Lya to Ha) , including best-fit parameters, errors (lmfit derived) and Chisquare, etc. For details,
+            see https://lmfit.github.io/lmfit-py/fitting.html
         
         .gauss_result: array
             3*n Gaussian parameters for all lines in the format of [scale, centerwave, sigma ], n is number of Gaussians for all complexes.
+            ADD UNITS
+            
+        gauss_result_all: array
+            [nsamp, 3*n] Gaussian parameters for all lines in the format of [scale, centerwave, sigma ], n is number of Gaussians for all complexes.
+            ADD UNITS
             
         .conti_result: array
             continuum parameters, including widely used continuum parameters and monochromatic flux at 1350, 3000
-            and5100 Angstrom, etc. The corresponding names are listed in .conti_result_name. For all continuum fitting results,
+            and 5100 Angstrom, etc. The corresponding names are listed in .conti_result_name. For all continuum fitting results,
             go to .conti_fit.params. 
             
         .conti_result_name: array
@@ -306,15 +302,16 @@ class QSOFit():
             the sorted complex names.
             
         .all_comp_range: array
-            the start and end wavelength for each complex. e.g., Hb in [4640.  5100.].
+            the start and end wavelength for each complex. e.g., Hb is [4640.  5100.] AA.
             
         .linelist: array
-            the information listed in the qsopar.fits.
+            the information listed in the param_file_name (qsopar.fits).
         """
         
         self.name = name
         self.wave_range = wave_range
         self.wave_mask = wave_mask
+        self.host_line_mask = host_line_mask
         self.BC03 = BC03
         self.Mi = Mi
         self.npca_gal = npca_gal
@@ -327,7 +324,8 @@ class QSOFit():
         self.rej_abs = rej_abs
         self.maxOLs = badpix_max_outliers
         self.alpha = badpix_alpha
-        self.n_pix_min_conti = 100 # pixels
+        self.n_pix_min_conti = n_pix_min_conti # pixels
+        self.n_pix_min_host = n_pix_min_host # pixels
         self.MC = MC
         self.MCMC = MCMC
         self.method = method
@@ -342,6 +340,7 @@ class QSOFit():
         self.save_fig = save_fig
         self.plot_corner = plot_corner
         self.verbose = verbose
+        self.param_file_name = param_file_name
         
         # get the source name in plate-mjd-fiber, if no then None
         if name is None:
@@ -390,7 +389,7 @@ class QSOFit():
         else:
             self.and_mask = None
             self.or_mask = None
-        
+        # Smooth the data
         if nsmooth is not None:
             self.flux = self.Smooth(self.flux, nsmooth)
             self.err = self.Smooth(self.err, nsmooth)
@@ -409,7 +408,9 @@ class QSOFit():
         self._CalculateSN(self.wave, self.flux)
         self._OrignialSpec(self.wave, self.flux, self.err)
         
-        # do host decomposition --------------
+        """
+        Do host decomposition
+        """
         if self.z < 1.16 and decomposition_host == True:
             self._DoDecomposition(self.wave, self.flux, self.err, self.install_path)
         else:
@@ -443,7 +444,9 @@ class QSOFit():
             self._SaveResult(self.conti_result, self.conti_result_type, self.conti_result_name, self.line_result,
                              self.line_result_type, self.line_result_name, save_fits_path, save_fits_name)
         
-        # Plotting
+        """
+        Plot the results
+        """
         if plot_fig == True:
             if linefit == False:
                 self.gauss_result = np.array([])
@@ -507,7 +510,7 @@ class QSOFit():
                 ind_not_mask = ~np.where((lam/(1 + z) > self.wave_mask[msk, 0]) & (lam/(1 + z) < self.wave_mask[msk, 1]),
                                          True, False)
             except IndexError:
-                raise RuntimeError("Wave_mask should be 2D array,e.g., np.array([[2000,3000],[3100,4000]]).")
+                raise RuntimeError("Wave_mask should be 2D array, e.g., np.array([[2000,3000],[3100,4000]]).")
             
             del self.lam, self.flux, self.err
             self.lam, self.flux, self.err = lam[ind_not_mask], flux[ind_not_mask], err[ind_not_mask]
@@ -566,29 +569,31 @@ class QSOFit():
         datacube = self._HostDecompose(self.wave, self.flux, self.err, self.z, self.Mi, self.npca_gal, self.npca_qso,
                                        path)
         
-        # for some negtive host templete, we do not do the decomposition
-        if np.sum(np.where(datacube[3, :] < 0., True, False)) > 100:
+        # for some negtive host template, we do not do the decomposition
+        if np.sum(np.where(datacube[3, :] < 0, True, False)) > self.n_pix_min_host:
             self.host = np.zeros(len(wave))
             self.decomposed = False
-            print('Get negtive host galaxy flux larger than 100 pixels, '
-                  'decomposition is not applied!')
+            print('Got negative host galaxy flux larger than 100 pixels, decomposition is not applied!')
         else:
             self.decomposed = True
             del self.wave, self.flux, self.err
             self.wave = datacube[0, :]
-            # block OIII, ha,NII,SII,OII,Ha,Hb,Hr,hdelta
             
-            line_mask = np.where(
-                (self.wave < 4970.) & (self.wave > 4950.) | (self.wave < 5020.) & (self.wave > 5000.) | (
-                        self.wave < 6590.) & (self.wave > 6540.) | (self.wave < 6740.) & (self.wave > 6710.) | (
-                        self.wave < 3737.) & (self.wave > 3717.) | (self.wave < 4872.) & (self.wave > 4852.) | (
-                        self.wave < 4350.) & (self.wave > 4330.) | (self.wave < 4111.) & (self.wave > 4091.), True,
-                False)
+            # Block OIII, Ha, NII, SII, OII, Ha, Hb, Hr, Hdelta
             
-            f = interpolate.interp1d(self.wave[~line_mask], datacube[3, :][~line_mask], bounds_error=False,
-                                     fill_value=0)
+            if self.host_line_mask == True:
+                line_mask = np.where(
+                    (self.wave < 4970) & (self.wave > 4950) | (self.wave < 5020) & (self.wave > 5000) |
+                    (self.wave < 6590) & (self.wave > 6540) | (self.wave < 6740) & (self.wave > 6710) | 
+                    (self.wave < 3737) & (self.wave > 3717) | (self.wave < 4872) & (self.wave > 4852) |
+                    (self.wave < 4350) & (self.wave > 4330) | (self.wave < 4111) & (self.wave > 4091),
+                    True, False)
+            else:
+                line_mask = np.full(len(self.wave), False)
+            
+            f = interpolate.interp1d(self.wave[~line_mask], datacube[3, :][~line_mask], bounds_error=False, fill_value=0)
             masked_host = f(self.wave)
-            self.flux = datacube[1, :]-masked_host  # QSO flux without host
+            self.flux = datacube[1, :] - masked_host  # QSO flux without host
             self.err = datacube[2, :]
             self.host = datacube[3, :]
             self.qso = datacube[4, :]
@@ -609,22 +614,22 @@ class QSOFit():
         Yip, C. W., Connolly, A. J., Vanden Berk, D. E., et al. 2004, AJ, 128, 2603
         """
         
-        # read galaxy and qso eigenspectra -----------------------------------
+        # Read galaxy and qso eigenspectra
         if self.BC03 == False:
             galaxy = fits.open(os.path.join(path, 'pca/Yip_pca_templates/gal_eigenspec_Yip2004.fits'))
             gal = galaxy[1].data
             wave_gal = gal['wave'].flatten()
             flux_gal = gal['pca'].reshape(gal['pca'].shape[1], gal['pca'].shape[2])
-        if self.BC03 == True:
-            cc = 0
-            flux03 = np.array([])
-            for i in glob.glob(path+'/bc03/*.gz'):
-                cc = cc+1
-                gal_temp = np.genfromtxt(i)
+        else:
+            flux03 = []
+            bc03_file_names = glob.glob(os.path.join(path, 'bc03/*.gz'))
+            for i, f in enumerate(bc03_file_names):
+                gal_temp = np.genfromtxt(f)
                 wave_gal = gal_temp[:, 0]
-                flux03 = np.concatenate((flux03, gal_temp[:, 1]))
-            flux_gal = np.array(flux03).reshape(cc, -1)
+                flux03.append(gal_temp[:, 1])
+            flux_gal = np.array(flux03).reshape(len(bc03_file_names), -1)
         
+        # Choose pca template based on qso absolute magnitude Mi
         if Mi is None:
             quasar = fits.open(os.path.join(path, 'pca/Yip_pca_templates/qso_eigenspec_Yip2004_global.fits'))
         else:
@@ -645,7 +650,7 @@ class QSOFit():
         wave_qso = qso['wave'].flatten()
         flux_qso = qso['pca'].reshape(qso['pca'].shape[1], qso['pca'].shape[2])
         
-        # get the shortest wavelength range
+        # Get the shortest wavelength range
         wave_min = max(wave.min(), wave_gal.min(), wave_qso.min())
         wave_max = min(wave.max(), wave_gal.max(), wave_qso.max())
         
@@ -653,10 +658,9 @@ class QSOFit():
         ind_gal = np.where((wave_gal > wave_min-1.) & (wave_gal < wave_max+1.), True, False)
         ind_qso = np.where((wave_qso > wave_min-1.) & (wave_qso < wave_max+1.), True, False)
         
-        flux_gal_new = np.zeros(flux_gal.shape[0]*flux[ind_data].shape[0]).reshape(flux_gal.shape[0],
-                                                                                   flux[ind_data].shape[0])
-        flux_qso_new = np.zeros(flux_qso.shape[0]*flux[ind_data].shape[0]).reshape(flux_qso.shape[0],
-                                                                                   flux[ind_data].shape[0])
+        flux_gal_new = np.zeros([flux_gal.shape[0], flux[ind_data].shape[0]])
+        flux_qso_new = np.zeros([flux_qso.shape[0], flux[ind_data].shape[0]])
+        
         for i in range(flux_gal.shape[0]):
             fgal = interpolate.interp1d(wave_gal[ind_gal], flux_gal[i, ind_gal], bounds_error=False, fill_value=0)
             flux_gal_new[i, :] = fgal(wave[ind_data])
@@ -676,10 +680,12 @@ class QSOFit():
         
         data_cube = np.vstack((wave_new, flux_new, err_new, host_flux, qso_flux))
         
+        """
         ind_f4200 = np.where((wave_new > 4160.) & (wave_new < 4210.), True, False)
         frac_host_4200 = np.sum(host_flux[ind_f4200])/np.sum(flux_new[ind_f4200])
         ind_f5100 = np.where((wave_new > 5080.) & (wave_new < 5130.), True, False)
         frac_host_5100 = np.sum(host_flux[ind_f5100])/np.sum(flux_new[ind_f5100])
+        """
         
         return data_cube  # ,frac_host_4200,frac_host_5100
     
@@ -772,7 +778,7 @@ class QSOFit():
             fit_params['conti_pl_0'].vary = False
             fit_params['conti_pl_1'].vary = False
             fit_params['conti_pl_2'].vary = False
-            
+                        
         """
         Continuum components described by 14 parameters
          pp[0]: norm_factor for the MgII Fe_template
@@ -1050,7 +1056,7 @@ class QSOFit():
                                    ((wave > 1150.) & (wave < 1290.))) & (line_flux < -err)), True, False)
         
         # Read line parameter file
-        linelist = self.read_line_params('qsopar.fits')
+        linelist = read_line_params(os.path.join(self.path, self.param_file_name))
         self.linelist = linelist
         
         # Ensure the spectrum covers the rest-frame wavelengths of the line complexes
@@ -1431,6 +1437,8 @@ class QSOFit():
             uniq_linecomp_sort = np.array([])
             print("No line to fit! Please set line_fit to FALSE or enlarge wave_range!")
         
+        
+        # Save properties
         self.comp_result = np.array(comp_result)
         self.gauss_result = np.array(gauss_result)
         self.gauss_result_all = np.array(gauss_result_all)
@@ -1486,10 +1494,13 @@ class QSOFit():
         else:
             raise RuntimeError("line type should be 'broad' or 'narrow'!")
         
+        
         ind_br[9:] = False  # to exclude the broad OIII and broad He II
+        #print(pp)
         
         # Get parameters for only the broad (or narrow) lines
         pp_br = pp[ind_br]
+        #print(pp_br)
         
         c = const.c.to(u.km/u.s).value  # km/s
         ngauss = len(pp_br)//3
@@ -1570,15 +1581,6 @@ class QSOFit():
         resid = (yval - self._Manygauss(xval, pp_shaped))/weight
         return resid
     
-    def read_line_params(self, param_file_name='qsopar.fits'):
-        # read line parameter
-        hdul = fits.open(os.path.join(self.path, param_file_name))
-        data = hdul[1].data
-        
-        print('Reading parameter file:', os.path.join(self.path, param_file_name))
-        
-        return data
-    
     
     def _SaveResult(self, conti_result, conti_result_type, conti_result_name, line_result, line_result_type,
                     line_result_name, save_fits_path, save_fits_name):
@@ -1627,6 +1629,9 @@ class QSOFit():
         wave_eval = np.linspace(np.min(wave) - 200, np.max(wave) + 200, 5000)
         f_conti_model_eval = np.interp(wave_eval, wave, f_conti_model)
         
+        self.PL_poly = self.PL(wave, pp) + self.F_poly_conti(wave, pp)
+        
+        # Plot lines
         if linefit == True:
             # Prepare for the emission line subplots in the second row
             fig, axn = plt.subplots(nrows=2, ncols=np.max([self.ncomp, 1]), figsize=(15, 8), squeeze=False)
@@ -1636,24 +1641,37 @@ class QSOFit():
             else:
                 mc_flag = 1
             
+            self.f_line_narrow_model = np.zeros_like(wave)
+            self.f_line_model = np.zeros_like(wave)
             lines_total = np.zeros_like(wave_eval)
-            line_order = {'r': 3, 'g': 7}  # to make the narrow line plot above the broad line
+            line_order = {'r': 3, 'g': 7}  # Ensure narrow lines plot above the broad lines
             
-            temp_gauss_result = gauss_result
-            for p in range(len(temp_gauss_result)//(mc_flag*3)):
-                if self.CalFWHM(temp_gauss_result[(2+p*3)*mc_flag]) < sigma_br:
+            # For each Gaussian line component
+            for p in range(len(gauss_result)//(mc_flag*3)):
+                
+                gauss_result_p = gauss_result[p*3*mc_flag:(p+1)*3*mc_flag:mc_flag]
+                
+                # Broad or narrow line check
+                if self.CalFWHM(gauss_result[(2+p*3)*mc_flag]) < sigma_br:
+                    # Narrow
                     color = 'g'
+                    self.f_line_narrow_model += self.Onegauss(np.log(wave), gauss_result_p)
                 else:
+                    # Broad
                     color = 'r'
                 
-                line_single = self.Onegauss(np.log(wave_eval), temp_gauss_result[p*3*mc_flag:(p+1)*3*mc_flag:mc_flag])
+                # Evaluate the line component
+                line_single = self.Onegauss(np.log(wave_eval), gauss_result_p)
+                self.f_line_model += self.Onegauss(np.log(wave), gauss_result_p)
                 
+                # Plot the line component
                 ax.plot(wave_eval, line_single + f_conti_model_eval, color=color, zorder=5)
                 for c in range(self.ncomp):
                     axn[1][c].plot(wave_eval, line_single, color=color, zorder=line_order[color])
+                    
                 lines_total += line_single
             
-            # supplement the emission lines in the first subplot
+            # Supplement the emission lines in the first subplot
             ax.plot(wave_eval, lines_total + f_conti_model_eval, 'b', label='line', zorder=6)
             
             # Line complex subplots 
@@ -1736,7 +1754,7 @@ class QSOFit():
         ########ax.plot(self.wave_prereduced, self.flux_prereduced, 'k', label='data', zorder=2)
         
         if decomposition_host == True and self.decomposed == True:
-            ax.plot(wave, self.qso+self.host, 'pink', label='host+qso temp', zorder=3)
+            ax.plot(wave, self.qso + self.host, 'pink', label='host+qso temp', zorder=3)
             ax.plot(wave, flux, 'grey', label='data-host', zorder=1)
             ax.plot(wave, self.host, 'purple', label='host', zorder=4)
         else:
@@ -2051,3 +2069,12 @@ def get_err(s, axis=0):
     median = np.percentile(s, 0.5, axis=axis)
     return np.mean([hi - median, median - lo], axis=axis)
     
+    
+def read_line_params(param_file_path='qsopar.fits'):
+        # read line parameter
+        hdul = fits.open(param_file_path)
+        data = hdul[1].data
+        
+        print('Reading parameter file:', param_file_path)
+        
+        return data
