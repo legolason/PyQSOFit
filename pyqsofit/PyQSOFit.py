@@ -88,12 +88,13 @@ class QSOFit():
         
     
     def Fit(self, name=None, nsmooth=1, and_or_mask=True, reject_badpix=True, deredden=True, wave_range=None,
-            wave_mask=None, decomposition_host=True, host_line_mask=True, BC03=False, Mi=None, npca_gal=5, npca_qso=20, Fe_uv_op=True, 
-            badpix_max_outliers=100, badpix_alpha=0.05, Fe_flux_range=None, poly=False, BC=False, rej_abs=False, initial_guess=None, method='leastsq', 
-            n_pix_min_host=100, n_pix_min_conti=100, param_file_name='qsopar.fits',
-            MC=False, MCMC=False, nburn=20, nsamp=200, nthin=10, epsilon_jitter=1e-4, linefit=True, save_result=True, plot_fig=True,
+            wave_mask=None, decompose_host=True, use_ppxf=False, wave_range_ppxf=None, host_line_mask=True,
+            BC03=False, Mi=None, npca_gal=5, npca_qso=20, Fe_uv_op=True, badpix_max_outliers=100, badpix_alpha=0.05,
+            Fe_flux_range=None, poly=False, BC=False, rej_abs=False, initial_guess=None, method='leastsq', 
+            n_pix_min_host=100, n_pix_min_conti=100, param_file_name='qsopar.fits', MC=False, MCMC=False,
+            nburn=20, nsamp=200, nthin=10, epsilon_jitter=1e-4, linefit=True, save_result=True, plot_fig=True,
             save_fig=True, plot_line_name=True, plot_legend=True, plot_corner=True, dustmap_path=None, save_fig_path=None,
-            save_fits_path=None, save_fits_name=None, verbose=False, kwargs_conti_emcee={}, kwargs_line_emcee={}):
+            save_fits_path=None, save_fits_name=None, verbose=False, ylims=None, kwargs_conti_emcee={}, kwargs_line_emcee={}):
         
         """
         Fit the QSO spectrum and get different decomposed components and corresponding parameters
@@ -125,7 +126,7 @@ class QSOFit():
         wave_mask: 2-D array
             mask some absorption lines or sky lines in spectrum, e.g., np.array([[2200.,2300.]]), np.array([[5650.,5750.],[5850.,5900.]])
             
-        decomposition_host: bool, optional    
+        decompose_host: bool, optional    
             If True, the host galaxy-QSO decomposition will be applied. If no more than 100 pixels are negative, the result will be applied. The Decomposition is
             based on the PCA method of Yip et al. 2004 (AJ, 128, 585) & (128, 2603). Now the template is only available for redshift < 1.16 in specific absolute
             magnitude bins. For galaxy, the global model has 10 PCA components and first 5 will enough to reproduce 98.37% galaxy spectra. For QSO, the global model
@@ -135,15 +136,15 @@ class QSOFit():
             if True, it will use Bruzual1 & Charlot 2003 host model to fit spectrum, high shift host will be low resolution R ~ 300, the rest is R ~ 2000. Default: False
         
         Mi: float, optional
-            the absolute magnitude of i band. It only works when decomposition_host is True. If not None, the Luminosity redshift binned PCA will be used to decompose
+            the absolute magnitude of i band. It only works when decompose_host is True. If not None, the Luminosity redshift binned PCA will be used to decompose
             the spectrum. Default: None
             
         npca_gal: int, optional
-            the number of galaxy PCA components applied. It only works when decomposition_host is True. The default is 5,
+            the number of galaxy PCA components applied. It only works when decompose_host is True. The default is 5,
             which is already account for 98.37% galaxies.
         
         npca_qso: int, optional
-            the number of QSO PCA components applied. It only works when decomposition_host is True. The default is 20,
+            the number of QSO PCA components applied. It only works when decompose_host is True. The default is 20,
             No matter the global or luminosity-redshift binned PCA is used, it can reproduce > 92% QSOs. The binned PCA
             is better if have Mi information.
          
@@ -411,27 +412,66 @@ class QSOFit():
         """
         Do host decomposition
         """
-        if self.z < 1.16 and decomposition_host == True:
-            self._DoDecomposition(self.wave, self.flux, self.err, self.install_path)
+        z_max_host = 1.16
+        if self.z < z_max_host and decompose_host == True:
+            self.decompose_host_qso(self.wave, self.flux, self.err, self.install_path)
         else:
             self.decomposed = False
-            if self.z > 1.16 and decomposition_host == True:
-                print('redshift larger than 1.16 is not allowed for host '
-                      'decomposion!')
+            if self.z > z_max_host and decompose_host == True:
+                print(f'redshift larger than {z_max_host} is not allowed for host decomposion!')
         
         """
         Fit the continuum
         """
-        self._DoContiFit(self.wave, self.flux, self.err, self.ra, self.dec, self.plateid, self.mjd, self.fiberid)
-        
+        self.fit_continuum(self.wave, self.flux, self.err, self.ra, self.dec, self.plateid, self.mjd, self.fiberid)
         
         """
         Fit the emission lines
         """
         if linefit == True:
-            self._DoLineFit(self.wave, self.line_flux, self.err, self.conti_fit)
+            self.fit_lines(self.wave, self.line_flux, self.err, self.conti_fit)
         else:
             self.ncomp = 0
+            
+        """
+        Fit the host flux with pPXF and re-do the QSO fitting (continuum and lines)
+        """
+        if use_ppxf == True:
+            if decompose_host==True and self.decomposed == False:
+                # Warn that the QSO component has not been subtracted from the spectrum
+                print('Warning: use_ppxf is True, but the host/QSO galaxy component was not successfully decomposed.')
+                
+            # Get the host component for pPXF
+            interp_flux = interpolate.interp1d(self.wave_prereduced, self.flux_prereduced, bounds_error=False, fill_value=0)
+            #interp_err = interpolate.interp1d(q0.wave_prereduced, q0.err_prereduced, bounds_error=False, fill_value=0)
+            flux_total = interp_flux(self.wave)
+            #err_total = interp_err(self.wave)
+            # This is better for pPXF than self.host
+            if linefit == True: 
+                host = flux_total - self.f_conti_model - self.f_line_model
+            else:
+                host = flux_total - self.f_conti_model
+            if wave_range_ppxf is None:
+                host_ppxf = self.fit_host_ppxf(self.wave, host, self.err, redshift=self.z, plot=False)
+            else:
+                host_ppxf = self.fit_host_ppxf(self.wave, host, self.err, redshift=self.z,
+                                               wv_min=wave_range_ppxf[0], wv_max=wave_range_ppxf[1], plot=False)
+                
+            self.host = host_ppxf
+
+            """
+            Fit the continuum
+            """
+            self.fit_continuum(self.wave, flux_total - host_ppxf, self.err, self.ra, self.dec, self.plateid, self.mjd, self.fiberid)
+
+            """
+            Fit the emission lines
+            """
+            if linefit == True:
+                self.fit_lines(self.wave, self.line_flux, self.err, self.conti_fit)
+            else:
+                self.ncomp = 0
+                                
             
         """
         Save the results
@@ -441,7 +481,8 @@ class QSOFit():
                 self.line_result = np.array([])
                 self.line_result_type = np.array([])
                 self.line_result_name = np.array([])
-            self._SaveResult(self.conti_result, self.conti_result_type, self.conti_result_name, self.line_result,
+                
+            self.save_result(self.conti_result, self.conti_result_type, self.conti_result_name, self.line_result,
                              self.line_result_type, self.line_result_name, save_fits_path, save_fits_name)
         
         """
@@ -452,9 +493,10 @@ class QSOFit():
                 self.gauss_result = np.array([])
                 self.all_comp_range = np.array([])
                 self.uniq_linecomp_sort = np.array([])
-            self._PlotFig(self.ra, self.dec, self.z, self.wave, self.flux, self.err, decomposition_host, linefit,
+                
+            self.plot_fig(self.ra, self.dec, self.z, self.wave, self.flux, self.err, decompose_host, linefit,
                           self.tmp_all, self.gauss_result, self.f_conti_model, self.conti_fit, self.all_comp_range,
-                          self.uniq_linecomp_sort, self.line_flux, save_fig_path)
+                          self.uniq_linecomp_sort, self.line_flux, save_fig_path, ylims=ylims)
         return
     
     def _MaskSdssAndOr(self, lam, flux, err, and_mask, or_mask):
@@ -547,12 +589,12 @@ class QSOFit():
     
     def _CalculateSN(self, wave, flux):
         """calculate the spectral SN ratio for 1350, 3000, 5100A, return the mean value of Three spots"""
-        if ((wave.min() < 1350. and wave.max() > 1350.) or (wave.min() < 3000. and wave.max() > 3000.) or (
-                wave.min() < 5100. and wave.max() > 5100.)):
+        if ((wave.min() < 1350 and wave.max() > 1350) or (wave.min() < 3000 and wave.max() > 3000) or
+            (wave.min() < 5100 and wave.max() > 5100)):
             
-            ind5100 = np.where((wave > 5080.) & (wave < 5130.), True, False)
-            ind3000 = np.where((wave > 3000.) & (wave < 3050.), True, False)
-            ind1350 = np.where((wave > 1325.) & (wave < 1375.), True, False)
+            ind5100 = np.where((wave > 5080) & (wave < 5130), True, False)
+            ind3000 = np.where((wave > 3000) & (wave < 3050), True, False)
+            ind1350 = np.where((wave > 1325) & (wave < 1375), True, False)
             
             tmp_SN = np.array([flux[ind5100].mean()/flux[ind5100].std(), flux[ind3000].mean()/flux[ind3000].std(),
                                flux[ind1350].mean()/flux[ind1350].std()])
@@ -564,10 +606,10 @@ class QSOFit():
         return self.SN_ratio_conti
     
     
-    def _DoDecomposition(self, wave, flux, err, path):
+    def decompose_host_qso(self, wave, flux, err, path):
         """Decompose the host galaxy from QSO"""
-        datacube = self._HostDecompose(self.wave, self.flux, self.err, self.z, self.Mi, self.npca_gal, self.npca_qso,
-                                       path)
+        datacube = self._decompose_host_qso_core(self.wave, self.flux, self.err, self.z,
+                                                 self.Mi, self.npca_gal, self.npca_qso, path)
         
         # for some negtive host template, we do not do the decomposition
         if np.sum(np.where(datacube[3, :] < 0, True, False)) > self.n_pix_min_host:
@@ -580,7 +622,6 @@ class QSOFit():
             self.wave = datacube[0, :]
             
             # Block OIII, Ha, NII, SII, OII, Ha, Hb, Hr, Hdelta
-            
             if self.host_line_mask == True:
                 line_mask = np.where(
                     (self.wave < 4970) & (self.wave > 4950) | (self.wave < 5020) & (self.wave > 5000) |
@@ -597,11 +638,12 @@ class QSOFit():
             self.err = datacube[2, :]
             self.host = datacube[3, :]
             self.qso = datacube[4, :]
-            self.host_data = datacube[1, :]-self.qso
+            self.host_data = datacube[1, :] - self.qso
+            
         return self.wave, self.flux, self.err
     
     
-    def _HostDecompose(self, wave, flux, err, z, Mi, npca_gal, npca_qso, path):
+    def _decompose_host_qso_core(self, wave, flux, err, z, Mi, npca_gal, npca_qso, path):
         """
         core function to do host decomposition
         wave: the obs frame wavelength, n_gal and n_qso are the number of eigenspectra used to fit
@@ -655,8 +697,8 @@ class QSOFit():
         wave_max = min(wave.max(), wave_gal.max(), wave_qso.max())
         
         ind_data = np.where((wave > wave_min) & (wave < wave_max), True, False)
-        ind_gal = np.where((wave_gal > wave_min-1.) & (wave_gal < wave_max+1.), True, False)
-        ind_qso = np.where((wave_qso > wave_min-1.) & (wave_qso < wave_max+1.), True, False)
+        ind_gal = np.where((wave_gal > wave_min - 1) & (wave_gal < wave_max + 1), True, False)
+        ind_qso = np.where((wave_qso > wave_min - 1) & (wave_qso < wave_max + 1), True, False)
         
         flux_gal_new = np.zeros([flux_gal.shape[0], flux[ind_data].shape[0]])
         flux_qso_new = np.zeros([flux_qso.shape[0], flux[ind_data].shape[0]])
@@ -689,8 +731,192 @@ class QSOFit():
         
         return data_cube  # ,frac_host_4200,frac_host_5100
     
+    def fit_host_ppxf(self, rest_wv, fx, error, redshift, wv_min=None, wv_max=None, plot=None):
+        "fit the host galaxy to get the stellar velocity dispersion. "
+        
+        # pPXF setup
+        from ppxf.ppxf import ppxf
+        import ppxf.ppxf_util as util
+        import ppxf.miles_util as lib
+
+        ppxf_dir = os.path.dirname(os.path.realpath(lib.__file__))
+        # Only use the wavelength range in common between galaxy and stellar library.
+        if wv_min is None:
+            wv_min = np.min(rest_wv)
+        if wv_max is None:
+            wv_max = np.max(rest_wv)
+
+        mask = np.where((rest_wv > wv_min) & (rest_wv < wv_max) & (error < 100), True, False)
+        
+
+        flux = fx[mask]
+        flux_med = np.median(flux)
+        galaxy = flux/flux_med # Normalize spectrum to avoid numerical issues
+        wave_vac = rest_wv[mask]
+        err = error[mask]
+        z = 0 # already rest frame so z =0
+
+
+        # The SDSS wavelengths are in vacuum, while the MILES ones are in air.
+        # For a rigorous treatment, the SDSS vacuum wavelengths should be
+        # converted into air wavelengths and the spectra should be resampled.
+        # To avoid resampling, given that the wavelength dependence of the
+        # correction is very weak, I approximate it with a constant factor.
+        wave = wave_vac*np.median(util.vac_to_air(wave_vac)/wave_vac)
+
+
+        # The noise level is chosen to give Chi^2/DOF=1 without regularization (REGUL=0).
+        # A constant noise is not a bad approximation in the fitted wavelength
+        # range and reduces the noise in the fit.
+        noise = np.full_like(galaxy, err.mean())  # Assume constant noise per pixel here
+
+        # The velocity step was already chosen by the SDSS pipeline
+        # and we convert it below to km/s
+        #
+        c = const.c.to(u.km/u.s).value  # speed of light in km/s
+
+        velscale = c*np.log(wave[1]/wave[0])  # eq.(8) of Cappellari (2017)
+        print(velscale)
+        velscale = c*np.diff(np.log(wave[[0, -1]]))/(wave.size - 1)
+        print(velscale)
+
+
+        FWHM_gal = 2.76  # SDSS has an approximate instrumental resolution FWHM of 2.76A.
+
+        #------------------- Setup templates -----------------------
+
+        #pathname = ppxf_dir + '/miles_models/Mun1.30*.fits' 
+        pathname = ppxf_dir + '/miles_models/Eun1.30*.fits' 
+        miles = lib.miles(pathname, velscale, FWHM_gal)
+
+
+        # The stellar templates are reshaped below into a 2-dim array with each
+        # spectrum as a column, however we save the original array dimensions,
+        # which are needed to specify the regularization dimensions
+        reg_dim = miles.templates.shape[1:]
+        stars_templates = miles.templates.reshape(miles.templates.shape[0], -1)
+
+        # See the pPXF documentation for the keyword REGUL,
+        regul_err = 0.013  # Desired regularization error
+
+        # Construct a set of Gaussian emission line templates.
+        # Estimate the wavelength fitted range in the rest frame.
+        lam_range_gal = np.array([np.min(wave), np.max(wave)])/(1. + z)
+        gas_templates, gas_names, line_wave = util.emission_lines(
+            miles.ln_lam_temp, lam_range_gal, FWHM_gal,
+            tie_balmer=False, limit_doublets=False)
+
+        # Combines the stellar and gaseous templates into a single array.
+        # During the PPXF fit they will be assigned a different kinematic
+        # COMPONENT value
+        templates = np.column_stack([stars_templates, gas_templates])
+
+        # The galaxy and the template spectra do not have the same starting wavelength.
+        # For this reason an extra velocity shift DV has to be applied to the template
+        # to fit the galaxy spectrum. We remove this artificial shift by using the
+        # keyword VSYST in the call to PPXF below, so that all velocities are
+        # measured with respect to DV. This assume the redshift is negligible.
+        # In the case of a high-redshift galaxy one should de-redshift its
+        # wavelength to the rest frame before using the line below as described
+        # in PPXF_EXAMPLE_KINEMATICS_SAURON and Sec.2.4 of Cappellari (2017)
+        dv = c*(miles.ln_lam_temp[0] - np.log(wave[0]))  # eq.(8) of Cappellari (2017)
+
+        vel = c*np.log(1 + z)   # eq.(8) of Cappellari (2017)
+        start = [vel, 180]  # (km/s), starting guess for [V, sigma]
+
+        n_temps = stars_templates.shape[1]
+        n_forbidden = np.sum(["[" in a for a in gas_names])  # forbidden lines contain "[*]"
+        n_balmer = len(gas_names) - n_forbidden
+
+        # Assign component=0 to the stellar templates, component=1 to the Balmer
+        # gas emission lines templates and component=2 to the forbidden lines.
+        component = [0]*n_temps + [1]*n_balmer + [2]*n_forbidden
+        gas_component = np.array(component) > 0  # gas_component=True for gas templates
+
+        # Fit (V, sig, h3, h4) moments=4 for the stars
+        # and (V, sig) moments=2 for the two gas kinematic components
+        moments = [4, 4, 4]
+
+        # Adopt the same starting value for the stars and the two gas components
+        start = [start, start, start]
+
+        # If the Balmer lines are tied one should allow for gas reddeining.
+        # The gas_reddening can be different from the stellar one, if both are fitted.
+        #gas_reddening = 0 if tie_balmer else None
+
+        # Use qso line widths
+        width_qso = [800,800,2000,2000,3000,800,800,800,800,800,3000,800,800]
+        goodpixels = util.determine_goodpixels(np.log(wave), lam_range_gal, z, width=width_qso)
+        # Here the actual fit starts.
+        #
+        # IMPORTANT: Ideally one would like not to use any polynomial in the fit
+        # as the continuum shape contains important information on the population.
+        # Unfortunately this is often not feasible, due to small calibration
+        # uncertainties in the spectral shape. To avoid affecting the line strength of
+        # the spectral features, we exclude additive polynomials (DEGREE=-1) and only use
+        # multiplicative ones (MDEGREE=10). This is only recommended for population, not
+        # for kinematic extraction, where additive polynomials are always recommended.
+
+        pp = ppxf(templates, galaxy, noise, velscale, start, #lam_temp=miles.lam_temp,
+                  plot=False, moments=moments, degree=-1, mdegree=10, vsyst=dv,
+                  lam=wave, clean=False, regul=1/regul_err, reg_dim=reg_dim,
+                  component=component, gas_component=gas_component,
+                  gas_names=gas_names, goodpixels=goodpixels)
+
+
+        weights = pp.weights[~gas_component]  # Exclude weights of the gas templates
+        weights = weights.reshape(reg_dim)/weights.sum()  # Normalized
+
+        # calculate the band luminosity e.g., Lr
+        sdss_filter = np.array([3543, 4770, 6231, 7625])
+        band = np.array(['u','g', 'r', 'i'])
+        filter_cen = sdss_filter[(np.abs(sdss_filter - (wave*(1+redshift)).mean() )).argmin()]
+        bandn = band[(np.abs(sdss_filter - (wave*(1+redshift)).mean() )).argmin()] 
+        #assume the filter width ~ 1000A
+        ind=np.where( (wave*(1+redshift) > filter_cen-500) & (wave*(1+redshift) < filter_cen+500) ,True,False)
+        flux_band_mean= flux[ind][np.isfinite(flux[ind])].mean()
+        flux_band_mean_up = (flux[ind] + err[ind])[np.isfinite(flux[ind])].mean()
+        cosmo = FlatLambdaCDM(H0=70, Om0=0.3)    
+        DL = cosmo.luminosity_distance(redshift).to(u.cm).value # unit cm
+        Lband = np.log10(4*np.pi*DL**2*flux_band_mean*1e-17*1000)  # assume the band widths for sdss are ~ 1000A
+        Lband_up = np.log10(4*np.pi*DL**2*flux_band_mean_up*1e-17*1000)
+
+        # calculate the SFH and error
+        mass_frac_tmp = np.asarray([np.sum(weights[0:3,:])]) #mass fraction below 10^8 yr
+        mass_frac_tmp_delta = np.asarray([np.sum(weights[0:4,:])-np.sum(weights[0:3,:] )]) 
+        ml_tmp = np.asarray([miles.mass_to_light(weights, band=bandn)]) 
+
+        sigma = np.round(pp.sol[0][1],1)
+        sigmaerr = np.round(pp.error[0][1]*np.sqrt(pp.chi2), 1)
+        stellar_mass = np.round(10**Lband/(3.8*1e33)/ml_tmp, 2) # M_sun
+        stellar_mass_err = np.round(10**Lband_up/(3.8*1e33)/ml_tmp-stellar_mass, 2)
+        SFR = np.round(stellar_mass*mass_frac_tmp/1e8, 2) #M_sun/yr
+        SFR_err = np.round(stellar_mass*mass_frac_tmp_delta/1e8, 2) # M_sun/yr
+
+        # Plot
+        if plot == True:
+            fig = plt.figure(figsize=(15,10))
+            ax = plt.subplot(211)
+            pp.plot()
+            plt.text(0.02, 0.85,r'$\sigma$='+str(sigma)+'$\pm$'+str(sigmaerr)+r'$\rm \ km\ s^{-1}$', 
+                     transform=ax.transAxes,fontsize=20)
+            plt.subplot(212)
+            miles.plot(weights)
+            plt.tight_layout()
+
+        self.ppxf_result = np.array([sigma,sigmaerr,stellar_mass,stellar_mass,stellar_mass_err,SFR,SFR_err])
+        self.ppxf_result_name = np.array(['sigma','sigmaerr','stellar_mass','stellar_mass_err','SFR','SFR_err'])
+
+        # Extract the host model in vaccume wavelengths back to SDSS
+        host_ppxf = pp.bestfit - pp.gas_bestfit
+
+        f = interpolate.interp1d(wave_vac, host_ppxf, bounds_error=False, fill_value=0)
+        host_ppxf = f(rest_wv)*flux_med
+
+        return host_ppxf
     
-    def _DoContiFit(self, wave, flux, err, ra, dec, plateid, mjd, fiberid):
+    
+    def fit_continuum(self, wave, flux, err, ra, dec, plateid, mjd, fiberid):
         """Fit the continuum with PL, Polynomial, UV/optical FeII, Balmer continuum"""
         self.fe_uv = np.genfromtxt(os.path.join(self.install_path, 'fe_uv.txt'))
         self.fe_op = np.genfromtxt(os.path.join(self.install_path, 'fe_optical.txt'))
@@ -1034,10 +1260,12 @@ class QSOFit():
         """Calculate continuum Luminoisity at 1350, 3000, 5100 A"""
         conti_flux = self.PL(wave, pp) + self.F_poly_conti(wave, pp[11:])
         L = np.full(3, -1) # save log10(L1350, L3000, L5100)
-        for i, Li in enumerate(zip(waves)):
-            if wave.max() > Li[0] and wave.min() < Li[0]:
-                ind_L = np.where(abs(wave - Li[0]) < 5, True, False)
-                L[i] = np.log10(Li[0]*self.Flux2L(conti_flux[ind_L].mean(), self.z))
+        for i, wavesi in enumerate(zip(waves)):
+            if wave.max() > wavesi[0] and wave.min() < wavesi[0]:
+                ind_L = np.where(abs(wave - wavesi[0]) < 5, True, False)
+                Li = wavesi[0]*self.flux2L(conti_flux[ind_L].mean(), self.z)
+                if Li > 0:
+                    L[i] = np.log10(Li)                    
         return L
 
     
@@ -1047,7 +1275,7 @@ class QSOFit():
         return (yval - _conti_model(xval, pp))/weight
     
     
-    def _DoLineFit(self, wave, line_flux, err, f):
+    def fit_lines(self, wave, line_flux, err, f):
         """Fit the emission lines with Gaussian profiles """
         
         # Remove abosorbtion lines in emission line region, pixels below continuum 
@@ -1074,6 +1302,7 @@ class QSOFit():
         gauss_result_type = []
         gauss_result_name = []
         all_comp_range = []
+        self.f_line_model = np.zeros_like(wave)
         
         if ind_kind_line.any() == True:
             
@@ -1432,6 +1661,21 @@ class QSOFit():
             line_result = np.concatenate([comp_result, gauss_result, fur_result])
             line_result_type = np.concatenate([comp_result_type, gauss_result_type, fur_result_type])
             line_result_name = np.concatenate([comp_result_name, gauss_result_name, fur_result_name])
+            
+            # Save the line model flux 
+            if (self.MCMC == True or self.MC == True) and self.nsamp > 0:
+                # For each Gaussian line component
+                for p in range(len(gauss_result)//(2*3)):
+                    # Evaluate the line component
+                    gauss_result_p = gauss_result[p*3*2:(p+1)*3*2:2]
+                    self.f_line_model += self.Onegauss(np.log(wave), gauss_result_p)
+            else:
+                # For each Gaussian line component
+                for p in range(len(gauss_result)//3):
+                    # Evaluate the line component
+                    gauss_result_p = gauss_result[p*3:(p+1)*3:1]
+                    self.f_line_model += self.Onegauss(np.log(wave), gauss_result_p)
+            
         else:
             ncomp = 0
             uniq_linecomp_sort = np.array([])
@@ -1467,7 +1711,7 @@ class QSOFit():
         pp = np.zeros(ngauss*3)
 
         for n in range(ngauss):
-
+            
             # Get the Gaussian properties
             pp[n] = float(self.line_result[self.line_result_name == f'{line_name}_{n+1}_scale'][0])
             pp[n+1] = float(self.line_result[self.line_result_name == f'{line_name}_{n+1}_centerwave'][0])
@@ -1582,7 +1826,7 @@ class QSOFit():
         return resid
     
     
-    def _SaveResult(self, conti_result, conti_result_type, conti_result_name, line_result, line_result_type,
+    def save_result(self, conti_result, conti_result_type, conti_result_name, line_result, line_result_type,
                     line_result_name, save_fits_path, save_fits_name):
         """Save all data to fits"""
         self.all_result = np.concatenate([conti_result, line_result])
@@ -1614,8 +1858,9 @@ class QSOFit():
         return
         
     
-    def _PlotFig(self, ra, dec, z, wave, flux, err, decomposition_host, linefit, tmp_all, gauss_result, f_conti_model,
-                 conti_fit, all_comp_range, uniq_linecomp_sort, line_flux, save_fig_path, sigma_br=1200):
+    def plot_fig(self, ra, dec, z, wave, flux, err, decompose_host, linefit, tmp_all, gauss_result, f_conti_model,
+                 conti_fit, all_comp_range, uniq_linecomp_sort, line_flux, save_fig_path, sigma_br=1200, ylims=None,
+                 plot_residual=True):
         """Plot the results
         
         sigma_br 1200 km/s (careful, 1200 km s-1 is not the exact separation used in line_prop)
@@ -1642,7 +1887,7 @@ class QSOFit():
                 mc_flag = 1
             
             self.f_line_narrow_model = np.zeros_like(wave)
-            self.f_line_model = np.zeros_like(wave)
+            #self.f_line_model = np.zeros_like(wave)
             lines_total = np.zeros_like(wave_eval)
             line_order = {'r': 3, 'g': 7}  # Ensure narrow lines plot above the broad lines
             
@@ -1662,7 +1907,7 @@ class QSOFit():
                 
                 # Evaluate the line component
                 line_single = self.Onegauss(np.log(wave_eval), gauss_result_p)
-                self.f_line_model += self.Onegauss(np.log(wave), gauss_result_p)
+                #self.f_line_model += self.Onegauss(np.log(wave), gauss_result_p)
                 
                 # Plot the line component
                 ax.plot(wave_eval, line_single + f_conti_model_eval, color=color, zorder=5)
@@ -1692,7 +1937,10 @@ class QSOFit():
                 f_max = line_flux[mask_complex & mask_outliers].max()
                 f_min = np.min([-1, line_flux[mask_complex & mask_outliers].min()])
                 
-                axn[1][c].set_ylim(f_min*0.9, f_max*1.1)
+                if ylims is None:
+                    axn[1][c].set_ylim(f_min*0.9, f_max*1.1)
+                else:
+                    axn[1][c].set_ylim(ylims[0], ylims[1])
                 
                 axn[1][c].set_xticks([all_comp_range[2*c], np.round((all_comp_range[2*c]+all_comp_range[2*c+1])/2, -1),
                                       all_comp_range[2*c+1]])
@@ -1705,21 +1953,28 @@ class QSOFit():
                     for j, w in enumerate(self.wave_mask):
                         axn[1][c].axvspan(w[0], w[1], color='k', alpha=0.25)
                         # Plot avoiding drawing lines between masked values
+                        label_data = None
+                        label_resid = None
                         if j==0:
                             mask = wave < w[0]
-                            axn[1][c].plot(wave[mask], self.line_flux[mask], 'k', label='data', lw=1, zorder=2)
-                            #axn[1][c].plot(wave[mask], err[mask], 'gray', label='error', zorder=1)
+                            label_data = 'data'
+                            label_resid = 'resid'
                         if j==len(self.wave_mask) - 1:
                             mask = self.wave_prereduced > w[1]
-                            axn[1][c].plot(wave[mask], self.line_flux[mask], 'k', lw=1, zorder=2)
-                            #axn[1][c].plot(wave[mask], err[mask], 'gray', zorder=1)
                         else:
                             mask = (wave > w[1]) & (wave < self.wave_mask[j+1,0])
-                            axn[1][c].plot(wave[mask], self.line_flux[mask], 'k', lw=1, zorder=2)
-                            #axn[1][c].plot(wave[mask], err[mask], 'gray', zorder=1)
+                        # Plot
+                        axn[1][c].plot(wave[mask], self.line_flux[mask], 'k', label=label_data, lw=1, zorder=2)
+                        if plot_residual:
+                            axn[1][c].axhline(-5, color='k', zorder=0, lw=0.5)
+                            axn[1][c].plot(wave[mask], self.line_flux[mask] - self.f_line_model[mask] - 5, 'gray',
+                                           label=label_resid, linestyle='dotted', lw=1, zorder=3)
                 else:
                     axn[1][c].plot(wave, self.line_flux, 'k', label='data', lw=1, zorder=2)
-                    #axn[1][c].plot(wave, err, 'gray', label='error', zorder=1)
+                    if plot_residual:
+                        axn[1][c].axhline(-5, color='k', zorder=0, lw=0.5)
+                        axn[1][c].plot(wave, self.line_flux - self.f_line_model - 5, 'gray',
+                                       label='resid', linestyle='dotted', lw=1, zorder=3)
         else:
             # If no lines are fitted, there would be only one row
             fig, ax = plt.subplots(nrows=1, ncols=1, figsize=(15, 5))
@@ -1743,7 +1998,13 @@ class QSOFit():
                     #ax.plot(self.wave_prereduced[mask], self.err_prereduced[mask], 'gray', lw=1, zorder=1)
         else:
             ax.plot(self.wave_prereduced, self.flux_prereduced, 'k', label='data', lw=1, zorder=2)
-            #ax.plot(self.wave_prereduced, self.err_prereduced, 'gray', label='error', lw=1, zorder=1)
+            if plot_residual == True:
+                if linefit == True:
+                    ax.plot(wave, self.line_flux - self.f_line_model, 'gray',
+                            label='resid', linestyle='dotted', lw=1, zorder=3)
+                else:
+                    ax.plot(wave, flux - self.f_conti_model, 'gray',
+                            label='resid', linestyle='dotted', lw=1, zorder=3)
         
         if self.ra == -999. or self.dec == -999.:
             ax.set_title(str(self.sdss_name)+'   z = '+str(np.round(z, 4)), fontsize=20)
@@ -1753,7 +2014,7 @@ class QSOFit():
         
         ########ax.plot(self.wave_prereduced, self.flux_prereduced, 'k', label='data', zorder=2)
         
-        if decomposition_host == True and self.decomposed == True:
+        if decompose_host == True and self.decomposed == True:
             ax.plot(wave, self.qso + self.host, 'pink', label='host+qso temp', zorder=3)
             ax.plot(wave, flux, 'grey', label='data-host', zorder=1)
             ax.plot(wave, self.host, 'purple', label='host', zorder=4)
@@ -1777,7 +2038,10 @@ class QSOFit():
         else:
             plot_bottom = min(self.host.min(), flux.min())
         
-        ax.set_ylim(plot_bottom*0.9, self.flux_prereduced.max()*1.1)
+        if ylims is None:
+            ylims = [plot_bottom*0.9, self.flux_prereduced.max()*1.1]
+            
+        ax.set_ylim(ylims[0], ylims[1])
         
         if self.plot_legend == True:
             ax.legend(loc='best', frameon=False, ncol=2, fontsize=10)
@@ -1794,11 +2058,14 @@ class QSOFit():
                  'NeV3426', 'MgII', 'CIII]', 'SiII1816', 'NIII]1750', 'NIV]1718', 'CIV', 'HeII1640', '', 'SiIV+OIV',
                  'CII1335', r'Ly$\alpha$'])
             
+            # Line position
+            axis_to_data = ax.transAxes + ax.transData.inverted()
+            points_data = axis_to_data.transform((0, 0.92))
+            
             for ll in range(len(line_cen)):
                 if wave.min() < line_cen[ll] < wave.max():
-                    ax.plot([line_cen[ll], line_cen[ll]], [plot_bottom*0.9, self.flux_prereduced.max()*1.1], 'k:')
-                    ax.text(line_cen[ll]+7, 1.08*self.flux_prereduced.max(), line_name[ll], rotation=90, fontsize=10,
-                            va='top')
+                    ax.plot([line_cen[ll], line_cen[ll]], ylims, 'k:')
+                    ax.text(line_cen[ll]+7, points_data[1], line_name[ll], rotation=90, fontsize=10, va='top')
         
         ax.set_xlim(wave.min(), wave.max())
         
@@ -1917,11 +2184,13 @@ class QSOFit():
         yvals = [pp[i]*xval2**(i + 1) for i in range(len(pp))]
         return np.sum(yvals, axis=0)
     
-    def Flux2L(self, flux, z):
+    def flux2L(self, flux, z=None):
         """Transfer flux to luminoity assuming a flat Universe"""
+        if z is None:
+            z = self.z
         cosmo = FlatLambdaCDM(H0=70, Om0=0.3)
-        DL = cosmo.luminosity_distance(z).value*10**6*3.08*10**18  # unit cm
-        L = flux*1.e-17*4.*np.pi*DL**2  # erg/s/A
+        d_L = cosmo.luminosity_distance(z).to(u.cm).value  # unit cm
+        L = flux*1e-17*4*np.pi*d_L**2  # erg/s/A
         return L
     
     def Onegauss(self, xval, pp):
