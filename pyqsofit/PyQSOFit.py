@@ -93,8 +93,8 @@ class QSOFit():
             Fe_flux_range=None, poly=False, BC=False, rej_abs=False, initial_guess=None, method='leastsq', 
             n_pix_min_host=100, n_pix_min_conti=100, param_file_name='qsopar.fits', MC=False, MCMC=False,
             nburn=20, nsamp=200, nthin=10, epsilon_jitter=1e-4, linefit=True, save_result=True, plot_fig=True,
-            save_fig=True, plot_line_name=True, plot_legend=True, plot_corner=True, dustmap_path=None, save_fig_path='.',
-            ylims=None, save_fits_path='.', save_fits_name=None, verbose=False, kwargs_conti_emcee={}, kwargs_line_emcee={}):
+            save_fig=True, plot_line_name=True, plot_legend=True, plot_resid=False, ylims=None, plot_corner=True,
+            save_fig_path='.', save_fits_path='.', save_fits_name=None, verbose=False, kwargs_conti_emcee={}, kwargs_line_emcee={}):
         
         """
         Fit the QSO spectrum and get different decomposed components and corresponding parameters
@@ -214,7 +214,7 @@ class QSOFit():
             
         plot_fig: bool, optional
             if True, the fitting results will be plotted. Default: True
-        
+                    
         save_fig: bool, optional
             if True, the figure will be saved, and the path can be set by "save_fig_path". Default: True
         
@@ -224,8 +224,14 @@ class QSOFit():
         plot_legend: bool, optional
             if True, open legend in the first panel of the output figure. Default: False
             
+        plot_resid: bool, optional
+            whether or not to plot the total data - fit residual in the result figure. Default: False
+            
         ylims: [float, float], optional
             ylim for the reuslt figure. If None, they are set automatically. Default: None
+            
+        plot_corner: bool, optinoal
+            whether or not to plot the corner plot results if MCMC=True. Default: True
         
         save_fig_path: str, optional
             the output path of the figure. If None, the default "save_fig_path" is set to "path"
@@ -235,6 +241,9 @@ class QSOFit():
         
         save_fits_name: str, optional
             the output name of the result fits. Default: "result.fits"
+            
+        verbose: bool, optional
+            turn on (True) or off (False) debugging output. Default: False
             
         kwargs_conti_emcee: dict, optional
             extra aguments for emcee Sampler for continuum fitting. Default: {}
@@ -536,7 +545,7 @@ class QSOFit():
                 
             self.plot_fig(self.ra, self.dec, self.z, self.wave, self.flux, self.err, decompose_host, linefit,
                           self.tmp_all, self.gauss_result, self.f_conti_model, self.conti_fit, self.all_comp_range,
-                          self.uniq_linecomp_sort, self.line_flux, save_fig_path, ylims=ylims)
+                          self.uniq_linecomp_sort, self.line_flux, save_fig_path, ylims=ylims, plot_residual=plot_resid)
         return
     
     def _MaskSdssAndOr(self, lam, flux, err, and_mask, or_mask):
