@@ -87,14 +87,14 @@ class QSOFit():
         self.output_path = path
         
     
-    def Fit(self, name=None, nsmooth=1, and_or_mask=True, reject_badpix=True, deredden=True, wave_range=None,
-            wave_mask=None, decompose_host=True, use_ppxf=False, wave_range_ppxf=None, host_line_mask=True,
-            BC03=False, Mi=None, npca_gal=5, npca_qso=20, Fe_uv_op=True, badpix_max_outliers=100, badpix_alpha=0.05,
+    def Fit(self, name=None, nsmooth=1, and_or_mask=True, reject_badpix=True, badpix_max_outliers=100,
+            badpix_alpha=0.05, deredden=True, wave_range=None, wave_mask=None, decompose_host=True, use_ppxf=False,
+            wave_range_ppxf=None, host_line_mask=True, BC03=False, Mi=None, npca_gal=5, npca_qso=20, Fe_uv_op=True,
             Fe_flux_range=None, poly=False, BC=False, rej_abs=False, initial_guess=None, method='leastsq', 
             n_pix_min_host=100, n_pix_min_conti=100, param_file_name='qsopar.fits', MC=False, MCMC=False,
             nburn=20, nsamp=200, nthin=10, epsilon_jitter=1e-4, linefit=True, save_result=True, plot_fig=True,
-            save_fig=True, plot_line_name=True, plot_legend=True, plot_corner=True, dustmap_path=None, save_fig_path=None,
-            save_fits_path=None, save_fits_name=None, verbose=False, ylims=None, kwargs_conti_emcee={}, kwargs_line_emcee={}):
+            save_fig=True, plot_line_name=True, plot_legend=True, plot_corner=True, dustmap_path=None, save_fig_path='.',
+            ylims=None, save_fits_path='.', save_fits_name=None, verbose=False, kwargs_conti_emcee={}, kwargs_line_emcee={}):
         
         """
         Fit the QSO spectrum and get different decomposed components and corresponding parameters
@@ -116,6 +116,12 @@ class QSOFit():
             reject 10 most possible outliers by the test of pointDistGESD. One important Caveat here is that this process will also delete narrow emission lines
             in some high SN ratio object e.g., [OIII]. Only use it when you are definitely clear about what you are doing. It will return the remained pixels.
         
+        badpix_max_outliers: int, optional
+            maximum number of bad pixel outliers allowed to be rejected. Default: 100
+        
+        badpix_alpha: float, optional
+            p-value to use for bad pixel outlier rejection. Default: 0.05
+        
         deredden: bool, optional
             correct the Galactic extinction only if the RA and Dec are available. It will return the corrected flux with the same array size. Default: True.
         
@@ -132,11 +138,15 @@ class QSOFit():
             magnitude bins. For galaxy, the global model has 10 PCA components and first 5 will enough to reproduce 98.37% galaxy spectra. For QSO, the global model
             has 50, and the first 20 will reproduce 96.89% QSOs. If have i-band absolute magnitude, the Luminosity-redshift binned PCA components are available.
             Then the first 10 PCA in each bin is enough to reproduce most QSO spectrum. Default: False
+            
+        use_ppxf: bool, optional    
+            If True, use pPXF to get the host galaxy component. Default: False
+            
         BC03: bool, optional
             if True, it will use Bruzual1 & Charlot 2003 host model to fit spectrum, high shift host will be low resolution R ~ 300, the rest is R ~ 2000. Default: False
         
         Mi: float, optional
-            the absolute magnitude of i band. It only works when decompose_host is True. If not None, the Luminosity redshift binned PCA will be used to decompose
+            i-band absolute magnitude. It only works when decompose_host is True. If not None, the Luminosity redshift binned PCA will be used to decompose
             the spectrum. Default: None
             
         npca_gal: int, optional
@@ -172,6 +182,15 @@ class QSOFit():
             respectively. The next two parameters are the power-law slope and intercept. The next three are the norm, Te, tau_BE in Balmer continuum model in
             Dietrich et al. 2002. the last three parameters are a,b,c in polynomial function a*(x-3000)+b*x^2+c*x^3.
         
+        n_pix_min_host: float, optional
+            minimum number of negative pixels for host galaxy fit to be rejected. You can set this to np.inf to always use the host galaxy component, even when it is very small and unconstrained but this is not recommended. Default: 100
+        
+        n_pix_min_conti: float, optional
+            minimum number of negative pixels for host continuuum fit to be rejected. Default: 100
+            
+        param_file_name: str, optional
+            name of the qso fitting parameter FITS file. Default: 'qsopar.fits'
+        
         MC: bool, optional 
             if True, do Monte Carlo resampling of the spectrum based on the input error array to produce the MC error array.
             if False, the code will not save the MLE minimization error produced by lmfit since it is biased and can not be trusted.
@@ -180,6 +199,9 @@ class QSOFit():
         MCMC: bool, optional 
             if True, do Markov Chain Monte Carlo sampling of the posterior probability densities after MLE fitting to produce the error array.
             Note: An error will be thrown if both MC and MCMC are True. Default: False
+            
+        nburn: int, optional
+            the number of burn-in samples to run MCMC chain if MCMC=True. It only works when MCMC is True. Default: 20
         
         nsamp: int, optional
             the number of trials of the MC process to produce the error array (if MC=True) or number samples to run MCMC chain (if MCMC=True). Should be larger than 20. It only works when either MC or MCMC is True. Default: 200
@@ -201,20 +223,31 @@ class QSOFit():
             
         plot_legend: bool, optional
             if True, open legend in the first panel of the output figure. Default: False
-        
-        dustmap_path: str, optional
-            if Deredden is True, the dustmap_path must be set. If None, the default "dustmap_path" is set to "path"
+            
+        ylims: [float, float], optional
+            ylim for the reuslt figure. If None, they are set automatically. Default: None
         
         save_fig_path: str, optional
             the output path of the figure. If None, the default "save_fig_path" is set to "path"
         
-        save_fit_path: str, optional
+        save_fits_path: str, optional
             the output path of the result fits. If None, the default "save_fits_path" is set to "path"
         
-        save_fit_name: str, optional
+        save_fits_name: str, optional
             the output name of the result fits. Default: "result.fits"
             
+        kwargs_conti_emcee: dict, optional
+            extra aguments for emcee Sampler for continuum fitting. Default: {}
+            
+        kwargs_line_emcee: dict, optional
+            extra arguments for emcee Sampler for line fitting. Default: {}
+            
         Return:
+        -----------
+        
+        
+        
+        Properties:
         -----------
         .wave: array
             the rest wavelength, some pixels have been removed.
@@ -291,13 +324,25 @@ class QSOFit():
         .conti_result_name: array
             the names for .conti_result.
             
+        .fur_result: array
+            emission line parameters, including FWHM, sigma, EW, measured from whole model of each main broad emission line covered.
+            The corresponding names are listed in .line_result_name.
+            
+        .fur_result_name: array
+            the names for .fur_result.
+            
         .line_result: array
             emission line parameters, including FWHM, sigma, EW, measured from whole model of each main broad emission line covered,
             and fitting parameters of each Gaussian component. The corresponding names are listed in .line_result_name.
             
-            
         .line_result_name: array
             the names for .line_result.
+            
+        .ppxf_result: array
+            pPXF parameters including stellar mass and SFH. (only if use_ppxf=True). 
+            
+        .ppxf_result_name: array
+            the names for .ppxf_result  (only if use_ppxf=True).
             
         .uniq_linecomp_sort: array
             the sorted complex names.
@@ -359,10 +404,6 @@ class QSOFit():
             self.sdss_name = name
         
         # set default path for figure and fits
-        if save_result == True and save_fits_path == None:
-            save_fits_path = self.output_path
-        if save_fig == True and save_fig_path == None:
-            save_fig_path = self.output_path
         if save_fits_name == None:
             if self.sdss_name == '':
                 save_fits_name = 'result'
@@ -371,8 +412,7 @@ class QSOFit():
         else:
             save_fits_name = save_fits_name
             
-        if dustmap_path is None:
-            dustmap_path = os.path.join(self.install_path, 'sfddata')
+        dustmap_path = os.path.join(self.install_path, 'sfddata')
         
         """
         Clean the data
@@ -983,10 +1023,10 @@ class QSOFit():
         # Check if we will attempt to fit the optical FeII continuum region
         ind_opt = np.where((wave[tmp_all] > 3686.) & (wave[tmp_all] < 7484.), True, False)
         if np.sum(ind_opt) <= self.n_pix_min_conti:
-            fit_params['Fe_opt_norm'].value = 0
-            fit_params['Fe_opt_norm'].vary = False
-            fit_params['Fe_opt_FWHM'].vary = False
-            fit_params['Fe_opt_shift'].vary = False
+            fit_params['Fe_op_norm'].value = 0
+            fit_params['Fe_op_norm'].vary = False
+            fit_params['Fe_op_FWHM'].vary = False
+            fit_params['Fe_op_shift'].vary = False
             
         # Check if we will attempt to fit the Balmer continuum region
         ind_BC = np.where(wave[tmp_all] < 3646, True, False)
@@ -1601,6 +1641,7 @@ class QSOFit():
                     # Line properties
                     fwhm, sigma, ew, peak, area = self.line_prop(compcenter, params, 'broad')
                     br_name = uniq_linecomp_sort[ii]
+                    print(br_name, fwhm, sigma, area)
                     
                     # Gauss result
                     if (self.MCMC == True or self.MC == True) and self.nsamp > 0:
@@ -1684,42 +1725,62 @@ class QSOFit():
         
         # Save properties
         self.comp_result = np.array(comp_result)
+        
         self.gauss_result = np.array(gauss_result)
         self.gauss_result_all = np.array(gauss_result_all)
         self.gauss_result_name = np.array(gauss_result_name)
+        
+        self.fur_result = np.array(fur_result)
+        self.fur_result_name = np.array(fur_result_name)
+        
         self.line_result = np.array(line_result)
         self.line_result_type = np.array(line_result_type)
         self.line_result_name = np.array(line_result_name)
+        
         self.ncomp = ncomp
         self.line_flux = line_flux
         self.all_comp_range = np.array(all_comp_range)
         self.uniq_linecomp_sort = uniq_linecomp_sort
+        
         return self.line_result, self.line_result_name
     
     
-    def line_prop_from_name(self, line_name, line_type='broad'):
+    def line_prop_from_name(self, line_name, line_type='broad', ln_sigma_br=0.0017):
         """
         line_name: line name e.g., 'Ha_br'
         """
 
         # Get the complex center wavelength of the line_name component
         mask_name = self.linelist['linename'] == line_name
-        compcenter = self.linelist[mask_name]['lambda'][0]
-
+        
+        # Check if no line exists
+        if np.count_nonzero(mask_name) == 0:
+            return 0, 0, 0, 0, 0
+        
         # Get each Gaussian component
+        compcenter = self.linelist[mask_name]['lambda'][0]
         ngauss = int(self.linelist[mask_name]['ngauss'][0])
-        pp = np.zeros(ngauss*3)
+        pp_shaped = np.zeros((ngauss, 3))
+        
+        # Check if no component is fit
+        mask_result_name = self.line_result_name == f'{line_name}_{1}_scale'
+        if np.count_nonzero(mask_result_name) == 0:
+            return 0, 0, 0, 0, 0
 
+        # Number of Gaussian components loop
         for n in range(ngauss):
-            
+                        
             # Get the Gaussian properties
-            pp[n] = float(self.line_result[self.line_result_name == f'{line_name}_{n+1}_scale'][0])
-            pp[n+1] = float(self.line_result[self.line_result_name == f'{line_name}_{n+1}_centerwave'][0])
-            pp[n+2] = float(self.line_result[self.line_result_name == f'{line_name}_{n+1}_sigma'][0])
+            pp_shaped[n,0] = float(self.line_result[self.line_result_name == f'{line_name}_{n+1}_scale'][0])
+            pp_shaped[n,1] = float(self.line_result[self.line_result_name == f'{line_name}_{n+1}_centerwave'][0])
+            pp_shaped[n,2] = float(self.line_result[self.line_result_name == f'{line_name}_{n+1}_sigma'][0])
+            
+        # Flatten
+        pp = pp_shaped.reshape(-1)
 
-        return self.line_prop(compcenter, pp, line_type)
+        return self.line_prop(compcenter, pp, line_type, ln_sigma_br)
     
-    def line_prop(self, compcenter, pp, linetype, ln_sigma_br=0.0017):
+    def line_prop(self, compcenter, pp, linetype='broad', ln_sigma_br=0.0017):
         """
         Calculate the further results for the broad component in emission lines, e.g., FWHM, sigma, peak, line flux
         The compcenter is the theortical vacuum wavelength for the broad compoenet.
@@ -1727,24 +1788,23 @@ class QSOFit():
         pp:
         linetype: 'broad' or 'narrow'
         ln_sigma_br: line sigma separating broad and narrow lines (AA??)
+        ln_sigma_max: Max sigma to consider in the calculation (used to exclude ultra-broad wings, etc.)
         """
         pp = np.array(pp).astype(float)
         if linetype.lower() == 'broad':
-            ind_br = np.repeat(np.where(pp[2::3] > ln_sigma_br, True, False), 3)
+            mask_br = (pp[2::3] > ln_sigma_br) & (pp[2::3] > 0)
+            ind_br = np.repeat(np.where(mask_br, True, False), 3)
         
         elif linetype.lower() == 'narrow':
-            ind_br = np.repeat(np.where(pp[2::3] <= ln_sigma_br, True, False), 3)
+            mask_br = (pp[2::3] <= ln_sigma_br) & (pp[2::3] > 0)
+            ind_br = np.repeat(np.where(mask_br, True, False), 3)
         
         else:
             raise RuntimeError("line type should be 'broad' or 'narrow'!")
-        
-        
-        ind_br[9:] = False  # to exclude the broad OIII and broad He II
-        #print(pp)
-        
-        # Get parameters for only the broad (or narrow) lines
+            
+        # If you want to exclude certain lines like OIII or HeII, you should use line_prop_from_name
+        # and take out those line names
         pp_br = pp[ind_br]
-        #print(pp_br)
         
         c = const.c.to(u.km/u.s).value  # km/s
         ngauss = len(pp_br)//3
@@ -1752,7 +1812,7 @@ class QSOFit():
         pp_br_shaped = pp_br.reshape([ngauss, 3])
         
         if ngauss == 0:
-            fwhm, sigma, ew, peak, area = 0., 0., 0., 0., 0.
+            fwhm, sigma, ew, peak, area = 0, 0, 0, 0, 0
         else:
             cen = np.zeros(ngauss)
             sig = np.zeros(ngauss)
@@ -1780,15 +1840,7 @@ class QSOFit():
             peak = np.exp(xx[ypeak_ind])
             
             # Find the FWHM in km/s
-            # Take the broad line we focus and ignore other broad components such as [OIII], HeII
-            
-            if ngauss > 3:
-                pp_br_temp = pp_br[0:9]
-                pp_br_shaped_temp = pp.reshape([len(pp_br)//3, 3])
-                line_temp = self._Manygauss(xx, pp_br_shaped_temp)
-                spline = interpolate.UnivariateSpline(xx, line_temp - np.max(line_temp)/2, s=0)
-            else:
-                spline = interpolate.UnivariateSpline(xx, yy - np.max(yy)/2, s=0)
+            spline = interpolate.UnivariateSpline(xx, yy - np.max(yy)/2, s=0)
                 
             if len(spline.roots()) > 0:
                 fwhm_left, fwhm_right = spline.roots().min(), spline.roots().max()
@@ -1805,7 +1857,7 @@ class QSOFit():
                 
                 sigma = np.sqrt(lambda2/lambda0 - (lambda1/lambda0)**2)/compcenter*c
             else:
-                fwhm, sigma, ew, peak, area = 0., 0., 0., 0., 0.
+                fwhm, sigma, ew, peak, area = 0, 0, 0, 0, 0
         
         return fwhm, sigma, ew, peak, area
     
@@ -1878,13 +1930,18 @@ class QSOFit():
         
         # Plot lines
         if linefit == True:
-            # Prepare for the emission line subplots in the second row
-            fig, axn = plt.subplots(nrows=2, ncols=np.max([self.ncomp, 1]), figsize=(15, 8), squeeze=False)
-            ax = plt.subplot(2, 1, 1)  # plot the first subplot occupying the whole first row
+            # If errors are in the results
             if (self.MCMC == True or self.MC == True) and self.nsamp > 0:
                 mc_flag = 2
             else:
                 mc_flag = 1
+                
+            # Number of line complexes actually fitted
+            ncomp_fit = len(self.fur_result)//(mc_flag*5)
+            
+            # Prepare for the emission line subplots in the second row
+            fig, axn = plt.subplots(nrows=2, ncols=np.max([ncomp_fit, 1]), figsize=(15, 8), squeeze=False)
+            ax = plt.subplot(2, 1, 1)  # plot the first subplot occupying the whole first row
             
             self.f_line_narrow_model = np.zeros_like(wave)
             #self.f_line_model = np.zeros_like(wave)
@@ -1911,7 +1968,7 @@ class QSOFit():
                 
                 # Plot the line component
                 ax.plot(wave_eval, line_single + f_conti_model_eval, color=color, zorder=5)
-                for c in range(self.ncomp):
+                for c in range(ncomp_fit):
                     axn[1][c].plot(wave_eval, line_single, color=color, zorder=line_order[color])
                     
                 lines_total += line_single
@@ -1920,7 +1977,7 @@ class QSOFit():
             ax.plot(wave_eval, lines_total + f_conti_model_eval, 'b', label='line', zorder=6)
             
             # Line complex subplots 
-            for c in range(self.ncomp):
+            for c in range(ncomp_fit):
                 axn[1][c].plot(wave_eval, lines_total, color='b', zorder=10)
                 #axn[1][c].plot(wave, self.line_flux, 'k', zorder=0)
                 
@@ -2007,9 +2064,9 @@ class QSOFit():
                             label='resid', linestyle='dotted', lw=1, zorder=3)
         
         if self.ra == -999. or self.dec == -999.:
-            ax.set_title(str(self.sdss_name)+'   z = '+str(np.round(z, 4)), fontsize=20)
+            ax.set_title(f'{self.sdss_name}   z = {np.round(z, 4)}', fontsize=20)
         else:
-            ax.set_title('ra,dec = ('+str(ra)+','+str(dec)+')   '+str(self.sdss_name)+'   z = '+str(np.round(z, 4)),
+            ax.set_title(f'ra,dec = ({np.round(ra, 4)},{np.round(dec, 4)})   {self.sdss_name}   z = {np.round(z, 4)}',
                          fontsize=20)
         
         ########ax.plot(self.wave_prereduced, self.flux_prereduced, 'k', label='data', zorder=2)
@@ -2065,7 +2122,7 @@ class QSOFit():
             for ll in range(len(line_cen)):
                 if wave.min() < line_cen[ll] < wave.max():
                     ax.plot([line_cen[ll], line_cen[ll]], ylims, 'k:')
-                    ax.text(line_cen[ll]+7, points_data[1], line_name[ll], rotation=90, fontsize=10, va='top')
+                    ax.text(line_cen[ll] + 7, points_data[1], line_name[ll], rotation=90, fontsize=10, va='top')
         
         ax.set_xlim(wave.min(), wave.max())
         
@@ -2178,9 +2235,9 @@ class QSOFit():
             result[ind] = 0
         return result
     
-    def F_poly_conti(self, xval, pp):
+    def F_poly_conti(self, xval, pp, x0=3000):
         """Fit the continuum with a polynomial component account for the dust reddening with a*X+b*X^2+c*X^3"""
-        xval2 = xval - 3000
+        xval2 = xval - x0
         yvals = [pp[i]*xval2**(i + 1) for i in range(len(pp))]
         return np.sum(yvals, axis=0)
     
