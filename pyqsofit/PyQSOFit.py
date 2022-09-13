@@ -1024,7 +1024,6 @@ class QSOFit():
         # Check if we will attempt to fit the UV FeII continuum region
         ind_uv = np.where((wave[tmp_all] > 1200) & (wave[tmp_all] < 3500), True, False)
         if (self.Fe_uv_op == False) or (np.sum(ind_uv) <= self.n_pix_min_conti):
-            print('Norm to zero')
             fit_params['Fe_uv_norm'].value = 0
             fit_params['Fe_uv_norm'].vary = False
             fit_params['Fe_uv_FWHM'].vary = False
@@ -1086,9 +1085,7 @@ class QSOFit():
             _conti_model = lambda xval, pp : self.PL(xval, pp) + self.Fe_flux_balmer(xval, pp[3:6]) + self.F_poly_conti(xval, pp[11:]) + self.Balmer_conti(xval, pp[8:11])            
         else:
             raise RuntimeError('Invalid options for continuum model!')
-            
-        print('FE UV OPT', self.Fe_uv_op)
-            
+                        
         """
         Perform the fitting
         
