@@ -1023,7 +1023,7 @@ class QSOFit():
                 
         # Check if we will attempt to fit the UV FeII continuum region
         ind_uv = np.where((wave[tmp_all] > 1200) & (wave[tmp_all] < 3500), True, False)
-        if np.sum(ind_uv) <= self.n_pix_min_conti:
+        if (self.Fe_uv_op == False) or (np.sum(ind_uv) <= self.n_pix_min_conti):
             fit_params['Fe_uv_norm'].value = 0
             fit_params['Fe_uv_norm'].vary = False
             fit_params['Fe_uv_FWHM'].vary = False
@@ -1031,7 +1031,7 @@ class QSOFit():
             
         # Check if we will attempt to fit the optical FeII continuum region
         ind_opt = np.where((wave[tmp_all] > 3686.) & (wave[tmp_all] < 7484.), True, False)
-        if np.sum(ind_opt) <= self.n_pix_min_conti:
+        if (self.Fe_uv_op == False and self.BC == False) or (np.sum(ind_opt) <= self.n_pix_min_conti):
             fit_params['Fe_op_norm'].value = 0
             fit_params['Fe_op_norm'].vary = False
             fit_params['Fe_op_FWHM'].vary = False
@@ -1084,8 +1084,8 @@ class QSOFit():
         elif self.Fe_uv_op == False and self.poly == True and self.BC == True:
             _conti_model = lambda xval, pp : self.PL(xval, pp) + self.Fe_flux_balmer(xval, pp[3:6]) + self.F_poly_conti(xval, pp[11:]) + self.Balmer_conti(xval, pp[8:11])            
         else:
-            raise RuntimeError('Invalid options for continuum model!')    
-            
+            raise RuntimeError('Invalid options for continuum model!')
+                        
         """
         Perform the fitting
         
