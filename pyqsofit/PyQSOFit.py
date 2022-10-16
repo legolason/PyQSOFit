@@ -90,7 +90,7 @@ class QSOFit():
     
     def Fit(self, name=None, nsmooth=1, and_or_mask=True, reject_badpix=True, deredden=True, wave_range=None,
             wave_mask=None, decompose_host=True, host_line_mask=True, BC03=False, Mi=None, npca_gal=5, npca_qso=10, Fe_uv_op=True,
-            Fe_flux_range=np.array([4435,4685]), poly=False, BC=False, rej_abs=False, initial_guess=None, tol=1.e-10, 
+            Fe_flux_range=np.array([4435,4685]), poly=False, BC=False, rej_abs=False, initial_guess=None, tol=1e-10, 
             n_pix_min_conti=100, param_file_name='qsopar.fits', MC=False, MCMC=False,
             nburn=20, nsamp=200, nthin=10, epsilon_jitter=1e-4, linefit=True, save_result=True, plot_fig=True,
             save_fig=True, plot_line_name=True, plot_legend=True, plot_resid=False, ylims=None, plot_corner=True,
@@ -985,7 +985,7 @@ class QSOFit():
             L_std = get_err(Ls)
 
             # Calculate FeII flux errors
-            Fe_flux_results = np.empty((len(samples), np.shape(self.Fe_flux_range.flatten())[0]//2))
+            Fe_flux_results = np.empty((len(samples), np.shape(np.ravel(self.Fe_flux_range))[0]//2))
 
             if self.Fe_flux_range is not None:
                 # Samples loop
@@ -1271,7 +1271,7 @@ class QSOFit():
                     # Print parameters to be fit
                     if self.verbose:
                         fit_params.pretty_print()
-                        print(r'Fitting complex {linelist["compname"][ind_line][0]}')
+                        print(fr'Fitting complex {linelist["compname"][ind_line][0]}')
                     
                     # Fit wavelength in ln space
                     line_fit = minimize(self._residual_line, fit_params, args=(np.log(self.wave[ind_n]), line_flux[ind_n], self.err[ind_n], ln_lambda_0s),
@@ -1305,7 +1305,7 @@ class QSOFit():
                             p = line_samples.params.valuesdict()
                             df_samples = line_samples.flatchain
                             samples = df_samples.to_numpy()
-
+                            
                             # Print fit report
                             if self.verbose:
                                 print(f'acceptance fraction = {np.mean(line_samples.acceptance_fraction)} +/- {np.std(line_samples.acceptance_fraction)}')
@@ -1319,17 +1319,17 @@ class QSOFit():
                                 truths = [params_dict[k] for k in df_samples.columns.values.tolist()]
                                 emcee_plot = corner.corner(df_samples, labels=line_samples.var_names,
                                                            quantiles=[0.16, 0.5, 0.84], truths=truths)
-
+                                
                             # Loop through each parameter
                             for k, name in enumerate(par_names):
-                                # Add a column with all zeros if the parameter is fixed
+                                # Add a column with initial value if the parameter is fixed
                                 if name not in df_samples.columns.values.tolist():
                                     df_samples[name] = params_dict[name]
 
                             # Sort the samples dataframe back to its original order
                             df_samples = df_samples[par_names]
                             samples = df_samples.to_numpy()
-                            
+                                                                                    
                         """
                         MC resampling
                         """
@@ -1390,7 +1390,6 @@ class QSOFit():
                     """
                     Save the results
                     """
-                    
                     # Reshape parameters array for vectorization
                     ngauss = len(params)//3
                     params_shaped = np.reshape(params, (ngauss, 3))
@@ -1413,6 +1412,10 @@ class QSOFit():
                     if (self.MCMC == True or self.MC == True) and self.nsamp > 0:
                         # Gauss results
                         gauss_result.append(list(chain.from_iterable(zip(params, params_err))))
+                        # Reshape samples array for vectorization
+                        samples_shaped = np.reshape(samples, (np.shape(samples)[0], ngauss, 3))
+                        samples_shaped[:,:,1] += ln_lambda_0s # Transform ln lambda ~ d ln lambda + ln lambda0
+                        samples = samples_shaped.reshape(np.shape(samples))
                         gauss_result_all.append(samples)
                         
                         for n in range(nline_fit):
