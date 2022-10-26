@@ -1,13 +1,11 @@
-"""
 # PyQSOFit: A code for quasar spectrum fitting
-# Auther: Hengxiao Guo AT UCI
+# Auther: Hengxiao Guo AT SHAO
 # Email: hengxiaoguo AT gmail DOT com
-# Co-Auther Shu Wang, Yue Shen, Wenke Ren, Colin J. Burke
+# Co-Auther Yue Shen, Shu Wang, Wenke Ren, Colin J. Burke
 # Version 1.2
-# 9/28/2022 
+# 10/26/2022 
 # Key updates: 1) change the kmpfit to lmfit 2) no limit now for tie-line function 3) error estimation with MC or MCMC 4) coefficients in host decomposition are forced to be positive now.   
 # -------------------------------------------------
-"""
 
 import sys, os
 import glob
@@ -40,7 +38,7 @@ warnings.filterwarnings("ignore")
 class QSOFit():
     
     def __init__(self, lam, flux, err, z, ra=-999, dec=-999, plateid=None, mjd=None, fiberid=None, path=None,
-                 and_mask=None, or_mask=None):
+                 and_mask_in=None, or_mask_in=None):
         """
         Get the input data perpared for the QSO spectral fitting
         
@@ -76,22 +74,23 @@ class QSOFit():
         self.flux_in = np.asarray(flux, dtype=np.float64)
         self.err_in = np.asarray(err, dtype=np.float64)
         self.z = z
-        self.and_mask_in = and_mask
-        self.or_mask_in = or_mask
+        self.and_mask_in = and_mask_in
+        self.or_mask_in = or_mask_in
         self.ra = ra
         self.dec = dec
         self.plateid = plateid
         self.mjd = mjd
         self.fiberid = fiberid
         self.path = path
+        #self.install_path = os.path.dirname('/Users/legolason/study/mesfit/v1.2/PyQSOFit/example/')
         self.install_path = os.path.dirname(os.path.abspath(__file__))
         self.output_path = path
         
     
-    def Fit(self, name=None, nsmooth=1, and_or_mask=True, reject_badpix=True, deredden=True, wave_range=None,
+    def Fit(self, name=None, nsmooth=1, and_mask=False, or_mask=False, reject_badpix=True, deredden=True, wave_range=None,
             wave_mask=None, decompose_host=True, host_line_mask=True, BC03=False, Mi=None, npca_gal=5, npca_qso=10, Fe_uv_op=True,
-            Fe_flux_range=np.array([4435,4685]), poly=False, BC=False, rej_abs=False, initial_guess=None, tol=1e-10, 
-            n_pix_min_conti=100, param_file_name='qsopar.fits', MC=False, MCMC=False, save_fits_name = None,
+            Fe_flux_range=None, poly=False, BC=False, rej_abs=False, initial_guess=None, tol=1e-10, broad_fwhm=1200
+            n_pix_min_conti=100, param_file_name='qsopar.fits', MC=False, MCMC=False, save_fits_name=None,
             nburn=20, nsamp=200, nthin=10, epsilon_jitter=1e-4, linefit=True, save_result=True, plot_fig=True, save_fits_path='.',
             save_fig=True, plot_corner=True, verbose=False, kwargs_plot={}, kwargs_conti_emcee={}, kwargs_line_emcee={}):
         
@@ -108,7 +107,7 @@ class QSOFit():
             do n-pixel smoothing to the raw input flux and err spectra. The default is set to 1 (no smooth).
             It will return the same array size. We note that smooth the raw data is not suggested, this function is in case of some fail-fitted low S/N spectra.
               
-        and_or_mask: bool, optional
+        and/or_mask: bool, optional
             If True, and and_mask or or_mask is not None, it will delete the masked pixels, and only return the remained pixels. Default: False
             
         reject_badpix: bool, optional
@@ -405,34 +404,41 @@ class QSOFit():
             
         dustmap_path = os.path.join(self.install_path, 'sfddata')
         
-        """
-        Clean the data
-        """
+        
+        #Clean the data
+        
         # Remove with error equal to 0 or inifity
         ind_gooderror = np.where((self.err_in != 0) & ~np.isinf(self.err_in) & (self.flux_in != 0) & ~np.isinf(self.flux_in), True, False)
         self.err = self.err_in[ind_gooderror]
         self.flux = self.flux_in[ind_gooderror]
         self.lam = self.lam_in[ind_gooderror]
         
-        # And/or mask
-        if (self.and_mask_in is not None) & (self.or_mask_in is not None):
-            self.and_mask = self.and_mask_in[ind_gooderror]
-            self.or_mask = self.or_mask_in[ind_gooderror]
+        # Renew And/or mask index
+        if (self.and_mask_in is not None) and (self.or_mask_in is not None):
+            self.and_mask_in = self.and_mask_in[ind_gooderror]
+            self.or_mask_in = self.or_mask_in[ind_gooderror]
         else:
-            self.and_mask = None
-            self.or_mask = None
+            self.and_mask_in = None
+            self.or_mask_in = None 
+
+      
+        # Clean and/or mask
+        if (and_mask == True) and (self.and_mask_in is not None):
+            self._MaskSdssAndOr(self.lam, self.flux, self.err, and_mask, or_mask)
+        # Clean bad pixel
+        if reject_badpix == True:
+            self._RejectBadPix(self.lam, self.flux, self.err)
         # Smooth the data
         if nsmooth is not None:
             self.flux = self.Smooth(self.flux, nsmooth)
             self.err = self.Smooth(self.err, nsmooth)
-        if (and_or_mask == True) and (self.and_mask is not None or self.or_mask is not None):
-            self._MaskSdssAndOr(self.lam, self.flux, self.err, self.and_mask, self.or_mask)
-        if reject_badpix == True:
-            self._RejectBadPix(self.lam, self.flux, self.err, self.maxOLs, self.alpha)
+        # Set fitting wavelength range
         if wave_range is not None:
             self._WaveTrim(self.lam, self.flux, self.err, self.z)
+        # Set manual wavelength mask
         if wave_mask is not None:
             self._WaveMsk(self.lam, self.flux, self.err, self.z)
+        # Deredden
         if deredden == True and self.ra != -999. and self.dec != -999.:
             self._DeRedden(self.lam, self.flux, self.err, self.ra, self.dec, dustmap_path)
         
@@ -482,6 +488,7 @@ class QSOFit():
         """
         if plot_fig == True:
             self.plot_fig(**kwargs_plot)
+            
         return
     
     def _MaskSdssAndOr(self, lam, flux, err, and_mask, or_mask):
@@ -493,15 +500,21 @@ class QSOFit():
         flux: flux
         err: 1 sigma error
         and_mask: SDSS flag "and_mask", mask out all non-zero pixels
-        or_mask: SDSS flag "or_mask", mask out all npn-zero pixels
         
         Retrun:
         ---------
         return the same size array of wavelength, flux, error
         """
-        ind_and_or = np.where((and_mask == 0) & (or_mask == 0), True, False)
-        #del self.lam, self.flux, self.err
-        self.lam, self.flux, self.err = lam[ind_and_or], flux[ind_and_or], err[ind_and_or]
+        if (and_mask == True) and (or_mask == True):
+            ind = np.where( (self.and_mask_in == 0) & (self.and_mask_in == 0) , True, False)
+        if (and_mask == True) and (or_mask == False):
+            ind = np.where( self.and_mask_in == 0 , True, False)
+        if (and_mask == False) and (or_mask == True):
+            ind = np.where( self.or_mask== 0 , True, False)
+        
+        self.lam, self.flux, self.err = lam[ind], flux[ind], err[ind]
+        
+
     
     def _RejectBadPix(self, lam, flux, err, maxOLs=10, alpha=0.05):
         """
@@ -1301,7 +1314,7 @@ class QSOFit():
                             p = line_samples.params.valuesdict()
                             df_samples = line_samples.flatchain
                             samples = df_samples.to_numpy()
-                            
+
                             # Print fit report
                             if self.verbose:
                                 print(f'acceptance fraction = {np.mean(line_samples.acceptance_fraction)} +/- {np.std(line_samples.acceptance_fraction)}')
@@ -1315,7 +1328,7 @@ class QSOFit():
                                 truths = [params_dict[k] for k in df_samples.columns.values.tolist()]
                                 emcee_plot = corner.corner(df_samples, labels=line_samples.var_names,
                                                            quantiles=[0.16, 0.5, 0.84], truths=truths)
-                                
+
                             # Loop through each parameter
                             for k, name in enumerate(par_names):
                                 # Add a column with initial value if the parameter is fixed
@@ -1325,7 +1338,7 @@ class QSOFit():
                             # Sort the samples dataframe back to its original order
                             df_samples = df_samples[par_names]
                             samples = df_samples.to_numpy()
-                                                                                    
+                            
                         """
                         MC resampling
                         """
@@ -1386,6 +1399,7 @@ class QSOFit():
                     """
                     Save the results
                     """
+                    
                     # Reshape parameters array for vectorization
                     ngauss = len(params)//3
                     params_shaped = np.reshape(params, (ngauss, 3))
@@ -1992,13 +2006,13 @@ class QSOFit():
         """Fit the Balmer continuum from the model of Dietrich+02"""
         # xval = input wavelength, in units of A
         # pp=[norm, Te, tau_BE] -- in units of [--, K, --]
-        
+        xval=xval*u.AA
         lambda_BE = 3646.  # A
         bb_lam = BlackBody(pp[1]*u.K, scale=1.0 * u.erg / (u.cm ** 2 * u.AA * u.s * u.sr))
         bbflux = bb_lam(xval).value*3.14   # in units of ergs/cm2/s/A
-        tau = pp[2]*(xval/lambda_BE)**3
+        tau = pp[2]*(xval.value/lambda_BE)**3
         result = pp[0] * bbflux * (1 - np.exp(-tau))
-        ind = np.where(xval > lambda_BE, True, False)
+        ind = np.where(xval.value > lambda_BE, True, False)
         if ind.any() == True:
             result[ind] = 0
         return result
