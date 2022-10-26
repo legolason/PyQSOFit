@@ -89,7 +89,7 @@ class QSOFit():
     
     def Fit(self, name=None, nsmooth=1, and_mask=False, or_mask=False, reject_badpix=True, deredden=True, wave_range=None,
             wave_mask=None, decompose_host=True, host_line_mask=True, BC03=False, Mi=None, npca_gal=5, npca_qso=10, Fe_uv_op=True,
-            Fe_flux_range=None, poly=False, BC=False, rej_abs=False, initial_guess=None, tol=1e-10, broad_fwhm=1200
+            Fe_flux_range=None, poly=False, BC=False, rej_abs=False, initial_guess=None, tol=1e-10,
             n_pix_min_conti=100, param_file_name='qsopar.fits', MC=False, MCMC=False, save_fits_name=None,
             nburn=20, nsamp=200, nthin=10, epsilon_jitter=1e-4, linefit=True, save_result=True, plot_fig=True, save_fits_path='.',
             save_fig=True, plot_corner=True, verbose=False, kwargs_plot={}, kwargs_conti_emcee={}, kwargs_line_emcee={}):
@@ -1689,10 +1689,10 @@ class QSOFit():
         return
         
     
-    def plot_fig(self, save_fig_path='.', sigma_br=1200, plot_line_name=True, plot_legend=True, ylims=None, plot_residual=True, show_title=True):
+    def plot_fig(self, save_fig_path='.', broad_fwhm=1200, plot_line_name=True, plot_legend=True, ylims=None, plot_residual=True, show_title=True):
         """Plot the results
         
-        sigma_br: float, optional
+        broad_fwhm: float, optional
             Definition for width of the broad lines. Default: 1200 km/s (careful, is not the exact separation used in line_prop)
         
         plot_line_name: bool, optional
@@ -1735,7 +1735,7 @@ class QSOFit():
                 gauss_result_p = self.gauss_result[p*3*mc_flag:(p+1)*3*mc_flag:mc_flag]
                 
                 # Broad or narrow line check
-                if self.CalFWHM(self.gauss_result[(2+p*3)*mc_flag]) < sigma_br:
+                if self.CalFWHM(self.gauss_result[(2+p*3)*mc_flag]) < broad_fwhm:
                     # Narrow
                     color = 'g'
                     self.f_line_narrow_model += self.Onegauss(np.log(self.wave), gauss_result_p)
