@@ -1288,47 +1288,49 @@ class QSOFit():
                     # Check max absorption iterations
                     niter_abs = -1 # Start at -1 because for initial fit with no absorption pixel masking
                     ind_line_abs = np.full(len(self.wave), True)
+                    redchi = np.nan
                     
                     while niter_abs < self.rej_abs_line_max_niter:
                                                 
                         # Fit wavelength in ln space
                         args = (np.log(self.wave[ind_n & ind_line_abs]), line_flux[ind_n & ind_line_abs], self.err[ind_n & ind_line_abs], ln_lambda_0s)
-                        line_fit = minimize(self._residual_line, fit_params, args=args,
-                                            calc_covar=False, xtol=self.tol, ftol=self.tol)
-                        params_dict = line_fit.params.valuesdict()
-                        par_names = list(params_dict.keys())
-                        params = list(params_dict.values())
-                        chisqr = line_fit.chisqr
-                        bic = line_fit.bic
-                        redchi = line_fit.redchi
-                        
-                        niter_abs += 1
-                        
-                        if niter_abs == 0:
-                            redchi0 = redchi
+                        line_fit_tmp = minimize(self._residual_line, fit_params, args=args,
+                                                calc_covar=False, xtol=self.tol, ftol=self.tol)
+                        niter_abs += 1 # Iterate
                                                     
                         # Reject absorption pixels in emission line
                         if (self.rej_abs_line == True) and (niter_abs > 0):
                                                         
                             # Get absorption line indicies and update ind_n
                             resid_full = np.zeros_like(self.wave)
-                            resid_full[ind_n] = line_fit.residual
+                            resid_full[ind_n & ind_line_abs] = line_fit_tmp.residual
                             ind_line_abs_tmp = np.where(resid_full < -3, False, True)
 
-                            # Check number of valid pixels minus 10 is larger than the number of fitted gaussian parameters
+                            # Check if number of valid pixels minus 10 is not larger than the number of fitted gaussian parameters
                             if len(self.wave[ind_n & ind_line_abs_tmp]) - 10 < ngauss_fit[n]*3:
                                 break
-                            # Check the reduced chi squared has improved
-                            if redchi >= redchi0:
+                            # Check if the reduced chi squared has not improved
+                            if line_fit_tmp.redchi >= redchi:
                                 break
                             else:
-                                # Update
+                                # Accept the fit
+                                redchi = line_fit_tmp.redchi
                                 ind_line_abs = ind_line_abs_tmp
-                            
+                                line_fit = line_fit_tmp
+                                
                         if self.rej_abs_line == False:
+                            # Accept the fit
+                            line_fit = line_fit_tmp
                             break
-                            
+                        
                         # End emission line fitting loop
+                    params_dict = line_fit.params.valuesdict()
+                    par_names = list(params_dict.keys())
+                    params = list(params_dict.values())
+                    chisqr = line_fit.chisqr
+                    bic = line_fit.bic
+                    redchi = line_fit.redchi
+                    niter_abs += 1 # Iterate
 
                     # Print fit report
                     if self.verbose:
