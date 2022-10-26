@@ -39,7 +39,7 @@ warnings.filterwarnings("ignore")
 
 class QSOFit():
     
-    def __init__(self, lam, flux, err, z, ra=- 999., dec=-999., plateid=None, mjd=None, fiberid=None, path=None,
+    def __init__(self, lam, flux, err, z, ra=-999, dec=-999, plateid=None, mjd=None, fiberid=None, path=None,
                  and_mask=None, or_mask=None):
         """
         Get the input data perpared for the QSO spectral fitting
@@ -91,10 +91,9 @@ class QSOFit():
     def Fit(self, name=None, nsmooth=1, and_or_mask=True, reject_badpix=True, deredden=True, wave_range=None,
             wave_mask=None, decompose_host=True, host_line_mask=True, BC03=False, Mi=None, npca_gal=5, npca_qso=10, Fe_uv_op=True,
             Fe_flux_range=np.array([4435,4685]), poly=False, BC=False, rej_abs=False, initial_guess=None, tol=1e-10, 
-            n_pix_min_conti=100, param_file_name='qsopar.fits', MC=False, MCMC=False,
-            nburn=20, nsamp=200, nthin=10, epsilon_jitter=1e-4, linefit=True, save_result=True, plot_fig=True,
-            save_fig=True, plot_line_name=True, plot_legend=True, plot_resid=False, ylims=None, plot_corner=True,
-            save_fig_path='.', save_fits_path='.', save_fits_name=None, verbose=False, kwargs_conti_emcee={}, kwargs_line_emcee={}):
+            n_pix_min_conti=100, param_file_name='qsopar.fits', MC=False, MCMC=False, save_fits_name = None,
+            nburn=20, nsamp=200, nthin=10, epsilon_jitter=1e-4, linefit=True, save_result=True, plot_fig=True, save_fits_path='.',
+            save_fig=True, plot_corner=True, verbose=False, kwargs_plot={}, kwargs_conti_emcee={}, kwargs_line_emcee={}):
         
         """
         Fit the QSO spectrum and get different decomposed components and corresponding parameters
@@ -132,6 +131,8 @@ class QSOFit():
             magnitude bins. For galaxy, the global model has 10 PCA components and first 5 will enough to reproduce 98.37% galaxy spectra. For QSO, the global model
             has 50, and the first 20 will reproduce 96.89% QSOs. If have i-band absolute magnitude, the Luminosity-redshift binned PCA components are available.
             Then the first 10 PCA in each bin is enough to reproduce most QSO spectrum. Default: False
+            
+        host_line_mask: bool, optional
             
         BC03: bool, optional
             if True, it will use Bruzual1 & Charlot 2003 host model to fit spectrum, high shift host will be low resolution R ~ 300, the rest is R ~ 2000. Default: False
@@ -205,9 +206,6 @@ class QSOFit():
                     
         save_fig: bool, optional
             if True, the figure will be saved, and the path can be set by "save_fig_path". Default: True
-        
-        plot_line_name: bool, optional
-            if True, serval main emission lines will be plotted in the first panel of the output figure. Default: False
             
         plot_legend: bool, optional
             if True, open legend in the first panel of the output figure. Default: False
@@ -232,6 +230,9 @@ class QSOFit():
             
         verbose: bool, optional
             turn on (True) or off (False) debugging output. Default: False
+            
+        kwargs_plot: dict, optional
+            extra aguments for plot_fig for plotting results. See LINK TO PLOT_FIG_DOC. Default: {}
             
         kwargs_conti_emcee: dict, optional
             extra aguments for emcee Sampler for continuum fitting. Default: {}
@@ -348,11 +349,15 @@ class QSOFit():
         self.name = name
         self.wave_range = wave_range
         self.wave_mask = wave_mask
+        self.decompose_host = decompose_host
+        self.linefit = linefit
         self.host_line_mask = host_line_mask
         self.BC03 = BC03
         self.Mi = Mi
         self.npca_gal = npca_gal
         self.npca_qso = npca_qso
+        self.maxOLs = 10
+        self.alpha = 0.05
         self.initial_guess = initial_guess
         self.Fe_uv_op = Fe_uv_op
         self.Fe_flux_range = Fe_flux_range
@@ -369,8 +374,6 @@ class QSOFit():
         self.epsilon_jitter = epsilon_jitter
         self.kwargs_conti_emcee = kwargs_conti_emcee
         self.kwargs_line_emcee = kwargs_line_emcee
-        self.plot_line_name = plot_line_name
-        self.plot_legend = plot_legend
         self.save_fig = save_fig
         self.plot_corner = plot_corner
         self.verbose = verbose
@@ -460,17 +463,17 @@ class QSOFit():
             self.fit_lines(self.wave, self.line_flux, self.err, self.conti_fit)
         else:
             self.ncomp = 0
-            
-            
+            self.line_result = np.array([])
+            self.line_result_type = np.array([])
+            self.line_result_name = np.array([])
+            self.gauss_result = np.array([])
+            self.all_comp_range = np.array([])
+            self.uniq_linecomp_sort = np.array([])
+                        
         """
         Save the results
         """
         if save_result == True:
-            if linefit == False:
-                self.line_result = np.array([])
-                self.line_result_type = np.array([])
-                self.line_result_name = np.array([])
-                
             self.save_result(self.conti_result, self.conti_result_type, self.conti_result_name, self.line_result,
                              self.line_result_type, self.line_result_name, save_fits_path, save_fits_name)
         
@@ -478,14 +481,7 @@ class QSOFit():
         Plot the results
         """
         if plot_fig == True:
-            if linefit == False:
-                self.gauss_result = np.array([])
-                self.all_comp_range = np.array([])
-                self.uniq_linecomp_sort = np.array([])
-                
-            self.plot_fig(self.ra, self.dec, self.z, self.wave, self.flux, self.err, decompose_host, linefit,
-                          self.tmp_all, self.gauss_result, self.f_conti_model, self.conti_fit, self.all_comp_range,
-                          self.uniq_linecomp_sort, self.line_flux, save_fig_path, ylims=ylims, plot_residual=plot_resid)
+            self.plot_fig(**kwargs_plot)
         return
     
     def _MaskSdssAndOr(self, lam, flux, err, and_mask, or_mask):
@@ -1679,26 +1675,29 @@ class QSOFit():
         return
         
     
-    def plot_fig(self, ra, dec, z, wave, flux, err, decompose_host, linefit, tmp_all, gauss_result, f_conti_model,
-                 conti_fit, all_comp_range, uniq_linecomp_sort, line_flux, save_fig_path, sigma_br=1200, ylims=None,
-                 plot_residual=True):
+    def plot_fig(self, save_fig_path='.', sigma_br=1200, plot_line_name=True, plot_legend=True, ylims=None, plot_residual=True, show_title=True):
         """Plot the results
         
-        sigma_br 1200 km/s (careful, 1200 km s-1 is not the exact separation used in line_prop)
+        sigma_br: float, optional
+            Definition for width of the broad lines. Default: 1200 km/s (careful, is not the exact separation used in line_prop)
+        
+        plot_line_name: bool, optional
+            if True, serval main emission lines will be plotted in the first panel of the output figure. Default: False
+        
         """
         
-        pp = list(conti_fit.params.valuesdict().values())
+        pp = list(self.conti_fit.params.valuesdict().values())
         
         matplotlib.rc('xtick', labelsize=20)
         matplotlib.rc('ytick', labelsize=20)
         
-        wave_eval = np.linspace(np.min(wave) - 200, np.max(wave) + 200, 5000)
-        f_conti_model_eval = np.interp(wave_eval, wave, f_conti_model)
+        wave_eval = np.linspace(np.min(self.wave) - 200, np.max(self.wave) + 200, 5000)
+        f_conti_model_eval = np.interp(wave_eval, self.wave, self.f_conti_model)
         
-        self.PL_poly = self.PL(wave, pp) + self.F_poly_conti(wave, pp)
+        self.PL_poly = self.PL(self.wave, pp) + self.F_poly_conti(self.wave, pp)
         
         # Plot lines
-        if linefit == True:
+        if self.linefit == True:
             # If errors are in the results
             if (self.MCMC == True or self.MC == True) and self.nsamp > 0:
                 mc_flag = 2
@@ -1712,20 +1711,20 @@ class QSOFit():
             fig, axn = plt.subplots(nrows=2, ncols=np.max([ncomp_fit, 1]), figsize=(15, 8), squeeze=False)
             ax = plt.subplot(2, 1, 1)  # plot the first subplot occupying the whole first row
             
-            self.f_line_narrow_model = np.zeros_like(wave)
-            #self.f_line_model = np.zeros_like(wave)
+            self.f_line_narrow_model = np.zeros_like(self.wave)
+            #self.f_line_model = np.zeros_like(self.wave)
             lines_total = np.zeros_like(wave_eval)
             line_order = {'r': 3, 'g': 7}  # Ensure narrow lines plot above the broad lines
             
             # For each Gaussian line component
-            for p in range(len(gauss_result)//(mc_flag*3)):
-                gauss_result_p = gauss_result[p*3*mc_flag:(p+1)*3*mc_flag:mc_flag]
+            for p in range(len(self.gauss_result)//(mc_flag*3)):
+                gauss_result_p = self.gauss_result[p*3*mc_flag:(p+1)*3*mc_flag:mc_flag]
                 
                 # Broad or narrow line check
-                if self.CalFWHM(gauss_result[(2+p*3)*mc_flag]) < sigma_br:
+                if self.CalFWHM(self.gauss_result[(2+p*3)*mc_flag]) < sigma_br:
                     # Narrow
                     color = 'g'
-                    self.f_line_narrow_model += self.Onegauss(np.log(wave), gauss_result_p)
+                    self.f_line_narrow_model += self.Onegauss(np.log(self.wave), gauss_result_p)
                 else:
                     # Broad
                     color = 'r'
@@ -1747,30 +1746,30 @@ class QSOFit():
             # Line complex subplots 
             for c in range(ncomp_fit):
                 axn[1][c].plot(wave_eval, lines_total, color='b', zorder=10)
-                #axn[1][c].plot(wave, self.line_flux, 'k', zorder=0)
+                #axn[1][c].plot(self.wave, self.line_flux, 'k', zorder=0)
                 
                 # Set axis limits
-                axn[1][c].set_xlim(all_comp_range[2*c:2*c+2])
+                axn[1][c].set_xlim(self.all_comp_range[2*c:2*c+2])
                 
-                mask_complex = np.where((wave > all_comp_range[2*c]) & (wave < all_comp_range[2*c+1]), True, False)
+                mask_complex = np.where((self.wave > self.all_comp_range[2*c]) & (self.wave < self.all_comp_range[2*c+1]), True, False)
                 
                 # Mask outliers
-                df = np.abs(line_flux - np.interp(wave, wave_eval, lines_total))
+                df = np.abs(self.line_flux - np.interp(self.wave, wave_eval, lines_total))
                 
                 mask_outliers = np.where(df < 3*np.std(df), True, False)
-                #axn[1][c].plot(wave, df, color='m') ###### Residual
-                f_max = line_flux[mask_complex & mask_outliers].max()
-                f_min = np.min([-1, line_flux[mask_complex & mask_outliers].min()])
+                #axn[1][c].plot(self.wave, df, color='m') ###### Residual
+                f_max = self.line_flux[mask_complex & mask_outliers].max()
+                f_min = np.min([-1, self.line_flux[mask_complex & mask_outliers].min()])
                 
                 if ylims is None:
                     axn[1][c].set_ylim(f_min*0.9, f_max*1.1)
                 else:
                     axn[1][c].set_ylim(ylims[0], ylims[1])
                 
-                axn[1][c].set_xticks([all_comp_range[2*c], np.round((all_comp_range[2*c]+all_comp_range[2*c+1])/2, -1),
-                                      all_comp_range[2*c+1]])
+                axn[1][c].set_xticks([self.all_comp_range[2*c], np.round((self.all_comp_range[2*c] + self.all_comp_range[2*c+1])/2, -1),
+                                      self.all_comp_range[2*c+1]])
                 
-                axn[1][c].text(0.02, 0.9, uniq_linecomp_sort[c], fontsize=20, transform=axn[1][c].transAxes)
+                axn[1][c].text(0.02, 0.9, self.uniq_linecomp_sort[c], fontsize=20, transform=axn[1][c].transAxes)
                 axn[1][c].text(0.02, 0.80, r'$\chi ^2_\nu=$'+str(np.round(float(self.comp_result[c*7+4]), 2)),
                                fontsize=16, transform=axn[1][c].transAxes)
                 # Wave mask
@@ -1781,24 +1780,25 @@ class QSOFit():
                         label_data = None
                         label_resid = None
                         if j==0:
-                            mask = wave < w[0]
+                            mask = self.wave < w[0]
                             label_data = 'data'
                             label_resid = 'resid'
+                            axn[1][c].plot(self.wave[mask], self.line_flux[mask], 'k', label=label_data, lw=1, zorder=2)
                         if j==len(self.wave_mask) - 1:
                             mask = self.wave_prereduced > w[1]
+                            axn[1][c].plot(self.wave[mask], self.line_flux[mask], 'k', label=label_data, lw=1, zorder=2)
                         else:
-                            mask = (wave > w[1]) & (wave < self.wave_mask[j+1,0])
-                        # Plot
-                        axn[1][c].plot(wave[mask], self.line_flux[mask], 'k', label=label_data, lw=1, zorder=2)
+                            mask = (self.wave > w[1]) & (self.wave < self.wave_mask[j+1,0])
+                            axn[1][c].plot(self.wave[mask], self.line_flux[mask], 'k', label=label_data, lw=1, zorder=2)
                         if plot_residual:
                             axn[1][c].axhline(-5, color='k', zorder=0, lw=0.5)
-                            axn[1][c].plot(wave[mask], self.line_flux[mask] - self.f_line_model[mask] - 5, 'gray',
+                            axn[1][c].plot(self.wave[mask], self.line_flux[mask] - self.f_line_model[mask] - 5, 'gray',
                                            label=label_resid, linestyle='dotted', lw=1, zorder=3)
                 else:
-                    axn[1][c].plot(wave, self.line_flux, 'k', label='data', lw=1, zorder=2)
+                    axn[1][c].plot(self.wave, self.line_flux, 'k', label='data', lw=1, zorder=2)
                     if plot_residual:
                         axn[1][c].axhline(-5, color='k', zorder=0, lw=0.5)
-                        axn[1][c].plot(wave, self.line_flux - self.f_line_model - 5, 'gray',
+                        axn[1][c].plot(self.wave, self.line_flux - self.f_line_model - 5, 'gray',
                                        label='resid', linestyle='dotted', lw=1, zorder=3)
         else:
             # If no lines are fitted, there would be only one row
@@ -1824,54 +1824,55 @@ class QSOFit():
         else:
             ax.plot(self.wave_prereduced, self.flux_prereduced, 'k', label='data', lw=1, zorder=2)
             if plot_residual == True:
-                if linefit == True:
-                    ax.plot(wave, self.line_flux - self.f_line_model, 'gray',
+                if self.linefit == True:
+                    ax.plot(self.wave, self.line_flux - self.f_line_model, 'gray',
                             label='resid', linestyle='dotted', lw=1, zorder=3)
                 else:
-                    ax.plot(wave, flux - self.f_conti_model, 'gray',
+                    ax.plot(self.wave, self.flux - self.f_conti_model, 'gray',
                             label='resid', linestyle='dotted', lw=1, zorder=3)
         
-        if self.ra == -999. or self.dec == -999.:
-            ax.set_title(f'{self.sdss_name}   z = {np.round(float(z), 4)}', fontsize=20)
-        else:
-            ax.set_title(f'ra,dec = ({np.round(ra, 4)},{np.round(dec, 4)})   {self.sdss_name}   z = {np.round(float(z), 4)}',
-                         fontsize=20)
+        if show_title == True:
+            if self.ra == -999 or self.dec == -999:
+                ax.set_title(f'{self.sdss_name}   z = {np.round(float(self.z), 4)}', fontsize=20)
+            else:
+                ax.set_title(f'ra,dec = ({np.round(self.ra, 4)},{np.round(self.dec, 4)})   {self.sdss_name}   z = {np.round(float(self.z), 4)}',
+                             fontsize=20)
         
         
-        if decompose_host == True and self.decomposed == True:
-            ax.plot(wave, self.qso + self.host, 'pink', label='host+qso temp', zorder=3)
-            ax.plot(wave, flux, 'grey', label='data-host', zorder=1)
-            ax.plot(wave, self.host, 'purple', label='host', zorder=4)
+        if self.decompose_host == True and self.decomposed == True:
+            ax.plot(self.wave, self.qso + self.host, 'pink', label='host+qso temp', zorder=3)
+            ax.plot(self.wave, self.flux, 'grey', label='data-host', zorder=1)
+            ax.plot(self.wave, self.host, 'purple', label='host', zorder=4)
         else:
             host = self.flux_prereduced.min()
         
         # Plot continuum regions
-        ax.scatter(wave[tmp_all], np.repeat(self.flux_prereduced.max()*1.05, len(wave[tmp_all])), color='grey', marker='o')
+        ax.scatter(self.wave[self.tmp_all], np.repeat(self.flux_prereduced.max()*1.05, len(self.wave[self.tmp_all])), color='grey', marker='o')
         
         ax.plot([0, 0], [0, 0], 'r', label='line br', zorder=5)
         ax.plot([0, 0], [0, 0], 'g', label='line na', zorder=5)
-        ax.plot(wave, f_conti_model, 'c', lw=2, label='FeII', zorder=7)
+        ax.plot(self.wave, self.f_conti_model, 'c', lw=2, label='FeII', zorder=7)
         
         if self.BC == True:
-            ax.plot(wave, self.f_pl_model + self.f_poly_model + self.f_bc_model, 'y', lw=2, label='BC', zorder=8)
+            ax.plot(self.wave, self.f_pl_model + self.f_poly_model + self.f_bc_model, 'y', lw=2, label='BC', zorder=8)
             
-        ax.plot(wave, self.PL(wave, pp) + self.F_poly_conti(wave, pp[11:]), color='orange', lw=2, label='conti', zorder=9)
+        ax.plot(self.wave, self.PL(self.wave, pp) + self.F_poly_conti(self.wave, pp[11:]), color='orange', lw=2, label='conti', zorder=9)
         
         if self.decomposed == False:
-            plot_bottom = flux.min()
+            plot_bottom = self.flux.min()
         else:
-            plot_bottom = min(self.host.min(), flux.min())
+            plot_bottom = min(self.host.min(), self.flux.min())
         
         if ylims is None:
             ylims = [plot_bottom*0.9, self.flux_prereduced.max()*1.1]
             
         ax.set_ylim(ylims[0], ylims[1])
         
-        if self.plot_legend == True:
+        if plot_legend == True:
             ax.legend(loc='best', frameon=False, ncol=2, fontsize=10)
         
         # Plot line names
-        if self.plot_line_name == True:
+        if plot_line_name == True:
             line_cen = np.array(
                 [6564.60, 6549.85, 6585.27, 6718.29, 6732.66, 4862.68, 5008.24, 4687.02, 4341.68, 3934.78, 3728.47,
                  3426.84, 2798.75, 1908.72, 1816.97, 1750.26, 1718.55, 1549.06, 1640.42, 1402.06, 1396.76, 1335.30, \
@@ -1887,14 +1888,14 @@ class QSOFit():
             points_data = axis_to_data.transform((0, 0.92))
             
             for ll in range(len(line_cen)):
-                if wave.min() < line_cen[ll] < wave.max():
+                if self.wave.min() < line_cen[ll] < self.wave.max():
                     ax.plot([line_cen[ll], line_cen[ll]], ylims, 'k:')
                     ax.text(line_cen[ll] + 7, points_data[1], line_name[ll], rotation=90, fontsize=10, va='top')
         
-        ax.set_xlim(wave.min(), wave.max())
+        ax.set_xlim(self.wave.min(), self.wave.max())
         
         # Label axes
-        if linefit == True:
+        if self.linefit == True:
             fig.supxlabel(r'$\rm Rest \, Wavelength$ ($\rm \AA$)', fontsize=20)
             fig.supylabel(r'$\rm f_{\lambda}$ ($\rm 10^{-17} erg\;s^{-1}\;cm^{-2}\;\AA^{-1}$)', fontsize=20)
         else:
