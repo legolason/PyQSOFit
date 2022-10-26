@@ -1,10 +1,10 @@
 # PyQSOFit: A code for quasar spectrum fitting
 # Auther: Hengxiao Guo AT SHAO
 # Email: hengxiaoguo AT gmail DOT com
-# Co-Auther Yue Shen, Shu Wang, Wenke Ren, Colin J. Burke
+# Co-Auther Yue Shen, Shu Wang, Wenke Ren, Colin J. Burke, Qiaoya Wu
 # Version 1.2
 # 10/26/2022 
-# Key updates: 1) change the kmpfit to lmfit 2) no limit now for tie-line function 3) error estimation with MC or MCMC 4) coefficients in host decomposition are forced to be positive now.   
+# Key updates: 1) change the kmpfit to lmfit 2) no limit now for tie-line function 3) error estimation with MC or MCMC 4) coefficients in host decomposition are forced to be positive now 5) option for masking absorption pixels in emission line fitting.   
 # -------------------------------------------------
 
 import sys, os
@@ -89,7 +89,7 @@ class QSOFit():
     
     def Fit(self, name=None, nsmooth=1, and_mask=False, or_mask=False, reject_badpix=True, deredden=True, wave_range=None,
             wave_mask=None, decompose_host=True, host_line_mask=True, BC03=False, Mi=None, npca_gal=5, npca_qso=10, Fe_uv_op=True,
-            Fe_flux_range=None, poly=False, BC=False, rej_abs=False, initial_guess=None, tol=1e-10,
+            Fe_flux_range=None, poly=False, BC=False, rej_abs_conti=False, rej_abs_line=False, initial_guess=None, tol=1e-10,
             n_pix_min_conti=100, param_file_name='qsopar.fits', MC=False, MCMC=False, save_fits_name=None,
             nburn=20, nsamp=200, nthin=10, epsilon_jitter=1e-4, linefit=True, save_result=True, plot_fig=True, save_fits_path='.',
             save_fig=True, plot_corner=True, verbose=False, kwargs_plot={}, kwargs_conti_emcee={}, kwargs_line_emcee={}):
@@ -166,9 +166,13 @@ class QSOFit():
         BC: bool, optional
             if True, fit continuum with Balmer continua from 1000 to 3646A. Default: False
             
-        rej_abs: bool, optional
-            if True, it will iterate the continuum fitting for deleting some 3 sigmas out continuum window points
+        rej_abs_conti: bool, optional
+            if True, it will iterate the continuum fitting once, rejecting 3 sigma outlier absorption pixels in the continuum
             (< 3500A), which might fall into the broad absorption lines. Default: False
+            
+        rej_abs_line: bool, optional
+            if True, it will iterate the emission line fitting twice, rejecting 3 sigma outlier absorption pixels
+            which might fall into the broad absorption lines. Default: False
             
         initial_gauss: 1*14 array, optional
             better initial value will help find a solution faster. Default initial is np.array([0., 3000., 0., 0.,
@@ -339,6 +343,8 @@ class QSOFit():
             the information listed in the param_file_name (qsopar.fits).
         """
         
+        # Parameters that are set here should generally not be changed unless you know what you are doing
+        
         self.name = name
         self.wave_range = wave_range
         self.wave_mask = wave_mask
@@ -356,7 +362,9 @@ class QSOFit():
         self.Fe_flux_range = Fe_flux_range
         self.poly = poly
         self.BC = BC
-        self.rej_abs = rej_abs
+        self.rej_abs_conti = rej_abs_conti
+        self.rej_abs_line = rej_abs_line
+        self.rej_abs_line_max_niter = 2
         self.n_pix_min_conti = n_pix_min_conti # pixels
         self.MC = MC
         self.MCMC = MCMC
@@ -867,7 +875,7 @@ class QSOFit():
         params = list(params_dict.values())
         
         # Calculate the continuum fit and mask the absorption lines before re-fitting
-        if self.rej_abs == True:
+        if self.rej_abs_conti == True:
             if self.poly == True:
                 tmp_conti = self.PL(wave[tmp_all], params) + self.F_poly_conti(wave[tmp_all], params[11:])
             else:
@@ -1088,6 +1096,7 @@ class QSOFit():
     def fit_lines(self, wave, line_flux, err, f):
         """Fit the emission lines with Gaussian profiles """
         
+        
         # Remove abosorbtion lines in emission line region, pixels below continuum 
         ind_neg_line = ~np.where(((((wave > 2700.) & (wave < 2900.)) | ((wave > 1700.) & (wave < 1970.)) |
                                    ((wave > 1500.) & (wave < 1700.)) | ((wave > 1290.) & (wave < 1450.)) |
@@ -1268,23 +1277,58 @@ class QSOFit():
                                     fit_params[f'{line_name}_{nn+1}_scale'].expr = expr
                         
                     """
-                    Perform the fitting
+                    Perform the MLE fitting while optionally iteratively masking absorption pixels
                     """
                     
                     # Print parameters to be fit
                     if self.verbose:
                         fit_params.pretty_print()
                         print(fr'Fitting complex {linelist["compname"][ind_line][0]}')
+                                  
+                    # Check max absorption iterations
+                    niter_abs = -1 # Start at -1 because for initial fit with no absorption pixel masking
+                    ind_line_abs = np.full(len(self.wave), True)
                     
-                    # Fit wavelength in ln space
-                    line_fit = minimize(self._residual_line, fit_params, args=(np.log(self.wave[ind_n]), line_flux[ind_n], self.err[ind_n], ln_lambda_0s),
-                                        calc_covar=False, xtol = self.tol, ftol = self.tol)
-                    params_dict = line_fit.params.valuesdict()
-                    par_names = list(params_dict.keys())
-                    params = list(params_dict.values())
-                    chisqr = line_fit.chisqr
-                    bic = line_fit.bic
-                    redchi = line_fit.redchi
+                    while niter_abs < self.rej_abs_line_max_niter:
+                                                
+                        # Fit wavelength in ln space
+                        args = (np.log(self.wave[ind_n & ind_line_abs]), line_flux[ind_n & ind_line_abs], self.err[ind_n & ind_line_abs], ln_lambda_0s)
+                        line_fit = minimize(self._residual_line, fit_params, args=args,
+                                            calc_covar=False, xtol=self.tol, ftol=self.tol)
+                        params_dict = line_fit.params.valuesdict()
+                        par_names = list(params_dict.keys())
+                        params = list(params_dict.values())
+                        chisqr = line_fit.chisqr
+                        bic = line_fit.bic
+                        redchi = line_fit.redchi
+                        
+                        niter_abs += 1
+                        
+                        if niter_abs == 0:
+                            redchi0 = redchi
+                                                    
+                        # Reject absorption pixels in emission line
+                        if (self.rej_abs_line == True) and (niter_abs > 0):
+                                                        
+                            # Get absorption line indicies and update ind_n
+                            resid_full = np.zeros_like(self.wave)
+                            resid_full[ind_n] = line_fit.residual
+                            ind_line_abs_tmp = np.where(resid_full < -3, False, True)
+
+                            # Check number of valid pixels minus 10 is larger than the number of fitted gaussian parameters
+                            if len(self.wave[ind_n & ind_line_abs_tmp]) - 10 < ngauss_fit[n]*3:
+                                break
+                            # Check the reduced chi squared has improved
+                            if redchi >= redchi0:
+                                break
+                            else:
+                                # Update
+                                ind_line_abs = ind_line_abs_tmp
+                            
+                        if self.rej_abs_line == False:
+                            break
+                            
+                        # End emission line fitting loop
 
                     # Print fit report
                     if self.verbose:
@@ -1301,8 +1345,8 @@ class QSOFit():
                         """
                         if (self.MCMC == True) and (self.MC == False):
                             # Sample with MCMC, using the initial minima
-                            line_samples = minimize(self._residual_line, params=line_fit.params,
-                                                    args=(np.log(self.wave[ind_n]), line_flux[ind_n], self.err[ind_n], ln_lambda_0s),
+                            args = (np.log(self.wave[ind_n & ind_line_abs]), line_flux[ind_n & ind_line_abs], self.err[ind_n & ind_line_abs], ln_lambda_0s)
+                            line_samples = minimize(self._residual_line, params=line_fit.params, args=args,
                                                     method='emcee', nan_policy='omit', burn=self.nburn, steps=self.nsamp, thin=self.nthin,
                                                     is_weighted=True, **self.kwargs_line_emcee)
                             p = line_samples.params.valuesdict()
@@ -1347,9 +1391,9 @@ class QSOFit():
 
                                 line_flux_resampled = line_flux + np.random.randn(len(line_flux))*self.err
 
-                                line_samples = minimize(self._residual_line, fit_params, ## or line_fit.params?
-                                                 args=(np.log(self.wave[ind_n]), line_flux_resampled[ind_n], self.err[ind_n], ln_lambda_0s),
-                                                  calc_covar=False)
+                                # Use fit_params or line_fit.params?
+                                args = (np.log(self.wave[ind_n & ind_line_abs]), line_flux_resampled[ind_n & ind_line_abs], self.err[ind_n & ind_line_abs], ln_lambda_0s)
+                                line_samples = minimize(self._residual_line, fit_params, args=args, calc_covar=False)
                                 params_dict = line_samples.params.valuesdict()
                                 params = list(params_dict.values())
                                 samples[k] = params
@@ -1648,8 +1692,8 @@ class QSOFit():
         pp_shaped[:,1] += ln_lambda_0s # Transform ln lambda ~ d ln lambda + ln lambda0
         
         resid = (yval - self._Manygauss(xval, pp_shaped))/weight
+        
         return resid
-    
     
     def save_result(self, conti_result, conti_result_type, conti_result_name, line_result, line_result_type,
                     line_result_name, save_fits_path, save_fits_name):
@@ -2151,7 +2195,7 @@ class QSOFit():
                 Make sure the range is within [1200., 3500.] or [3686., 7484.]!')
         
         elif len(pp) == 6:
-            yval = self.Fe_flux_mgii(xval, pp[:3])+self.Fe_flux_balmer(xval, pp[3:])
+            yval = self.Fe_flux_mgii(xval, pp[:3]) + self.Fe_flux_balmer(xval, pp[3:])
             if upper > balmer_range[1] or lower < mgii_range[0]:
                 print('Warning: The range given to calculate the flux of FeII pseudocontiuum (partially) '
                       'exceeded the template range [1200., 7478.]. The excess part would be set to zero!')
@@ -2166,9 +2210,9 @@ class QSOFit():
         return flux
 
 def get_err(s, axis=0):
-    lo = np.percentile(s, 0.16, axis=axis)
-    hi = np.percentile(s, 0.84, axis=axis)
-    median = np.percentile(s, 0.5, axis=axis)
+    lo = np.percentile(s, 16, axis=axis)
+    hi = np.percentile(s, 84, axis=axis)
+    median = np.percentile(s, 50, axis=axis)
     return np.mean([hi - median, median - lo], axis=axis)
     
     
