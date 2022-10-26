@@ -107,7 +107,10 @@ class QSOFit():
             do n-pixel smoothing to the raw input flux and err spectra. The default is set to 1 (no smooth).
             It will return the same array size. We note that smooth the raw data is not suggested, this function is in case of some fail-fitted low S/N spectra.
               
-        and/or_mask: bool, optional
+        and_mask: bool, optional
+            If True, and and_mask or or_mask is not None, it will delete the masked pixels, and only return the remained pixels. Default: False
+            
+        or_mask: bool, optional
             If True, and and_mask or or_mask is not None, it will delete the masked pixels, and only return the remained pixels. Default: False
             
         reject_badpix: bool, optional
@@ -205,15 +208,6 @@ class QSOFit():
                     
         save_fig: bool, optional
             if True, the figure will be saved, and the path can be set by "save_fig_path". Default: True
-            
-        plot_legend: bool, optional
-            if True, open legend in the first panel of the output figure. Default: False
-            
-        plot_resid: bool, optional
-            whether or not to plot the total data - fit residual in the result figure. Default: False
-            
-        ylims: [float, float], optional
-            ylim for the reuslt figure. If None, they are set automatically. Default: None
             
         plot_corner: bool, optinoal
             whether or not to plot the corner plot results if MCMC=True. Default: True
