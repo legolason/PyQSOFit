@@ -1,16 +1,3 @@
-#!/usr/bin/python3
-# A code for quasar spectrum fitting
-# Last modified on 07/12/2022
-#v1.1
-# Auther: Hengxiao Guo @ UCI
-# Email: hengxiaoguo@gmail.com
-# Co-Auther Shu Wang, Yue Shen, Wenke Ren
-# v2.0
-# Auther:  Qiaoya wu @ UIUC
-# Email: qiaoyaw2@illinois.edu
-# -------------------------------------------------
-
-
 import glob
 import matplotlib
 import numpy as np
