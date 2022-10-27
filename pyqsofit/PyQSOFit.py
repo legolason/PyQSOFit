@@ -1746,7 +1746,7 @@ class QSOFit():
         matplotlib.rc('ytick', labelsize=20)
         
         wave_eval = np.linspace(np.min(self.wave) - 200, np.max(self.wave) + 200, 5000)
-        f_conti_model_eval = np.interp(wave_eval, self.wave, self.f_conti_model)
+        f_conti_model_eval = self.PL(wave_eval, pp) + self.Fe_flux_mgii(wave_eval, pp[0:3]) + self.Fe_flux_balmer(wave_eval, pp[3:6]) + self.F_poly_conti(wave_eval, pp[11:]) + self.Balmer_conti(wave_eval, pp[8:11])
         
         self.PL_poly = self.PL(self.wave, pp) + self.F_poly_conti(self.wave, pp)
         
@@ -1772,10 +1772,10 @@ class QSOFit():
             
             # For each Gaussian line component
             for p in range(len(self.gauss_result)//(mc_flag*3)):
-                gauss_result_p = self.gauss_result[p*3*mc_flag:(p+1)*3*mc_flag:mc_flag]
+                gauss_result_p = self.gauss_result[p*3*mc_flag:(p + 1)*3*mc_flag:mc_flag]
                 
                 # Broad or narrow line check
-                if self.CalFWHM(self.gauss_result[(2+p*3)*mc_flag]) < broad_fwhm:
+                if self.CalFWHM(self.gauss_result[(2 + p*3)*mc_flag]) < broad_fwhm:
                     # Narrow
                     color = 'g'
                     self.f_line_narrow_model += self.Onegauss(np.log(self.wave), gauss_result_p)
@@ -1905,12 +1905,15 @@ class QSOFit():
         
         ax.plot([0, 0], [0, 0], 'r', label='line br', zorder=5)
         ax.plot([0, 0], [0, 0], 'g', label='line na', zorder=5)
-        ax.plot(self.wave, self.f_conti_model, 'c', lw=2, label='FeII', zorder=7)
+        #ax.plot(self.wave, self.f_conti_model, 'c', lw=2, label='FeII', zorder=7)
+        ax.plot(wave_eval, f_conti_model_eval, 'c', lw=2, label='FeII', zorder=7)
         
         if self.BC == True:
-            ax.plot(self.wave, self.f_pl_model + self.f_poly_model + self.f_bc_model, 'y', lw=2, label='BC', zorder=8)
+            #ax.plot(self.wave, self.f_pl_model + self.f_poly_model + self.f_bc_model, 'y', lw=2, label='BC', zorder=8)
+            ax.plot(wave_eval, self.PL(wave_eval, pp) + self.F_poly_conti(wave_eval, pp[11:]) + self.Balmer_conti(wave_eval, pp[8:11]), 'y', lw=2, label='BC', zorder=8)
             
-        ax.plot(self.wave, self.PL(self.wave, pp) + self.F_poly_conti(self.wave, pp[11:]), color='orange', lw=2, label='conti', zorder=9)
+        #ax.plot(self.wave, self.PL(self.wave, pp) + self.F_poly_conti(self.wave, pp[11:]), color='orange', lw=2, label='conti', zorder=9)
+        ax.plot(wave_eval, self.PL(wave_eval, pp) + self.F_poly_conti(wave_eval, pp[11:]), color='orange', lw=2, label='conti', zorder=9)
         
         if self.decomposed == False:
             plot_bottom = self.flux.min()
