@@ -174,7 +174,7 @@ class QSOFit():
             if True, it will iterate the emission line fitting twice, rejecting 3 sigma outlier absorption pixels
             which might fall into the broad absorption lines. Default: False
             
-        initial_gauss: 1*14 array, optional
+        initial_guess: 1*14 array, optional
             better initial value will help find a solution faster. Default initial is np.array([0., 3000., 0., 0.,
             3000., 0., 1., -1.5, 0., 15000., 0.5, 0., 0., 0.]). First six parameters are flux scale, FWHM, small shift for wavelength for UV and optical FeII template,
             respectively. The next two parameters are the power-law slope and intercept. The next three are the norm, Te, tau_BE in Balmer continuum model in
@@ -745,7 +745,6 @@ class QSOFit():
              [1970., 2400.], [2480., 2675.], [2925., 3400.], [3775., 3832.], [4000., 4050.], [4200., 4230.],
              [4435., 4640.], [5100., 5535.], [6005., 6035.], [6110., 6250.], [6800., 7000.], [7160., 7180.],
              [7500., 7800.], [8050., 8150.], ])
-        
         # Convert the windows to a mask
         tmp_all = np.array([np.repeat(False, len(wave))]).flatten()
         for jj in range(len(window_all)):
@@ -1582,7 +1581,7 @@ class QSOFit():
 
         return self.line_prop(compcenter, pp, line_type, ln_sigma_br)
     
-    def line_prop(self, compcenter, pp, linetype='broad', ln_sigma_br=0.0017):
+    def line_prop(self, compcenter, pp, linetype='broad', ln_sigma_br=0.0017): #original:ln_sigma_br=0.0017
         """
         Calculate the further results for the broad component in emission lines, e.g., FWHM, sigma, peak, line flux
         The compcenter is the theortical vacuum wavelength for the broad compoenet.
@@ -1616,8 +1615,10 @@ class QSOFit():
         
         pp_shaped = pp.reshape([len(pp)//3, 3])
         pp_br_shaped = pp_br.reshape([ngauss, 3])
-        
+
         if ngauss == 0:
+            # print(pp_br,pp,ind_br,ngauss,ln_sigma_br)
+            # raise ValueError
             fwhm, sigma, ew, peak, area, snr = 0, 0, 0, 0, 0, 0
         else:
             cen = pp_br_shaped[:,1]
@@ -1936,10 +1937,7 @@ class QSOFit():
             ax.plot(self.wave, self.host, 'purple', label='host', zorder=4)
         else:
             host = self.flux_prereduced.min()
-        
-        # Plot continuum regions
-        ax.scatter(self.wave[self.tmp_all], np.repeat(self.flux_prereduced.max()*1.05, len(self.wave[self.tmp_all])), color='grey', marker='o')
-        
+                
         # Line legend hack
         ax.plot([0, 0], [0, 0], 'r', label='line br', zorder=5)
         ax.plot([0, 0], [0, 0], 'g', label='line na', zorder=5)
@@ -1969,6 +1967,8 @@ class QSOFit():
             ylims = [plot_bottom*0.9, plot_top*1.1]
             
         ax.set_ylim(ylims[0], ylims[1])
+        # Plot continuum regions
+        ax.scatter(self.wave[self.tmp_all], np.repeat(plot_top*1.05, len(self.wave[self.tmp_all])), color='grey', marker='o')
         
         if plot_legend == True:
             ax.legend(loc='best', frameon=False, ncol=2, fontsize=10)
