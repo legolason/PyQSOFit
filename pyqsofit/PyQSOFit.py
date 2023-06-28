@@ -1581,7 +1581,7 @@ class QSOFit():
 
         return self.line_prop(compcenter, pp, line_type, ln_sigma_br)
     
-    def line_prop(self, compcenter, pp, linetype='broad', ln_sigma_br=0.0017): #original:ln_sigma_br=0.0017
+    def line_prop(self, compcenter, pp, linetype='broad', ln_sigma_br=0.0017):
         """
         Calculate the further results for the broad component in emission lines, e.g., FWHM, sigma, peak, line flux
         The compcenter is the theortical vacuum wavelength for the broad compoenet.
