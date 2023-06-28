@@ -745,6 +745,7 @@ class QSOFit():
              [1970., 2400.], [2480., 2675.], [2925., 3400.], [3775., 3832.], [4000., 4050.], [4200., 4230.],
              [4435., 4640.], [5100., 5535.], [6005., 6035.], [6110., 6250.], [6800., 7000.], [7160., 7180.],
              [7500., 7800.], [8050., 8150.], ])
+        
         # Convert the windows to a mask
         tmp_all = np.array([np.repeat(False, len(wave))]).flatten()
         for jj in range(len(window_all)):
@@ -1617,8 +1618,6 @@ class QSOFit():
         pp_br_shaped = pp_br.reshape([ngauss, 3])
 
         if ngauss == 0:
-            # print(pp_br,pp,ind_br,ngauss,ln_sigma_br)
-            # raise ValueError
             fwhm, sigma, ew, peak, area, snr = 0, 0, 0, 0, 0, 0
         else:
             cen = pp_br_shaped[:,1]
