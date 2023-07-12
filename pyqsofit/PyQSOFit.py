@@ -2,9 +2,31 @@
 # Auther: Hengxiao Guo AT SHAO
 # Email: hengxiaoguo AT gmail DOT com
 # Co-Auther Yue Shen, Shu Wang, Wenke Ren, Colin J. Burke, Qiaoya Wu
+#
 # Version 1.2
 # 10/26/2022 
-# Key updates: 1) change the kmpfit to lmfit 2) no limit now for tie-line function 3) error estimation with MC or MCMC 4) coefficients in host decomposition are forced to be positive now 5) option for masking absorption pixels in emission line fitting.   
+# Key updates:
+#     1) change the kmpfit to lmfit
+#     2) no limit now for tie-line function
+#     3) error estimation with MC or MCMC
+#     4) coefficients in host decomposition are forced to be positive now
+#     5) option for masking absorption pixels in emission line fitting.
+#
+# Version 1.2.1
+# 07/12/2023
+# Bug fix:
+#     1) Add close fig function to avoid memory leak.
+#        When savefig is set to True, the figure will be closed automatically. If one would like to show the figure
+#        first, he/she can set savefig to False, call self.fig to exhibit the figure and save it manually.
+#     2) Change the package sfdmap to sfdmap2.
+#        Since the sfdmap is no longer maintained and has been conflicted with the latest numpy package, we change it
+#        to a forked repository sfdmap2. ref: https://github.com/AmpelAstro/sfdmap2
+#     3) Set the default jitter to 0.0 to avoid the unrepeatable fitting results. (temporary)
+#        We do think the jitter will help to get unbiased fitting results especially when most of the initial parameters
+#        are 0. However, since the jitter is not a physical parameter, it is not reasonable to set it as a default
+#        global absolute value. Besides, variable results in repeated running are confusing to users. We will find out a
+#        more feasible way to use the jitter in the future.
+#
 # -------------------------------------------------
 
 import sys, os
@@ -14,7 +36,7 @@ import numpy as np
 import matplotlib.pyplot as plt
 from itertools import chain
 
-import sfdmap
+from sfdmap2 import sfdmap
 from scipy import integrate, interpolate
 from scipy.stats import median_abs_deviation
 from lmfit import minimize, Parameters, report_fit
@@ -41,7 +63,7 @@ class QSOFit():
     def __init__(self, lam, flux, err, z, ra=-999, dec=-999, plateid=None, mjd=None, fiberid=None, path=None,
                  and_mask_in=None, or_mask_in=None):
         """
-        Get the input data perpared for the QSO spectral fitting
+        Get the input data prepared for the QSO spectral fitting
         
         Parameters:
         -----------
@@ -64,7 +86,7 @@ class QSOFit():
             If the source is SDSS object, they have the plate ID, MJD and Fiber ID in their file herader.
             
         path: str
-            the path of the input data
+            the path to the parameter file
             
         and_mask, or_mask: 1-D array with Npix, optional
             the bad pixels defined from SDSS data, which can be got from SDSS datacube.
@@ -91,7 +113,7 @@ class QSOFit():
             wave_mask=None, decompose_host=True, host_line_mask=True, BC03=False, Mi=None, npca_gal=5, npca_qso=10, Fe_uv_op=True,
             Fe_flux_range=None, poly=False, BC=False, rej_abs_conti=False, rej_abs_line=False, initial_guess=None, tol=1e-10,
             n_pix_min_conti=100, param_file_name='qsopar.fits', MC=False, MCMC=False, save_fits_name=None,
-            nburn=20, nsamp=200, nthin=10, epsilon_jitter=1e-4, linefit=True, save_result=True, plot_fig=True, save_fits_path='.',
+            nburn=20, nsamp=200, nthin=10, epsilon_jitter=0., linefit=True, save_result=True, plot_fig=True, save_fits_path='.',
             save_fig=True, plot_corner=True, verbose=False, kwargs_plot={}, kwargs_conti_emcee={}, kwargs_line_emcee={}):
         
         """
@@ -2007,6 +2029,7 @@ class QSOFit():
             if self.verbose:
                 print('Saving figure as', os.path.join(save_fig_path, self.sdss_name+'.pdf'))
             fig.savefig(os.path.join(save_fig_path, self.sdss_name+'.pdf'))
+            plt.close(fig) # Close figure to save memory
         
         self.fig = fig
         return
