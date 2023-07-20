@@ -793,7 +793,7 @@ class QSOFit():
         if self.BC03 == False:
             res = np.linalg.lstsq(flux_temp.T, flux_new)[0] # allow to be negative for PCA
         else:
-            res=opt.nnls(flux_temp.T, flux_new)[0] # should be positive for BC03
+            res = opt.nnls(flux_temp.T, flux_new)[0]  # should be positive for BC03
 
         host_flux = np.dot(res[0:npca_gal], flux_temp[0:npca_gal])
         qso_flux = np.dot(res[npca_gal:], flux_temp[npca_gal:])
@@ -841,7 +841,7 @@ class QSOFit():
         if self.initial_guess is not None:
             pp0 = self.initial_guess
         else:
-            pp0 = np.array([1.0, 3000, 0, 1.0, 3000, 0, 1, -1.5, 0, 15000, 0.5, 0, 0, 0])
+            pp0 = np.array([0.0, 3000, 0.0, 0.0, 3000, 0.0, 1, -1.5, 0, 15000, 0.5, 0, 0, 0])
             
         # It's usually a good idea to jitter the parameters a bit
         pp0 += np.abs(np.random.normal(0, self.epsilon_jitter, len(pp0)))
@@ -2075,8 +2075,10 @@ class QSOFit():
             plot_bottom = np.min([-1, -3*mad]) # TODO: stupid absolute lower limit here
         else:
             if self.decomposed == False:
+                plot_top = self.flux.max()
                 plot_bottom = self.flux.min()
             else:
+                plot_top = max(self.host.max(), self.flux.max())
                 plot_bottom = min(self.host.min(), self.flux.min())
         
         if ylims is None:
