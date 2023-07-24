@@ -396,13 +396,13 @@ class MESFit():
 
         # --------plot figure-----
         if plot == True:
-            fig = plt.figure(figsize=(15, 10))
-            ax = plt.subplot(211)
+            fig = plt.figure(figsize=(15, 6))
+            ax = plt.subplot(111)
             pp.plot()
             plt.text(0.02, 0.85, r'$\sigma$=' + str(sigma) + '$\pm$' + str(sigmaerr) + r'$\rm{~km\ s^{-1}}$',
                      transform=ax.transAxes, fontsize=20)
-            plt.subplot(212)
-            miles.plot(weights)
+            # plt.subplot(212)
+            # miles.plot(weights)
             plt.tight_layout()
             # plt.savefig('')
         # ------save data------

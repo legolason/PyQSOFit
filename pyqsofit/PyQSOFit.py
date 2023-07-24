@@ -189,6 +189,7 @@ class QSOFit():
             Then the first 10 PCA in each bin is enough to reproduce most QSO spectrum. Default: False
             
         host_line_mask: bool, optional
+            If True, the line region of galaxy will be masked when subtracted from original spectra. Default: True
             
         BC03: bool, optional
             if True, it will use Bruzual1 & Charlot 2003 host model to fit spectrum, high shift host will be low resolution R ~ 300, the rest is R ~ 2000. Default: False
