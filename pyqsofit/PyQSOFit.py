@@ -52,6 +52,13 @@
 #     5) Use the same initial logic for fur_result group and avoid the errors if the emission line is discard during
 #     fitting procedure.
 #     6）Amend the workflow of rejecting absorption line
+#
+# Version 1.2.4
+# 07/24/2023
+# Routine update:
+#     1) Improve the host decomposition function using BC03 templates
+#     2) Open the adjustment to the precision parameters for lmfit. By decrease the precision for continuum fitting,
+#     the time consumption can be reduced and less likely tracked into local minimum.
 # -------------------------------------------------
 
 import sys, os
@@ -136,7 +143,7 @@ class QSOFit():
     
     def Fit(self, name=None, nsmooth=1, and_mask=False, or_mask=False, reject_badpix=True, deredden=True, wave_range=None,
             wave_mask=None, decompose_host=True, host_line_mask=True, BC03=False, Mi=None, npca_gal=5, npca_qso=10, Fe_uv_op=True,
-            poly=False, BC=False, rej_abs_conti=False, rej_abs_line=False, initial_guess=None, tol=1e-10,
+            poly=False, BC=False, rej_abs_conti=False, rej_abs_line=False, initial_guess=None,
             n_pix_min_conti=100, param_file_name='qsopar.fits', MC=False, MCMC=False, save_fits_name=None,
             nburn=20, nsamp=200, nthin=10, epsilon_jitter=0., linefit=True, save_result=True, plot_fig=True, save_fits_path='.',
             save_fig=True, plot_corner=True, verbose=False, kwargs_plot={}, kwargs_conti_emcee={}, kwargs_line_emcee={}):
@@ -409,7 +416,6 @@ class QSOFit():
         self.n_pix_min_conti = n_pix_min_conti # pixels
         self.MC = MC
         self.MCMC = MCMC
-        self.tol = tol
         self.nburn = nburn
         self.nsamp = nsamp
         self.nthin = nthin
@@ -420,6 +426,12 @@ class QSOFit():
         self.plot_corner = plot_corner
         self.verbose = verbose
         self.param_file_name = param_file_name
+
+        # Initial precision parameters for lmfit
+        self.xtol_conti = 1e-8
+        self.ftol_conti = 1e-10
+        self.xtol_line = 1e-10
+        self.ftol_line = 1e-10
 
         self.read_out_params(os.path.join(self.path, self.param_file_name))
 
@@ -684,11 +696,11 @@ class QSOFit():
                                                  self.Mi, self.npca_gal, self.npca_qso, path)
         
         # for some negtive host template, we do not do the decomposition # not apply anymore
-        if np.sum(np.where(datacube[3, :] < 0, True, False)) > 100:
+        if np.sum(np.where(datacube[3, :] < 0, True, False) & np.where(datacube[4, :] < 0, True, False)) > 100:
             self.host = np.zeros(len(wave))
             self.decomposed = False
             if self.verbose:
-                print('Got negative host galaxy flux larger than 100 pixels, decomposition is not applied!')
+                print('Got negative host galaxy / QSO flux larger than 100 pixels, decomposition is not applied!')
         else:
             self.decomposed = True
             del self.wave, self.flux, self.err
@@ -738,6 +750,8 @@ class QSOFit():
         else:
             flux03 = []
             bc03_file_names = glob.glob(os.path.join(path, 'bc03/*.gz'))
+            bc03_idx = np.array([os.path.split(nm)[1].split('_')[0] for nm in bc03_file_names], dtype='int')
+            bc03_file_names = np.array(bc03_file_names)[np.argsort(bc03_idx)]
             for i, f in enumerate(bc03_file_names):
                 gal_temp = np.genfromtxt(f)
                 wave_gal = gal_temp[:, 0]
@@ -845,7 +859,7 @@ class QSOFit():
             
         # It's usually a good idea to jitter the parameters a bit
         pp0 += np.abs(np.random.normal(0, self.epsilon_jitter, len(pp0)))
-        
+
         fit_params = Parameters()
         # norm_factor, FWHM, and small shift of wavelength for the MgII Fe_template
         fit_params.add('Fe_uv_norm', value=pp0[0], min=0, max=1e10)
@@ -947,7 +961,7 @@ class QSOFit():
         
         # Initial fit of the continuum
         conti_fit = minimize(self._residuals, fit_params, args=(wave[tmp_all], flux[tmp_all], err[tmp_all], _conti_model),
-                             calc_covar=False, xtol=self.tol, ftol=self.tol)
+                             calc_covar=False, xtol=self.xtol_conti, ftol=self.ftol_conti)
         params_dict = conti_fit.params.valuesdict()
         par_names = list(params_dict.keys())
         params = list(params_dict.values())
@@ -966,7 +980,7 @@ class QSOFit():
                                  args=(wave[tmp_all][ind_noBAL],
                                        self.Smooth(flux[tmp_all][ind_noBAL], 10), # XXX Why smooth here?
                                        err[tmp_all][ind_noBAL], _conti_model),
-                                 calc_covar=False, xtol=self.tol, ftol=self.tol)
+                                 calc_covar=False, xtol=self.xtol_conti, ftol=self.ftol_conti)
             params_dict = conti_fit.params.valuesdict()
             params = list(params_dict.values())
             
@@ -1384,7 +1398,7 @@ class QSOFit():
                             self.err[ind_n & ind_line_abs],
                             ln_lambda_0s)
                     line_fit = minimize(self._residual_line, fit_params, args=args,
-                                        calc_covar=False, xtol=self.tol, ftol=self.tol)
+                                        calc_covar=False, xtol=self.xtol_line, ftol=self.ftol_line)
 
                     # Only if when the self.rej_abs_line is True, we let the code go into the iteration
                     if self.rej_abs_line == True:
@@ -1404,7 +1418,7 @@ class QSOFit():
                                     self.err[ind_n & ind_line_abs_tmp],
                                     ln_lambda_0s)
                             line_fit_tmp = minimize(self._residual_line, fit_params, args=args,
-                                                    calc_covar=False, xtol=self.tol, ftol=self.tol)
+                                                    calc_covar=False, xtol=self.xtol_line, ftol=self.ftol_line)
 
                             # Check if the reduced chi squared has not improved
                             if line_fit_tmp.redchi >= redchi:
@@ -1491,7 +1505,7 @@ class QSOFit():
                                         self.err[ind_n & ind_line_abs],
                                         ln_lambda_0s)
                                 line_samples = minimize(self._residual_line, fit_params, args=args, calc_covar=False,
-                                                        xtol=self.tol, ftol=self.tol)
+                                                        xtol=self.xtol_line, ftol=self.ftol_line)
                                 params_dict = line_samples.params.valuesdict()
                                 params = list(params_dict.values())
                                 samples[k] = params
