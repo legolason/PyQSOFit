@@ -1,8 +1,11 @@
 # PyQSOFit: A code for quasar spectrum fitting
 # Auther: Hengxiao Guo AT SHAO
 # Email: hengxiaoguo AT gmail DOT com
-# Co-Auther Yue Shen, Shu Wang, Wenke Ren, Colin J. Burke, Qiaoya Wu
+# Co-Auther Yue Shen, Shu Wang, Wenke Ren, Colin J. Burke
+# Email: rwk AT mail DOT ustc DOT edu DOT cn
+#        colinjb2 AT illinois.edu
 #
+# -------------------------------------------------
 # Version 1.2
 # 10/26/2022 
 # Key updates:
@@ -59,6 +62,13 @@
 #     1) Improve the host decomposition function using BC03 templates
 #     2) Open the adjustment to the precision parameters for lmfit. By decrease the precision for continuum fitting,
 #     the time consumption can be reduced and less likely tracked into local minimum.
+# -------------------------------------------------
+# Version 2.0
+# 07/26/2023
+# New Stable version for PyQSOFit supporting joint fitting of reverberation mapping spectra!
+# New features:
+#     1) Add new parameters to measure the host fraction at 5100A and 3000A.
+#
 # -------------------------------------------------
 
 import sys, os
@@ -513,6 +523,8 @@ class QSOFit():
             self.decompose_host_qso(self.wave, self.flux, self.err, self.install_path)
         else:
             self.decomposed = False
+            self.frac_host_4200 = -1.
+            self.frac_host_5100 = -1.
             if self.z > z_max_host and decompose_host == True:
                 if self.verbose:
                     print(f'redshift larger than {z_max_host} is not allowed for host decomposion!')
@@ -693,13 +705,16 @@ class QSOFit():
     
     def decompose_host_qso(self, wave, flux, err, path):
         """Decompose the host galaxy from QSO"""
-        datacube = self._decompose_host_qso_core(self.wave, self.flux, self.err, self.z,
-                                                 self.Mi, self.npca_gal, self.npca_qso, path)
+        datacube, frac_host_4200, frac_host_5100 = self._decompose_host_qso_core(self.wave, self.flux, self.err, self.z,
+                                                                                 self.Mi, self.npca_gal, self.npca_qso,
+                                                                                 path)
         
         # for some negtive host template, we do not do the decomposition # not apply anymore
         if np.sum(np.where(datacube[3, :] < 0, True, False) | np.where(datacube[4, :] < 0, True, False)) > 100:
             self.host = np.zeros(len(wave))
             self.decomposed = False
+            self.frac_host_4200 = -1.
+            self.frac_host_5100 = -1.
             if self.verbose:
                 print('Got negative host galaxy / QSO flux larger than 100 pixels, decomposition is not applied!')
         else:
@@ -725,6 +740,8 @@ class QSOFit():
             self.host = datacube[3, :]
             self.qso = datacube[4, :]
             self.host_data = datacube[1, :] - self.qso
+            self.frac_host_4200 = frac_host_4200
+            self.frac_host_5100 = frac_host_5100
             
         return self.wave, self.flux, self.err
     
@@ -815,14 +832,20 @@ class QSOFit():
         
         data_cube = np.vstack((wave_new, flux_new, err_new, host_flux, qso_flux))
         
-        """
+        # Calculate the host galaxy fraction at 4200 and 5100
+        frac_host_4200 = -1.
+        frac_host_5100 = -1.
+
         ind_f4200 = np.where((wave_new > 4160.) & (wave_new < 4210.), True, False)
-        frac_host_4200 = np.sum(host_flux[ind_f4200])/np.sum(flux_new[ind_f4200])
+        if np.sum(ind_f4200)>10:
+            frac_host_4200 = np.sum(host_flux[ind_f4200])/np.sum(flux_new[ind_f4200])
+
         ind_f5100 = np.where((wave_new > 5080.) & (wave_new < 5130.), True, False)
-        frac_host_5100 = np.sum(host_flux[ind_f5100])/np.sum(flux_new[ind_f5100])
-        """
+        if np.sum(ind_f5100)>10:
+            frac_host_5100 = np.sum(host_flux[ind_f5100])/np.sum(flux_new[ind_f5100])
+
         
-        return data_cube  # ,frac_host_4200,frac_host_5100
+        return data_cube, frac_host_4200, frac_host_5100
    
     
     
@@ -1103,12 +1126,14 @@ class QSOFit():
             # For standard parameters
             par_names = list(params_dict.keys())
             par_err_names = [n+'_err' for n in par_names]
-            
-            self.conti_result = np.concatenate(([ra, dec, str(plateid), str(mjd), str(fiberid), self.z, self.SN_ratio_conti],
-                                               list(chain.from_iterable(zip(params, params_err)))))
+
+            self.conti_result = np.concatenate(([ra, dec, str(plateid), str(mjd), str(fiberid), self.z,
+                                                 self.SN_ratio_conti, self.frac_host_4200, self.frac_host_5100],
+                                                list(chain.from_iterable(zip(params, params_err)))))
             self.conti_result_type = np.full(len(self.conti_result), 'float')
             self.conti_result_type[2:5] = 'int'
-            self.conti_result_name = np.concatenate((['ra', 'dec', 'plateid', 'MJD', 'fiberid', 'redshift', 'SN_ratio_conti'],
+            self.conti_result_name = np.concatenate((['ra', 'dec', 'plateid', 'MJD', 'fiberid', 'redshift',
+                                                      'SN_ratio_conti', 'frac_host_4200', 'frac_host_5100'],
                                                      list(chain.from_iterable(zip(par_names, par_err_names)))))
 
             # For customized parameters
@@ -1143,12 +1168,13 @@ class QSOFit():
             Save the results
             """
             # For standard parameters
-            self.conti_result = np.concatenate(([ra, dec, str(plateid), str(mjd), str(fiberid), self.z, self.SN_ratio_conti],
+            self.conti_result = np.concatenate(([ra, dec, str(plateid), str(mjd), str(fiberid), self.z,
+                                                 self.SN_ratio_conti, self.frac_host_4200, self.frac_host_5100],
                                                 params))
             self.conti_result_type = np.full(len(self.conti_result), 'float')
             self.conti_result_type[2:5] = 'int'
-            self.conti_result_name = np.concatenate((['ra', 'dec', 'plateid', 'MJD', 'fiberid', 'redshift', 'SN_ratio_conti'],
-                                                      par_names))
+            self.conti_result_name = np.concatenate((['ra', 'dec', 'plateid', 'MJD', 'fiberid', 'redshift',
+                                                      'SN_ratio_conti', 'frac_host_4200', 'frac_host_5100'], par_names))
 
             # For customized parameters
             self.conti_result = np.append(self.conti_result, L)
