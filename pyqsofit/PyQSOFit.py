@@ -697,7 +697,7 @@ class QSOFit():
                                                  self.Mi, self.npca_gal, self.npca_qso, path)
         
         # for some negtive host template, we do not do the decomposition # not apply anymore
-        if np.sum(np.where(datacube[3, :] < 0, True, False) & np.where(datacube[4, :] < 0, True, False)) > 100:
+        if np.sum(np.where(datacube[3, :] < 0, True, False) | np.where(datacube[4, :] < 0, True, False)) > 100:
             self.host = np.zeros(len(wave))
             self.decomposed = False
             if self.verbose:
@@ -2339,7 +2339,7 @@ class QSOFit():
         
         return Fe_flux_result, Fe_flux_type, Fe_flux_name
     
-    def _calculate_Fe_flux(self, range, pp):
+    def _calculate_Fe_flux(self, measure_range, pp):
         """Calculate the flux of fitted FeII template within one given wavelength range.
         The pp could be an array with a length of 3 or 6. If 3 parameters were give, function will choose a
         proper template (MgII or balmer) according to the range. If the range give excess both template, an
@@ -2348,18 +2348,19 @@ class QSOFit():
         
         balmer_range = np.array([3686., 7484.])
         mgii_range = np.array([1200., 3500.])
-        upper = np.min([np.max(range), np.max(self.wave)])
-        lower = np.max([np.min(range), np.min(self.wave)])
-        if upper < np.max(range) or lower > np.min(range):
+        upper = np.min([np.max(measure_range), np.max(self.wave)])
+        lower = np.max([np.min(measure_range), np.min(self.wave)])
+        if upper < np.max(measure_range) or lower > np.min(measure_range):
             if self.verbose:
                 print('Warning: The range given to calculate the flux of FeII pseudocontiuum (partially) exceeded '
                       'the boundary of spectrum wavelength range. The excess part would be set to zero!')
         disp = 1e-4*np.log(10)
         xval = np.exp(np.arange(np.log(lower), np.log(upper), disp))
-        if len(xval) < 10:
+        if len(xval) < self.n_pix_min_conti:
             if self.verbose:
-                print('Warning: Available part in range '+str(range)+' is less than 10 pixel. Flux = -999 would be given!')
-            return -999
+                print(f'Warning: Available part in range {measure_range} is less than {self.n_pix_min_conti} pixel. '
+                      f'Flux = -1 would be given!')
+            return -1
         
         if len(pp) == 3:
             if upper <= mgii_range[1] and lower >= mgii_range[0]:

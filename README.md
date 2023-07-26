@@ -14,6 +14,10 @@ Use this code at your own risk, as we are not responsible for any errors. But if
 
 v1.1 (stable): https://github.com/legolason/PyQSOFit/releases/tag/v1.1
 
+## Known problem
+
+1. Misidentification of line component, between narrow and broad. The code is now using an absolute criteria to determine the broad & narrow emission line component for now (1200 km/s, which is equivalent to sigma=0.0016972 for our model parameters). The fitting limit of the `lmfit` is not exact enough when the parameter hit the boundary. In some cases, the fitted line width of narrow lines will be a little larger than 1200 km/s and being plotted as broad lines and vice versa. We encourage user to leave a gap between the lower width limit of broad lines and higher width limit of narrow lines during their initial setting. This inconvenience will be improved in our following updates.
+2. The results fits file might have different name from the given spectrum. It is known there are a very few spectra with MJD documented in their fits files which are different from that used in their file names. For example, for spectrum `spec-0389-51795-0575.fits`, the MJD given in its name is 51795 while the MJD documented in its fits file is 51794. If one follows our example and put the MJD directly from spectral data into our fitting procedure, our code will name the results file differently from that of the spectra file.
 
 ## Cite this code
 
