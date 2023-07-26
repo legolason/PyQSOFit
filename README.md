@@ -14,6 +14,10 @@ Use this code at your own risk, as we are not responsible for any errors. But if
 
 v1.1 (stable): https://github.com/legolason/PyQSOFit/releases/tag/v1.1
 
+## Known problem
+
+1. During the line fitting procedure, some emission lines need less Gaussian models than provided to be well fitted. In these circumstances, the code will give two (or more) exactly the same Gaussian models to fit the data instead of one. This problem will not affect the physical measurements but only wierd in the QA image. One can use BIC to judge the proper number of Gaussian models for each line referencing to our `example.ipynb`.
+2. Since the host decomposition hiring BC03 template is non-negative linear fitting, the host component will not stay at zero even if no hosts are detected or the decomposition is failed. We suggest user to determine the reliability of the host decomposition through QA image and the host fraction parameters f_host. (i.e., f_host>0.05 from (Shen et al. 2019)[https://doi.org/10.1088/0004-637X/805/2/96])
 
 ## Cite this code
 
