@@ -69,6 +69,15 @@
 # New features:
 #     1) Add new parameters to measure the host fraction at 5100A and 3000A.
 #
+# Version 2.1
+# 07/28/2023
+# New features:
+#     1) Add a new method decompose the host component. In this method, we employ the prior of each PCQ template. By
+#     applying a penalty, we restrict the factor of the last few component not to be too dominant. In this way, we
+#     efficiently avoid the degeneration of the PCQ templates.
+#     2) We rebuild the host decomposition module to make it more flexible. Now, the decomposition is performed through
+#     HostDecomp.py module.
+#     3) In HostDecomp.py module, we add the sigma measurements and Dn4000 estimation of the decomposed host component.
 # -------------------------------------------------
 
 import sys, os
@@ -95,6 +104,11 @@ from astropy.modeling.functional_models import Gaussian1D
 from astropy.modeling import fitting
 
 from astropy.table import Table
+
+from .HostDecomp import Prior_decomp
+from .HostDecomp import Linear_decomp
+from .HostDecomp import ppxf_kinematics
+
 import warnings
 
 warnings.filterwarnings("ignore")
@@ -152,7 +166,9 @@ class QSOFit():
         
     
     def Fit(self, name=None, nsmooth=1, and_mask=False, or_mask=False, reject_badpix=True, deredden=True, wave_range=None,
-            wave_mask=None, decompose_host=True, host_line_mask=True, BC03=False, Mi=None, npca_gal=5, npca_qso=10, Fe_uv_op=True,
+            wave_mask=None, decompose_host=True, host_prior=False, host_prior_scale=0.2, host_line_mask=True,
+            host_decomp_line=False,
+            qso_type='global', npca_qso=10, host_type='PCA', npca_gal=5, Fe_uv_op=True,
             poly=False, BC=False, rej_abs_conti=False, rej_abs_line=False, initial_guess=None,
             n_pix_min_conti=100, param_file_name='qsopar.fits', MC=False, MCMC=False, save_fits_name=None,
             nburn=20, nsamp=200, nthin=10, epsilon_jitter=0., linefit=True, save_result=True, plot_fig=True, save_fits_path='.',
@@ -197,7 +213,15 @@ class QSOFit():
             magnitude bins. For galaxy, the global model has 10 PCA components and first 5 will enough to reproduce 98.37% galaxy spectra. For QSO, the global model
             has 50, and the first 20 will reproduce 96.89% QSOs. If have i-band absolute magnitude, the Luminosity-redshift binned PCA components are available.
             Then the first 10 PCA in each bin is enough to reproduce most QSO spectrum. Default: False
-            
+
+        host_prior: bool, optional
+            This parameter is only useful when the decompose_host is True and BC03 is False. If True, the code will
+            adopt the prior parameters given in the pca file to perform host decomposition.
+
+        host_prior_scale: float, optional
+            If the prior decomposition is performed, the code will use this parameter to scale the prior penalty to the
+            original chi2. Default: 0.2
+
         host_line_mask: bool, optional
             If True, the line region of galaxy will be masked when subtracted from original spectra. Default: True
             
@@ -411,8 +435,8 @@ class QSOFit():
         self.decompose_host = decompose_host
         self.linefit = linefit
         self.host_line_mask = host_line_mask
-        self.BC03 = BC03
-        self.Mi = Mi
+        self.host_type = host_type
+        self.qso_type = qso_type
         self.npca_gal = npca_gal
         self.npca_qso = npca_qso
         self.maxOLs = 10
@@ -443,6 +467,11 @@ class QSOFit():
         self.ftol_conti = 1e-10
         self.xtol_line = 1e-10
         self.ftol_line = 1e-10
+
+        # Initial parameters for prior decomposition
+        self.host_prior = host_prior
+        self.host_prior_scale = host_prior_scale
+        self.host_decomp_line = host_decomp_line
 
         self.read_out_params(os.path.join(self.path, self.param_file_name))
 
@@ -523,8 +552,10 @@ class QSOFit():
             self.decompose_host_qso(self.wave, self.flux, self.err, self.install_path)
         else:
             self.decomposed = False
-            self.frac_host_4200 = -1.
-            self.frac_host_5100 = -1.
+            self.host_result = np.array([])
+            self.host_result_type = np.array([])
+            self.host_result_name = np.array([])
+
             if self.z > z_max_host and decompose_host == True:
                 if self.verbose:
                     print(f'redshift larger than {z_max_host} is not allowed for host decomposion!')
@@ -705,16 +736,22 @@ class QSOFit():
     
     def decompose_host_qso(self, wave, flux, err, path):
         """Decompose the host galaxy from QSO"""
-        datacube, frac_host_4200, frac_host_5100 = self._decompose_host_qso_core(self.wave, self.flux, self.err, self.z,
-                                                                                 self.Mi, self.npca_gal, self.npca_qso,
-                                                                                 path)
+        if self.host_prior is True:
+            prior_fitter = Prior_decomp(self.wave, self.flux, self.err, self.npca_gal, self.npca_qso,
+                                        path, host_type=self.host_type, qso_type=self.qso_type, na_mask=self.host_decomp_line)
+            datacube, frac_host_4200, frac_host_5100 = prior_fitter.auto_decomp(self.host_prior_scale)
+        else:
+            linear_fitter = Linear_decomp(self.wave, self.flux, self.err, self.npca_gal, self.npca_qso, path,
+                                          host_type=self.host_type, qso_type=self.qso_type, na_mask=self.host_decomp_line)
+            datacube, frac_host_4200, frac_host_5100 = linear_fitter.auto_decomp()
         
         # for some negtive host template, we do not do the decomposition # not apply anymore
         if np.sum(np.where(datacube[3, :] < 0, True, False) | np.where(datacube[4, :] < 0, True, False)) > 100:
             self.host = np.zeros(len(wave))
             self.decomposed = False
-            self.frac_host_4200 = -1.
-            self.frac_host_5100 = -1.
+            self.host_result = np.array([])
+            self.host_result_type = np.array([])
+            self.host_result_name = np.array([])
             if self.verbose:
                 print('Got negative host galaxy / QSO flux larger than 100 pixels, decomposition is not applied!')
         else:
@@ -740,115 +777,36 @@ class QSOFit():
             self.host = datacube[3, :]
             self.qso = datacube[4, :]
             self.host_data = datacube[1, :] - self.qso
-            self.frac_host_4200 = frac_host_4200
-            self.frac_host_5100 = frac_host_5100
-            
-        return self.wave, self.flux, self.err
-    
-    
-    def _decompose_host_qso_core(self, wave, flux, err, z, Mi, npca_gal, npca_qso, path):
-        """
-        core function to do host decomposition
-        wave: the obs frame wavelength, n_gal and n_qso are the number of eigenspectra used to fit
-        
-        
-        If Mi is None then the qso use the globle ones to fit. If not then use the redshift-luminoisty binded ones to fit
-        
-        See details: 
-        Yip, C. W., Connolly, A. J., Szalay, A. S., et al. 2004, AJ, 128, 585
-        Yip, C. W., Connolly, A. J., Vanden Berk, D. E., et al. 2004, AJ, 128, 2603
-        """
-        
-        # Read galaxy and qso eigenspectra
-        if self.BC03 == False:
-            galaxy = fits.open(os.path.join(path, 'pca/Yip_pca_templates/gal_eigenspec_Yip2004.fits'))
-            gal = galaxy[1].data
-            wave_gal = np.squeeze(gal['wave'])
-            flux_gal = np.squeeze(gal['pca'])
-        else:
-            flux03 = []
-            bc03_file_names = glob.glob(os.path.join(path, 'bc03/*.gz'))
-            bc03_idx = np.array([os.path.split(nm)[1].split('_')[0] for nm in bc03_file_names], dtype='int')
-            bc03_file_names = np.array(bc03_file_names)[np.argsort(bc03_idx)]
-            for i, f in enumerate(bc03_file_names):
-                gal_temp = np.genfromtxt(f)
-                wave_gal = gal_temp[:, 0]
-                flux03.append(gal_temp[:, 1])
-            flux_gal = np.array(flux03).reshape(len(bc03_file_names), -1)
-        
-        # Choose pca template based on qso absolute magnitude Mi
-        if Mi is None:
-            quasar = fits.open(os.path.join(path, 'pca/Yip_pca_templates/qso_eigenspec_Yip2004_global.fits'))
-        else:
-            if -24 < Mi <= -22 and 0.08 <= z < 0.53:
-                quasar = fits.open(os.path.join(path, 'pca/Yip_pca_templates/qso_eigenspec_Yip2004_CZBIN1.fits'))
-            elif -26 < Mi <= -24 and 0.08 <= z < 0.53:
-                quasar = fits.open(os.path.join(path, 'pca/Yip_pca_templates/qso_eigenspec_Yip2004_DZBIN1.fits'))
-            elif -24 < Mi <= -22 and 0.53 <= z < 1.16:
-                quasar = fits.open(os.path.join(path, 'pca/Yip_pca_templates/qso_eigenspec_Yip2004_BZBIN2.fits'))
-            elif -26 < Mi <= -24 and 0.53 <= z < 1.16:
-                quasar = fits.open(os.path.join(path, 'pca/Yip_pca_templates/qso_eigenspec_Yip2004_CZBIN2.fits'))
-            elif -28 < Mi <= -26 and 0.53 <= z < 1.16:
-                quasar = fits.open(os.path.join(path, 'pca/Yip_pca_templates/qso_eigenspec_Yip2004_DZBIN2.fits'))
+
+            sigma, sigma_err, v_off, rchi2_ppxf = ppxf_kinematics(self.wave, self.host_data, self.err, path)
+
+            # TODO: A very messy way to get the SN ratio, will integrated to the _Calculate_SN function in the future.
+            input_data = np.array(self.host_data)
+            input_data = np.array(input_data[np.where(input_data != 0.0)])
+            n = len(input_data)
+            # For spectra shorter than this, no value can be returned
+            if (n > 4):
+                signal = np.median(input_data)
+                noise = 0.6052697 * np.median(np.abs(2.0 * input_data[2:n - 2] - input_data[0:n - 4] - input_data[4:n]))
+                SN_host = float(signal / noise)
             else:
-                raise RuntimeError('Host galaxy template is not available for this redshift and Magnitude!')
-        
-        qso = quasar[1].data
-        wave_qso = np.squeeze(qso['wave'])
-        flux_qso = np.squeeze(qso['pca'])
-        
-        # Get the shortest wavelength range
-        wave_min = max(wave.min(), wave_gal.min(), wave_qso.min())
-        wave_max = min(wave.max(), wave_gal.max(), wave_qso.max())
-        
-        ind_data = np.where((wave > wave_min) & (wave < wave_max), True, False)
-        ind_gal = np.where((wave_gal > wave_min - 1) & (wave_gal < wave_max + 1), True, False)
-        ind_qso = np.where((wave_qso > wave_min - 1) & (wave_qso < wave_max + 1), True, False)
-        
-        flux_gal_new = np.zeros([flux_gal.shape[0], flux[ind_data].shape[0]])
-        flux_qso_new = np.zeros([flux_qso.shape[0], flux[ind_data].shape[0]])
-        
-        for i in range(flux_gal.shape[0]):
-            fgal = interpolate.interp1d(wave_gal[ind_gal], flux_gal[i, ind_gal], bounds_error=False, fill_value=0)
-            flux_gal_new[i, :] = fgal(wave[ind_data])
-        for i in range(flux_qso.shape[0]):
-            fqso = interpolate.interp1d(wave_qso[ind_qso], flux_qso[i, ind_qso], bounds_error=False, fill_value=0)
-            flux_qso_new[i, :] = fqso(wave[ind_data])
-        
-        wave_new = wave[ind_data]
-        flux_new = flux[ind_data]
-        err_new = err[ind_data]
-        
-        flux_temp = np.vstack((flux_gal_new[0:npca_gal, :], flux_qso_new[0:npca_qso, :]))
+                SN_host = -1.
 
-        # Automatically choose one method
-        if self.BC03 == False:
-            res = np.linalg.lstsq(flux_temp.T, flux_new)[0] # allow to be negative for PCA
-        else:
-            res = opt.nnls(flux_temp.T, flux_new)[0]  # should be positive for BC03
+            # measure the Dn4000 of the host galaxy
+            # TODO: will be separated as a independent function in the future
+            lower_idx = np.where((self.wave > 3850) & (self.wave < 3950), True, False)
+            upper_idx = np.where((self.wave > 4000) & (self.wave < 4100), True, False)
+            if np.sum(lower_idx) > 10 and np.sum(upper_idx) > 10:
+                Dn4000 = np.mean(self.host_data[upper_idx]) / np.mean(self.host_data[lower_idx])
+            else:
+                Dn4000 = -1.
 
-        host_flux = np.dot(res[0:npca_gal], flux_temp[0:npca_gal])
-        qso_flux = np.dot(res[npca_gal:], flux_temp[npca_gal:])
-        
-        data_cube = np.vstack((wave_new, flux_new, err_new, host_flux, qso_flux))
-        
-        # Calculate the host galaxy fraction at 4200 and 5100
-        frac_host_4200 = -1.
-        frac_host_5100 = -1.
+            self.host_result = np.array([SN_host, frac_host_4200, frac_host_5100, Dn4000, sigma, sigma_err, v_off, rchi2_ppxf])
+            self.host_result_type = np.full(len(self.host_result), 'float')
+            self.host_result_name = np.array(['SN_host', 'frac_host_4200', 'frac_host_5100', 'Dn4000', 'sigma', 'sigma_err', 'v_off', 'rchi2_ppxf'])
 
-        ind_f4200 = np.where((wave_new > 4160.) & (wave_new < 4210.), True, False)
-        if np.sum(ind_f4200)>10:
-            frac_host_4200 = np.sum(host_flux[ind_f4200])/np.sum(flux_new[ind_f4200])
+        return self.wave, self.flux, self.err
 
-        ind_f5100 = np.where((wave_new > 5080.) & (wave_new < 5130.), True, False)
-        if np.sum(ind_f5100)>10:
-            frac_host_5100 = np.sum(host_flux[ind_f5100])/np.sum(flux_new[ind_f5100])
-
-        
-        return data_cube, frac_host_4200, frac_host_5100
-   
-    
-    
     def fit_continuum(self, wave, flux, err, ra, dec, plateid, mjd, fiberid):
         """Fit the continuum with PL, Polynomial, UV/optical FeII, Balmer continuum"""
         self.fe_uv = np.genfromtxt(os.path.join(self.install_path, 'fe_uv.txt'))
@@ -1128,12 +1086,12 @@ class QSOFit():
             par_err_names = [n+'_err' for n in par_names]
 
             self.conti_result = np.concatenate(([ra, dec, str(plateid), str(mjd), str(fiberid), self.z,
-                                                 self.SN_ratio_conti, self.frac_host_4200, self.frac_host_5100],
+                                                 self.SN_ratio_conti],
                                                 list(chain.from_iterable(zip(params, params_err)))))
             self.conti_result_type = np.full(len(self.conti_result), 'float')
             self.conti_result_type[2:5] = 'int'
             self.conti_result_name = np.concatenate((['ra', 'dec', 'plateid', 'MJD', 'fiberid', 'redshift',
-                                                      'SN_ratio_conti', 'frac_host_4200', 'frac_host_5100'],
+                                                      'SN_ratio_conti'],
                                                      list(chain.from_iterable(zip(par_names, par_err_names)))))
 
             # For customized parameters
@@ -1169,12 +1127,12 @@ class QSOFit():
             """
             # For standard parameters
             self.conti_result = np.concatenate(([ra, dec, str(plateid), str(mjd), str(fiberid), self.z,
-                                                 self.SN_ratio_conti, self.frac_host_4200, self.frac_host_5100],
+                                                 self.SN_ratio_conti],
                                                 params))
             self.conti_result_type = np.full(len(self.conti_result), 'float')
             self.conti_result_type[2:5] = 'int'
             self.conti_result_name = np.concatenate((['ra', 'dec', 'plateid', 'MJD', 'fiberid', 'redshift',
-                                                      'SN_ratio_conti', 'frac_host_4200', 'frac_host_5100'], par_names))
+                                                      'SN_ratio_conti'], par_names))
 
             # For customized parameters
             self.conti_result = np.append(self.conti_result, L)
@@ -1184,7 +1142,11 @@ class QSOFit():
             self.conti_result = np.append(self.conti_result, Fe_flux_result)
             self.conti_result_type = np.append(self.conti_result_type, Fe_flux_type)
             self.conti_result_name = np.append(self.conti_result_name, Fe_flux_name)
-        
+
+        self.conti_result = np.append(self.conti_result, self.host_result)
+        self.conti_result_type = np.append(self.conti_result_type, self.host_result_type)
+        self.conti_result_name = np.append(self.conti_result_name, self.host_result_name)
+
         self.conti_fit = conti_fit
         self.conti_params = params
         self.tmp_all = tmp_all
