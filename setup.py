@@ -33,7 +33,7 @@ setup(name='PyQSOFit',
                                  'bc03/*.spec.gz',
                                  'pca/Yip_pca_templates/*.fits',
                                  'pca/prior/*.csv',
-                                 'indo/I.fits',
+                                 'indo/*.fits',
                                  'sfddata/*.fits']
                     },
       #data_files=[('bc03',['bc03/*.spec.gz']), ('pca/Yip_pca_templates', ['pca/Yip_pca_templates/*.fits']), ('stddata',['stddata/*.fits'])],
