@@ -915,25 +915,25 @@ class QSOFit():
 
         fit_params = Parameters()
         # norm_factor, FWHM, and small shift of wavelength for the MgII Fe_template
-        fit_params.add('Fe_uv_norm', value=pp0[0], min=contilist[0]['min'], max=contilist[0]['max'])
-        fit_params.add('Fe_uv_FWHM', value=pp0[1], min=contilist[1]['min'], max=contilist[1]['max'])
-        fit_params.add('Fe_uv_shift', value=pp0[2], min=contilist[2]['min'], max=contilist[2]['max'])
+        fit_params.add('Fe_uv_norm', value=pp0[0], min=contilist[0]['min'], max=contilist[0]['max'], vary=bool(contilist[0]['vary']))
+        fit_params.add('Fe_uv_FWHM', value=pp0[1], min=contilist[1]['min'], max=contilist[1]['max'], vary=bool(contilist[1]['vary']))
+        fit_params.add('Fe_uv_shift', value=pp0[2], min=contilist[2]['min'], max=contilist[2]['max'], vary=bool(contilist[2]['vary']))
         # same as above but for the Hbeta/Halpha Fe template
-        fit_params.add('Fe_op_norm', value=pp0[3], min=contilist[3]['min'], max=contilist[3]['max'])
-        fit_params.add('Fe_op_FWHM', value=pp0[4], min=contilist[4]['min'], max=contilist[4]['max'])
-        fit_params.add('Fe_op_shift', value=pp0[5], min=contilist[5]['min'], max=contilist[5]['max'])
+        fit_params.add('Fe_op_norm', value=pp0[3], min=contilist[3]['min'], max=contilist[3]['max'], vary=bool(contilist[3]['vary']))
+        fit_params.add('Fe_op_FWHM', value=pp0[4], min=contilist[4]['min'], max=contilist[4]['max'], vary=bool(contilist[4]['vary']))
+        fit_params.add('Fe_op_shift', value=pp0[5], min=contilist[5]['min'], max=contilist[5]['max'], vary=bool(contilist[5]['vary']))
         # norm_factor for continuum f_lambda = (lambda/3000.0)^{-alpha}
-        fit_params.add('PL_norm', value=pp0[6], min=contilist[6]['min'], max=contilist[6]['max'])
+        fit_params.add('PL_norm', value=pp0[6], min=contilist[6]['min'], max=contilist[6]['max'], vary=bool(contilist[6]['vary']))
         # slope for the power-law continuum
-        fit_params.add('PL_slope', value=pp0[7], min=contilist[7]['min'], max=contilist[7]['max'])
+        fit_params.add('PL_slope', value=pp0[7], min=contilist[7]['min'], max=contilist[7]['max'], vary=bool(contilist[7]['vary']))
         # norm, Te and Tau_e for the Balmer continuum at <3646 A
-        fit_params.add('Blamer_norm', value=pp0[8], min=contilist[8]['min'], max=contilist[8]['max'])
-        fit_params.add('Balmer_Te', value=pp0[9], min=contilist[9]['min'], max=contilist[9]['max'])
-        fit_params.add('Balmer_Tau', value=pp0[10], min=contilist[10]['min'], max=contilist[10]['max'])
+        fit_params.add('Blamer_norm', value=pp0[8], min=contilist[8]['min'], max=contilist[8]['max'], vary=bool(contilist[8]['vary']))
+        fit_params.add('Balmer_Te', value=pp0[9], min=contilist[9]['min'], max=contilist[9]['max'], vary=bool(contilist[9]['vary']))
+        fit_params.add('Balmer_Tau', value=pp0[10], min=contilist[10]['min'], max=contilist[10]['max'], vary=bool(contilist[10]['vary']))
         # polynomial for the continuum
-        fit_params.add('conti_pl_0', value=pp0[11], min=contilist[11]['min'], max=contilist[11]['max'])
-        fit_params.add('conti_pl_1', value=pp0[12], min=contilist[12]['min'], max=contilist[12]['max'])
-        fit_params.add('conti_pl_2', value=pp0[13], min=contilist[13]['min'], max=contilist[13]['max'])
+        fit_params.add('conti_pl_0', value=pp0[11], min=contilist[11]['min'], max=contilist[11]['max'], vary=bool(contilist[11]['vary']))
+        fit_params.add('conti_pl_1', value=pp0[12], min=contilist[12]['min'], max=contilist[12]['max'], vary=bool(contilist[12]['vary']))
+        fit_params.add('conti_pl_2', value=pp0[13], min=contilist[13]['min'], max=contilist[13]['max'], vary=bool(contilist[13]['vary']))
                 
         # Check if we will attempt to fit the UV FeII continuum region
         ind_uv = np.where((wave[tmp_all] > 1200) & (wave[tmp_all] < 3500), True, False)
