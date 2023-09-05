@@ -512,16 +512,12 @@ class QSOFit():
         """
         Do host decomposition
         """
-        z_max_host = 1.16 # TODO: Maybe leave this to user to modify
-        if self.z < z_max_host and decompose_host == True:
+        if decompose_host == True:
             self.decompose_host_qso(self.wave, self.flux, self.err, self.install_path)
         else:
             self.decomposed = False
             self.frac_host_4200 = -1.
             self.frac_host_5100 = -1.
-            if self.z > z_max_host and decompose_host == True:
-                if self.verbose:
-                    print(f'redshift larger than {z_max_host} is not allowed for host decomposion!')
         
         """
         Fit the continuum
@@ -1463,7 +1459,7 @@ class QSOFit():
                         for n_iter in range(self.rej_abs_line_max_niter):
                             resid_full = np.zeros_like(self.wave)
                             resid_full[ind_n & ind_line_abs] = line_fit.residual
-                            ind_line_abs_tmp = ind_line_abs & np.where(resid_full < -3, False, True)
+                            ind_line_abs_tmp = ind_line_abs & np.where(resid_full < -3, False, True) & np.where(resid_full > 3, False, True)
 
                             # Check if number of valid pixels minus 10 is not larger than the number of fitted gaussian parameters
                             if len(self.wave[ind_n & ind_line_abs_tmp]) - 10 < len(fit_params):
