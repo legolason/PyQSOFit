@@ -433,7 +433,7 @@ class QSOFit():
         self.param_file_name = param_file_name
 
         # Initial precision parameters for lmfit
-        self.xtol_conti = 1e-8
+        self.xtol_conti = 1e-10
         self.ftol_conti = 1e-10
         self.xtol_line = 1e-10
         self.ftol_line = 1e-10
@@ -930,10 +930,10 @@ class QSOFit():
         fit_params.add('Blamer_norm', value=pp0[8], min=contilist[8]['min'], max=contilist[8]['max'], vary=bool(contilist[8]['vary']))
         fit_params.add('Balmer_Te', value=pp0[9], min=contilist[9]['min'], max=contilist[9]['max'], vary=bool(contilist[9]['vary']))
         fit_params.add('Balmer_Tau', value=pp0[10], min=contilist[10]['min'], max=contilist[10]['max'], vary=bool(contilist[10]['vary']))
-        # polynomial for the continuum
-        fit_params.add('conti_pl_0', value=pp0[11], min=contilist[11]['min'], max=contilist[11]['max'], vary=bool(contilist[11]['vary']))
-        fit_params.add('conti_pl_1', value=pp0[12], min=contilist[12]['min'], max=contilist[12]['max'], vary=bool(contilist[12]['vary']))
-        fit_params.add('conti_pl_2', value=pp0[13], min=contilist[13]['min'], max=contilist[13]['max'], vary=bool(contilist[13]['vary']))
+        # polynomial for the continuum f = a_0 x^0 + a_1 x^1 + a_2 x^2 + ...
+        fit_params.add('conti_a_0', value=pp0[11], min=contilist[11]['min'], max=contilist[11]['max'], vary=bool(contilist[11]['vary']))
+        fit_params.add('conti_a_1', value=pp0[12], min=contilist[12]['min'], max=contilist[12]['max'], vary=bool(contilist[12]['vary']))
+        fit_params.add('conti_a_2', value=pp0[13], min=contilist[13]['min'], max=contilist[13]['max'], vary=bool(contilist[13]['vary']))
                 
         # Check if we will attempt to fit the UV FeII continuum region
         ind_uv = np.where((wave[tmp_all] > 1200) & (wave[tmp_all] < 3500), True, False)
@@ -961,12 +961,12 @@ class QSOFit():
             
         # Check if we will fit the polynomial component
         if self.poly == False:
-            fit_params['conti_pl_0'].value = 0
-            fit_params['conti_pl_1'].value = 0
-            fit_params['conti_pl_2'].value = 0
-            fit_params['conti_pl_0'].vary = False
-            fit_params['conti_pl_1'].vary = False
-            fit_params['conti_pl_2'].vary = False
+            fit_params['conti_a_0'].value = 0
+            fit_params['conti_a_1'].value = 0
+            fit_params['conti_a_2'].value = 0
+            fit_params['conti_a_0'].vary = False
+            fit_params['conti_a_1'].vary = False
+            fit_params['conti_a_2'].vary = False
                         
         """
         Continuum components described by 14 parameters
@@ -1654,19 +1654,20 @@ class QSOFit():
                         print("Less than 10 pixels in line fitting!")
             
             # Flatten arrays
-            comp_result = np.concatenate(comp_result)
-            comp_result_type = np.concatenate(comp_result_type)
-            comp_result_name = np.concatenate(comp_result_name)
-            
-            gauss_result = np.concatenate(gauss_result)
-            if (self.MCMC == True or self.MC == True) and self.nsamp > 0:
-                gauss_result_all = np.concatenate(gauss_result_all, axis=1)
-            gauss_result_type = np.concatenate(gauss_result_type)
-            gauss_result_name = np.concatenate(gauss_result_name)
-
-            fur_result = np.concatenate(fur_result)
-            fur_result_type = np.concatenate(fur_result_type)
-            fur_result_name = np.concatenate(fur_result_name)
+            if len(comp_result) > 0:
+                comp_result = np.concatenate(comp_result)
+                comp_result_type = np.concatenate(comp_result_type)
+                comp_result_name = np.concatenate(comp_result_name)
+                
+                gauss_result = np.concatenate(gauss_result)
+                if (self.MCMC == True or self.MC == True) and self.nsamp > 0:
+                    gauss_result_all = np.concatenate(gauss_result_all, axis=1)
+                gauss_result_type = np.concatenate(gauss_result_type)
+                gauss_result_name = np.concatenate(gauss_result_name)
+    
+                fur_result = np.concatenate(fur_result)
+                fur_result_type = np.concatenate(fur_result_type)
+                fur_result_name = np.concatenate(fur_result_name)
 
             # Add results to line_result
             line_result = np.concatenate([comp_result, gauss_result, fur_result])
