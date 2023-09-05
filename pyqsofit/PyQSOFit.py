@@ -433,7 +433,7 @@ class QSOFit():
         self.param_file_name = param_file_name
 
         # Initial precision parameters for lmfit
-        self.xtol_conti = 1e-10
+        self.xtol_conti = 1e-8
         self.ftol_conti = 1e-10
         self.xtol_line = 1e-10
         self.ftol_line = 1e-10
@@ -930,10 +930,11 @@ class QSOFit():
         fit_params.add('Blamer_norm', value=pp0[8], min=contilist[8]['min'], max=contilist[8]['max'], vary=bool(contilist[8]['vary']))
         fit_params.add('Balmer_Te', value=pp0[9], min=contilist[9]['min'], max=contilist[9]['max'], vary=bool(contilist[9]['vary']))
         fit_params.add('Balmer_Tau', value=pp0[10], min=contilist[10]['min'], max=contilist[10]['max'], vary=bool(contilist[10]['vary']))
-        # polynomial for the continuum f = a_0 x^0 + a_1 x^1 + a_2 x^2 + ...
-        fit_params.add('conti_a_0', value=pp0[11], min=contilist[11]['min'], max=contilist[11]['max'], vary=bool(contilist[11]['vary']))
-        fit_params.add('conti_a_1', value=pp0[12], min=contilist[12]['min'], max=contilist[12]['max'], vary=bool(contilist[12]['vary']))
-        fit_params.add('conti_a_2', value=pp0[13], min=contilist[13]['min'], max=contilist[13]['max'], vary=bool(contilist[13]['vary']))
+        # polynomial for the continuum f = a_0 x^0 + a_1 x^1 + a_2 x^2 + ...   
+        # XXX Bounds have to be None so lmfit will select them automatically to avoid numerical problems
+        fit_params.add('conti_a_0', value=pp0[11], min=None, max=None, vary=bool(contilist[11]['vary']))
+        fit_params.add('conti_a_1', value=pp0[12], min=None, max=None, vary=bool(contilist[12]['vary']))
+        fit_params.add('conti_a_2', value=pp0[13], min=None, max=None, vary=bool(contilist[13]['vary']))
                 
         # Check if we will attempt to fit the UV FeII continuum region
         ind_uv = np.where((wave[tmp_all] > 1200) & (wave[tmp_all] < 3500), True, False)
@@ -2286,9 +2287,15 @@ class QSOFit():
         return result
     
     def F_poly_conti(self, xval, pp, x0=3000):
-        """Fit the continuum with a polynomial component account for the dust reddening with a*X+b*X^2+c*X^3"""
+        """Fit the continuum with a polynomial component account for the dust reddening with a*X+b*X^2+c*X^3
+        
+        TODO: See if LMFIT's built-in modeles improved performance and numerical stability
+        https://lmfit.github.io/lmfit-py/builtin_models.html
+        
+        """
         xval2 = xval - x0
-        yvals = [pp[i]*xval2**(i + 1) for i in range(len(pp))]
+        # rescale pp for numerical precision
+        yvals = [(pp[i]/1e6)*xval2**(i + 1) for i in range(len(pp))]
         return np.sum(yvals, axis=0)
     
     def flux2L(self, flux, z=None):
@@ -2310,6 +2317,9 @@ class QSOFit():
         It is slightly faster to fit the (un-normalized) amplitude directly to avoid blow-up at small sigma
         
         xval: wavelength array in AA
+
+        TODO: See if LMFIT's built-in modeles improved performance
+        https://lmfit.github.io/lmfit-py/builtin_models.html
         
         pp: Paramaters [3]
             scale: line amplitude
