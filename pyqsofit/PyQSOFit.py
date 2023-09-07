@@ -475,10 +475,6 @@ class QSOFit():
         self.err = self.err_in[ind_gooderror]
         self.flux = self.flux_in[ind_gooderror]
         self.lam = self.lam_in[ind_gooderror]
-
-        print(self.flux)
-        print(self.lam)
-        print(len(self.flux))
         
         # Renew And/or mask index
         if (self.and_mask_in is not None) and (self.or_mask_in is not None):
