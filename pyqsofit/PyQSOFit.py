@@ -836,6 +836,10 @@ class QSOFit():
         if self.BC03 == False:
             res = np.linalg.lstsq(flux_temp.T, flux_new)[0] # allow to be negative for PCA
         else:
+            print(flux_temp.T)
+            print(flux_new)
+            print(flux_temp.T[~np.isfinite(flux_temp.T)])
+            print(flux_new[~np.isfinite(flux_new)])
             res = opt.nnls(flux_temp.T, flux_new)[0]  # should be positive for BC03
 
         host_flux = np.dot(res[0:npca_gal], flux_temp[0:npca_gal])
@@ -926,7 +930,7 @@ class QSOFit():
         fit_params.add('Blamer_norm', value=pp0[8], min=contilist[8]['min'], max=contilist[8]['max'], vary=bool(contilist[8]['vary']))
         fit_params.add('Balmer_Te', value=pp0[9], min=contilist[9]['min'], max=contilist[9]['max'], vary=bool(contilist[9]['vary']))
         fit_params.add('Balmer_Tau', value=pp0[10], min=contilist[10]['min'], max=contilist[10]['max'], vary=bool(contilist[10]['vary']))
-        # polynomial for the continuum f = a_0 x^0 + a_1 x^1 + a_2 x^2 + ...   
+        # polynomial for the continuum f = a_0 x^0 + a_1 x^1 + a_2 x^2 + ... 
         # XXX Bounds have to be None so lmfit will select them automatically to avoid numerical problems
         fit_params.add('conti_a_0', value=pp0[11], min=None, max=None, vary=bool(contilist[11]['vary']))
         fit_params.add('conti_a_1', value=pp0[12], min=None, max=None, vary=bool(contilist[12]['vary']))
@@ -1103,7 +1107,7 @@ class QSOFit():
 
                     conti_fit = minimize(self._residuals, conti_fit.params,
                                      args=(wave[tmp_all][ind_noBAL],
-                                           self.Smooth(flux_resampled[tmp_all][ind_noBAL], 10),
+                                           self.Smooth(flux_resampled[tmp_all][ind_noBAL], 10), # XXX Why smooth here?
                                            err[tmp_all][ind_noBAL], _conti_model),
                                      calc_covar=False)
                     params_dict = conti_fit.params.valuesdict()
