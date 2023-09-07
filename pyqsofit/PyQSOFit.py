@@ -471,7 +471,7 @@ class QSOFit():
         #Clean the data
         
         # Remove with error equal to 0 or inifity
-        ind_gooderror = np.where((self.err_in != 0) & ~np.isinf(self.err_in) & (self.flux_in != 0) & ~np.isinf(self.flux_in), True, False)
+        ind_gooderror = np.where((self.err_in != 0) & np.isfinite(self.err_in) & (self.flux_in != 0) & np.isfinite(self.flux_in), True, False)
         self.err = self.err_in[ind_gooderror]
         self.flux = self.flux_in[ind_gooderror]
         self.lam = self.lam_in[ind_gooderror]
@@ -836,10 +836,6 @@ class QSOFit():
         if self.BC03 == False:
             res = np.linalg.lstsq(flux_temp.T, flux_new)[0] # allow to be negative for PCA
         else:
-            print(flux_temp.T)
-            print(flux_new)
-            print(flux_temp.T[~np.isfinite(flux_temp.T)])
-            print(flux_new[~np.isfinite(flux_new)])
             res = opt.nnls(flux_temp.T, flux_new)[0]  # should be positive for BC03
 
         host_flux = np.dot(res[0:npca_gal], flux_temp[0:npca_gal])
