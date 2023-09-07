@@ -475,6 +475,10 @@ class QSOFit():
         self.err = self.err_in[ind_gooderror]
         self.flux = self.flux_in[ind_gooderror]
         self.lam = self.lam_in[ind_gooderror]
+
+        print(self.flux)
+        print(self.lam)
+        print(len(self.flux))
         
         # Renew And/or mask index
         if (self.and_mask_in is not None) and (self.or_mask_in is not None):
@@ -1927,9 +1931,9 @@ class QSOFit():
         
         wave_eval = np.linspace(np.min(self.wave) - 200, np.max(self.wave) + 200, 5000)
         f_conti_model_eval = self.PL(wave_eval, pp) + self.Fe_flux_mgii(wave_eval, pp[0:3]) + self.Fe_flux_balmer(wave_eval, pp[3:6]) + self.F_poly_conti(wave_eval, pp[11:]) + self.Balmer_conti(wave_eval, pp[8:11])
-                
+        
         # Plot lines
-        if self.linefit == True:
+        if (self.linefit == True) & (len(self.line_result) > 0):
             # If errors are in the results
             if (self.MCMC == True or self.MC == True) and self.nsamp > 0:
                 mc_flag = 2
