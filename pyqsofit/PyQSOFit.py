@@ -257,12 +257,6 @@ class QSOFit():
         rej_abs_line: bool, optional
             if True, it will iterate the emission line fitting twice, rejecting 3 sigma outlier absorption pixels
             which might fall into the broad absorption lines. Default: False
-            
-        initial_guess: 1*14 array, optional
-            better initial value will help find a solution faster. Default initial is np.array([0., 3000., 0., 0.,
-            3000., 0., 1., -1.5, 0., 15000., 0.5, 0., 0., 0.]). First six parameters are flux scale, FWHM, small shift for wavelength for UV and optical FeII template,
-            respectively. The next two parameters are the power-law slope and intercept. The next three are the norm, Te, tau_BE in Balmer continuum model in
-            Dietrich et al. 2002. the last three parameters are a,b,c in polynomial function a*(x-3000)+b*x^2+c*x^3.
         
         n_pix_min_conti: float, optional
             minimum number of negative pixels for host continuuum fit to be rejected. Default: 100
@@ -506,7 +500,7 @@ class QSOFit():
         #Clean the data
         
         # Remove with error equal to 0 or inifity
-        ind_gooderror = np.where((self.err_in != 0) & ~np.isinf(self.err_in) & (self.flux_in != 0) & ~np.isinf(self.flux_in), True, False)
+        ind_gooderror = np.where((self.err_in != 0) & np.isfinite(self.err_in) & (self.flux_in != 0) & np.isfinite(self.flux_in), True, False)
         self.err = self.err_in[ind_gooderror]
         self.flux = self.flux_in[ind_gooderror]
         self.lam = self.lam_in[ind_gooderror]
@@ -547,8 +541,7 @@ class QSOFit():
         """
         Do host decomposition
         """
-        z_max_host = 1.16 # TODO: Maybe leave this to user to modify
-        if self.z < z_max_host and decompose_host == True:
+        if decompose_host == True:
             self.decompose_host_qso(self.wave, self.flux, self.err, self.install_path)
         else:
             self.decomposed = False
@@ -559,6 +552,8 @@ class QSOFit():
             if self.z > z_max_host and decompose_host == True:
                 if self.verbose:
                     print(f'redshift larger than {z_max_host} is not allowed for host decomposion!')
+            self.frac_host_4200 = -1.
+            self.frac_host_5100 = -1.
         
         """
         Fit the continuum
@@ -621,15 +616,36 @@ class QSOFit():
     
     def _RejectBadPix(self, lam, flux, err, maxOLs=10, alpha=0.05):
         """
-        Reject 10 most possiable outliers, input wavelength, flux and error. Return a different size wavelength,
-        flux, and error.
+        Reject outliers in spectrum such as cosmic rays.
+        See https://pyastronomy.readthedocs.io/en/latest/pyaslDoc/aslDoc/outlier.html
+        
+        Parameter:
+        ----------
+        lam: array, required
+            wavelength
+            
+        flux: array, required
+            flux
+            
+        err: array, required
+            1 sigma error
+            
+        maxOLS: int, optional
+            Maximum number of outliers to reject. Default: 10
+            
+        alpha: float, optional
+            Significance. Default: 0.05
+            
+        Return:
+        ---------
+        
         """
-        # TODO: Annotation of this function need to be improved, the meaning of the last two param
         # -----remove bad pixels, but not for high SN spectrum------------
         ind_bad = pyasl.pointDistGESD(flux, maxOLs, alpha)
         wv = np.asarray([i for j, i in enumerate(lam) if j not in ind_bad[1]], dtype=np.float64)
         fx = np.asarray([i for j, i in enumerate(flux) if j not in ind_bad[1]], dtype=np.float64)
         er = np.asarray([i for j, i in enumerate(err) if j not in ind_bad[1]], dtype=np.float64)
+        # TODO: Below lines are confusing and generally bad practice
         del self.lam, self.flux, self.err
         self.lam, self.flux, self.err = wv, fx, er
         return self.lam, self.flux, self.err
@@ -808,16 +824,33 @@ class QSOFit():
         return self.wave, self.flux, self.err
 
     def fit_continuum(self, wave, flux, err, ra, dec, plateid, mjd, fiberid):
-        """Fit the continuum with PL, Polynomial, UV/optical FeII, Balmer continuum"""
+        """Fit the continuum with PL, Polynomial, UV/optical FeII, Balmer continuum
+        
+        Parameter:
+        ----------
+        lam: array, required
+            wavelength
+            
+        flux: array, required
+            flux
+            
+        err: array, required
+            1 sigma error
+            
+        conti_windows: 2d array, optional
+            Continuum fitting windows. If None, use default windows. For special situations, you
+            may need to change these to improve the fitting (e.g., Ly-alpha absorption troughs, etc.) Default: None
+            
+        Return:
+        ---------
+        
+        
+        """
         self.fe_uv = np.genfromtxt(os.path.join(self.install_path, 'fe_uv.txt'))
         self.fe_op = np.genfromtxt(os.path.join(self.install_path, 'fe_optical.txt'))
-        
-        # Define the windows where we will fit the continuum
-        window_all = np.array(
-            [[1150., 1170.], [1275., 1290.], [1350., 1360.], [1445., 1465.], [1690., 1705.], [1770., 1810.],
-             [1970., 2400.], [2480., 2675.], [2925., 3400.], [3775., 3832.], [4000., 4050.], [4200., 4230.],
-             [4435., 4640.], [5100., 5535.], [6005., 6035.], [6110., 6250.], [6800., 7000.], [7160., 7180.],
-             [7500., 7800.], [8050., 8150.], ])
+
+        # Read line parameter file
+        contilist, window_all = read_conti_params(os.path.join(self.path, self.param_file_name))
         
         # Convert the windows to a mask
         tmp_all = np.array([np.repeat(False, len(wave))]).flatten()
@@ -834,35 +867,33 @@ class QSOFit():
         """
         
         # Set initial parameters for continuum
-        if self.initial_guess is not None:
-            pp0 = self.initial_guess
-        else:
-            pp0 = np.array([0.0, 3000, 0.0, 0.0, 3000, 0.0, 1, -1.5, 0, 15000, 0.5, 0, 0, 0])
+        pp0 = np.array([c['initial'] for c in contilist])
             
         # It's usually a good idea to jitter the parameters a bit
         pp0 += np.abs(np.random.normal(0, self.epsilon_jitter, len(pp0)))
 
         fit_params = Parameters()
         # norm_factor, FWHM, and small shift of wavelength for the MgII Fe_template
-        fit_params.add('Fe_uv_norm', value=pp0[0], min=0, max=1e10)
-        fit_params.add('Fe_uv_FWHM', value=pp0[1], min=1200, max=18000)
-        fit_params.add('Fe_uv_shift', value=pp0[2], min=-0.01, max=0.01)        
+        fit_params.add('Fe_uv_norm', value=pp0[0], min=contilist[0]['min'], max=contilist[0]['max'], vary=bool(contilist[0]['vary']))
+        fit_params.add('Fe_uv_FWHM', value=pp0[1], min=contilist[1]['min'], max=contilist[1]['max'], vary=bool(contilist[1]['vary']))
+        fit_params.add('Fe_uv_shift', value=pp0[2], min=contilist[2]['min'], max=contilist[2]['max'], vary=bool(contilist[2]['vary']))
         # same as above but for the Hbeta/Halpha Fe template
-        fit_params.add('Fe_op_norm', value=pp0[3], min=0, max=1e10)
-        fit_params.add('Fe_op_FWHM', value=pp0[4], min=1200, max=18000)
-        fit_params.add('Fe_op_shift', value=pp0[5], min=-0.01, max=0.01)
+        fit_params.add('Fe_op_norm', value=pp0[3], min=contilist[3]['min'], max=contilist[3]['max'], vary=bool(contilist[3]['vary']))
+        fit_params.add('Fe_op_FWHM', value=pp0[4], min=contilist[4]['min'], max=contilist[4]['max'], vary=bool(contilist[4]['vary']))
+        fit_params.add('Fe_op_shift', value=pp0[5], min=contilist[5]['min'], max=contilist[5]['max'], vary=bool(contilist[5]['vary']))
         # norm_factor for continuum f_lambda = (lambda/3000.0)^{-alpha}
-        fit_params.add('PL_norm', value=pp0[6], min=0, max=1e10)
+        fit_params.add('PL_norm', value=pp0[6], min=contilist[6]['min'], max=contilist[6]['max'], vary=bool(contilist[6]['vary']))
         # slope for the power-law continuum
-        fit_params.add('PL_slope', value=pp0[7], min=-5, max=3)
+        fit_params.add('PL_slope', value=pp0[7], min=contilist[7]['min'], max=contilist[7]['max'], vary=bool(contilist[7]['vary']))
         # norm, Te and Tau_e for the Balmer continuum at <3646 A
-        fit_params.add('Blamer_norm', value=pp0[8], min=0, max=1e10)
-        fit_params.add('Balmer_Te', value=pp0[9], min=10000, max=50000)
-        fit_params.add('Balmer_Tau', value=pp0[10], min=0.1, max=2)
-        # polynomial for the continuum
-        fit_params.add('conti_pl_0', value=pp0[11], min=None, max=None)
-        fit_params.add('conti_pl_1', value=pp0[12], min=None, max=None)
-        fit_params.add('conti_pl_2', value=pp0[13], min=None, max=None)
+        fit_params.add('Blamer_norm', value=pp0[8], min=contilist[8]['min'], max=contilist[8]['max'], vary=bool(contilist[8]['vary']))
+        fit_params.add('Balmer_Te', value=pp0[9], min=contilist[9]['min'], max=contilist[9]['max'], vary=bool(contilist[9]['vary']))
+        fit_params.add('Balmer_Tau', value=pp0[10], min=contilist[10]['min'], max=contilist[10]['max'], vary=bool(contilist[10]['vary']))
+        # polynomial for the continuum f = a_0 x^0 + a_1 x^1 + a_2 x^2 + ... 
+        # XXX Bounds have to be None so lmfit will select them automatically to avoid numerical problems
+        fit_params.add('conti_a_0', value=pp0[11], min=None, max=None, vary=bool(contilist[11]['vary']))
+        fit_params.add('conti_a_1', value=pp0[12], min=None, max=None, vary=bool(contilist[12]['vary']))
+        fit_params.add('conti_a_2', value=pp0[13], min=None, max=None, vary=bool(contilist[13]['vary']))
                 
         # Check if we will attempt to fit the UV FeII continuum region
         ind_uv = np.where((wave[tmp_all] > 1200) & (wave[tmp_all] < 3500), True, False)
@@ -890,12 +921,12 @@ class QSOFit():
             
         # Check if we will fit the polynomial component
         if self.poly == False:
-            fit_params['conti_pl_0'].value = 0
-            fit_params['conti_pl_1'].value = 0
-            fit_params['conti_pl_2'].value = 0
-            fit_params['conti_pl_0'].vary = False
-            fit_params['conti_pl_1'].vary = False
-            fit_params['conti_pl_2'].vary = False
+            fit_params['conti_a_0'].value = 0
+            fit_params['conti_a_1'].value = 0
+            fit_params['conti_a_2'].value = 0
+            fit_params['conti_a_0'].vary = False
+            fit_params['conti_a_1'].vary = False
+            fit_params['conti_a_2'].vary = False
                         
         """
         Continuum components described by 14 parameters
@@ -1035,7 +1066,7 @@ class QSOFit():
 
                     conti_fit = minimize(self._residuals, conti_fit.params,
                                      args=(wave[tmp_all][ind_noBAL],
-                                           self.Smooth(flux_resampled[tmp_all][ind_noBAL], 10),
+                                           self.Smooth(flux_resampled[tmp_all][ind_noBAL], 10), # XXX Why smooth here?
                                            err[tmp_all][ind_noBAL], _conti_model),
                                      calc_covar=False)
                     params_dict = conti_fit.params.valuesdict()
@@ -1395,7 +1426,7 @@ class QSOFit():
                         for n_iter in range(self.rej_abs_line_max_niter):
                             resid_full = np.zeros_like(self.wave)
                             resid_full[ind_n & ind_line_abs] = line_fit.residual
-                            ind_line_abs_tmp = ind_line_abs & np.where(resid_full < -3, False, True)
+                            ind_line_abs_tmp = ind_line_abs & np.where(resid_full < -3, False, True) & np.where(resid_full > 3, False, True)
 
                             # Check if number of valid pixels minus 10 is not larger than the number of fitted gaussian parameters
                             if len(self.wave[ind_n & ind_line_abs_tmp]) - 10 < len(fit_params):
@@ -1587,19 +1618,20 @@ class QSOFit():
                         print("Less than 10 pixels in line fitting!")
             
             # Flatten arrays
-            comp_result = np.concatenate(comp_result)
-            comp_result_type = np.concatenate(comp_result_type)
-            comp_result_name = np.concatenate(comp_result_name)
-            
-            gauss_result = np.concatenate(gauss_result)
-            if (self.MCMC == True or self.MC == True) and self.nsamp > 0:
-                gauss_result_all = np.concatenate(gauss_result_all, axis=1)
-            gauss_result_type = np.concatenate(gauss_result_type)
-            gauss_result_name = np.concatenate(gauss_result_name)
-
-            fur_result = np.concatenate(fur_result)
-            fur_result_type = np.concatenate(fur_result_type)
-            fur_result_name = np.concatenate(fur_result_name)
+            if len(comp_result) > 0:
+                comp_result = np.concatenate(comp_result)
+                comp_result_type = np.concatenate(comp_result_type)
+                comp_result_name = np.concatenate(comp_result_name)
+                
+                gauss_result = np.concatenate(gauss_result)
+                if (self.MCMC == True or self.MC == True) and self.nsamp > 0:
+                    gauss_result_all = np.concatenate(gauss_result_all, axis=1)
+                gauss_result_type = np.concatenate(gauss_result_type)
+                gauss_result_name = np.concatenate(gauss_result_name)
+    
+                fur_result = np.concatenate(fur_result)
+                fur_result_type = np.concatenate(fur_result_type)
+                fur_result_name = np.concatenate(fur_result_name)
 
             # Add results to line_result
             line_result = np.concatenate([comp_result, gauss_result, fur_result])
@@ -1862,9 +1894,9 @@ class QSOFit():
         
         wave_eval = np.linspace(np.min(self.wave) - 200, np.max(self.wave) + 200, 5000)
         f_conti_model_eval = self.PL(wave_eval, pp) + self.Fe_flux_mgii(wave_eval, pp[0:3]) + self.Fe_flux_balmer(wave_eval, pp[3:6]) + self.F_poly_conti(wave_eval, pp[11:]) + self.Balmer_conti(wave_eval, pp[8:11])
-                
+        
         # Plot lines
-        if self.linefit == True:
+        if (self.linefit == True) & (len(self.line_result) > 0):
             # If errors are in the results
             if (self.MCMC == True or self.MC == True) and self.nsamp > 0:
                 mc_flag = 2
@@ -2218,9 +2250,15 @@ class QSOFit():
         return result
     
     def F_poly_conti(self, xval, pp, x0=3000):
-        """Fit the continuum with a polynomial component account for the dust reddening with a*X+b*X^2+c*X^3"""
+        """Fit the continuum with a polynomial component account for the dust reddening with a*X+b*X^2+c*X^3
+        
+        TODO: See if LMFIT's built-in modeles improved performance and numerical stability
+        https://lmfit.github.io/lmfit-py/builtin_models.html
+        
+        """
         xval2 = xval - x0
-        yvals = [pp[i]*xval2**(i + 1) for i in range(len(pp))]
+        # rescale pp for numerical precision
+        yvals = [(pp[i]/1e6)*xval2**(i + 1) for i in range(len(pp))]
         return np.sum(yvals, axis=0)
     
     def flux2L(self, flux, z=None):
@@ -2242,6 +2280,9 @@ class QSOFit():
         It is slightly faster to fit the (un-normalized) amplitude directly to avoid blow-up at small sigma
         
         xval: wavelength array in AA
+
+        TODO: See if LMFIT's built-in modeles improved performance
+        https://lmfit.github.io/lmfit-py/builtin_models.html
         
         pp: Paramaters [3]
             scale: line amplitude
@@ -2379,8 +2420,8 @@ class QSOFit():
     def read_out_params(self, param_file_path='qsopar.fits'):
         # read result customized parameters
         hdul = fits.open(param_file_path)
-        data = hdul[2].data
-
+        
+        data = hdul[4].data
         self.Fe_flux_range = np.array(data['Fe_flux_range'][0])
         self.L_conti_wave = np.array(data['cont_loc'][0])
 
@@ -2422,12 +2463,21 @@ def get_err(s, margin = 0.16, axis=0, default_value = -1.):
     else:
         raise IndexError('The input data only adopts 1-D or 2-D array.')
 
+
+def read_conti_params(param_file_path='qsopar.fits'):
+    # read line parameter
+    hdul = fits.open(param_file_path)
+    
+    conti_windows = np.vstack([np.array(t) for t in hdul[2].data])
+    data = hdul[3].data
+    
+    return data, conti_windows
     
 def read_line_params(param_file_path='qsopar.fits'):
-        # read line parameter
-        hdul = fits.open(param_file_path)
-        data = hdul[1].data
+    # read line parameter
+    hdul = fits.open(param_file_path)
+    data = hdul[1].data
         
-        #print('Reading parameter file:', param_file_path)
+    #print('Reading parameter file:', param_file_path)
         
-        return data
+    return data
