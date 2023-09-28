@@ -117,7 +117,7 @@ warnings.filterwarnings("ignore")
 class QSOFit():
     
     def __init__(self, lam, flux, err, z, ra=-999, dec=-999, plateid=None, mjd=None, fiberid=None, path=None,
-                 and_mask_in=None, or_mask_in=None):
+                 and_mask_in=None, or_mask_in=None, wdisp=None):
         """
         Get the input data prepared for the QSO spectral fitting
         
@@ -147,6 +147,12 @@ class QSOFit():
         and_mask, or_mask: 1-D array with Npix, optional
             the bad pixels defined from SDSS data, which can be got from SDSS datacube.
 
+        wdisp: float or 1-D array with Npix, optional
+            The instrumental dispersion of the spectra in unit of pixel. If it is a float, we will assume the
+            dispersion is uniform for full spectra; If a 1-D array is given, then we use the array to calculate the
+            dispersion for each pixel separately. If that value is not given, we will deem it as 69 km/s, the average
+            value for SDSS spectra. This value is only useful when calculating the kinematics features of the host.
+
         """
         
         self.lam_in = np.asarray(lam, dtype=np.float64)
@@ -155,6 +161,7 @@ class QSOFit():
         self.z = z
         self.and_mask_in = and_mask_in
         self.or_mask_in = or_mask_in
+        self.wdisp = wdisp
         self.ra = ra
         self.dec = dec
         self.plateid = plateid
@@ -549,9 +556,6 @@ class QSOFit():
             self.host_result_type = np.array([])
             self.host_result_name = np.array([])
 
-            if self.z > z_max_host and decompose_host == True:
-                if self.verbose:
-                    print(f'redshift larger than {z_max_host} is not allowed for host decomposion!')
             self.frac_host_4200 = -1.
             self.frac_host_5100 = -1.
         
@@ -794,7 +798,7 @@ class QSOFit():
             self.qso = datacube[4, :]
             self.host_data = datacube[1, :] - self.qso
 
-            sigma, sigma_err, v_off, rchi2_ppxf = ppxf_kinematics(self.wave, self.host_data, self.err, path)
+            sigma, sigma_err, v_off, v_off_err, rchi2_ppxf = ppxf_kinematics(self.wave, self.host_data, self.err, path)
 
             # TODO: A very messy way to get the SN ratio, will integrated to the _Calculate_SN function in the future.
             input_data = np.array(self.host_data)

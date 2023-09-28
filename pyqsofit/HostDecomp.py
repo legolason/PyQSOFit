@@ -521,7 +521,7 @@ class Prior_decomp():
         return (np.sum(w_qso ** 2) + np.sum(w_gal ** 2)) / (self.n_qso + self.n_gal - 2)
 
 
-def ppxf_kinematics(wave, flux, err, path, fit_range=(3900, 5350)):
+def ppxf_kinematics(wave, flux, err, path, fit_range=(3500, 8300), MC_iter=0):
     ppxf_dir = os.path.dirname(os.path.realpath(util.__file__))
 
     redshift = 0
@@ -553,7 +553,7 @@ def ppxf_kinematics(wave, flux, err, path, fit_range=(3900, 5350)):
     h2 = hdu[0].header
 
     lam_temp = h2['CRVAL1'] + h2['CDELT1'] * np.arange(h2['NAXIS1'])
-    good_lam = (lam_temp > 3800.) & (lam_temp < 5500.)
+    good_lam = (lam_temp > 3500.) & (lam_temp < 8300.)
     lam_temp = lam_temp[good_lam]
     lamRange_temp = [np.min(lam_temp), np.max(lam_temp)]
 
@@ -580,8 +580,22 @@ def ppxf_kinematics(wave, flux, err, path, fit_range=(3900, 5350)):
     vel = c * np.log(1 + redshift)  # eq.(8) of Cappellari (2017)
     start = [vel, 200.]  # (km/s), starting guess for [V, sigma]
 
-    pp = ppxf(templates, galaxy, noise, velscale, start,
-              goodpixels=goodpixels, plot=False, moments=2, trig=1,
-              degree=20, lam=lam_gal, lam_temp=np.exp(ln_lam_temp), quiet=True)
+    if MC_iter<2:
+        pp = ppxf(templates, galaxy, noise, velscale, start,
+                  goodpixels=goodpixels, plot=False, moments=2, trig=1,
+                  degree=20, lam=lam_gal, lam_temp=np.exp(ln_lam_temp), quiet=True)
 
-    return np.array([pp.sol[1], pp.error[1] * np.sqrt(pp.chi2), pp.sol[0], pp.chi2])
+        return np.array([pp.sol[1], pp.error[1] * np.sqrt(pp.chi2), pp.sol[0], pp.error[0] * np.sqrt(pp.chi2), pp.chi2])
+    else:
+        pp_orig = ppxf(templates, galaxy, noise, velscale, start,
+                  goodpixels=goodpixels, plot=False, moments=2, trig=1,
+                  degree=20, lam=lam_gal, lam_temp=np.exp(ln_lam_temp), quiet=True)
+
+        pp_list = np.zeros((MC_iter, 2))
+        for n_iter in range(MC_iter):
+            pp_mc = ppxf(templates, galaxy + np.random.normal(0, noise), noise, velscale, start,
+                  goodpixels=goodpixels, plot=False, moments=2, trig=1,
+                  degree=20, lam=lam_gal, lam_temp=np.exp(ln_lam_temp), quiet=True)
+            pp_list[n_iter] = pp_mc.sol[:1]
+
+        return np.array([pp_orig.sol[1], np.std(pp_list[:, 1]), pp_orig.sol[0], np.std(pp_list[:, 0]), pp_orig.chi2])
