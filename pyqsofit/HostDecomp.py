@@ -36,11 +36,10 @@ class QSO_PCA():
             template_name = 'global'
         qso_fits = fits.open(os.path.join(template_path, f'qso_eigenspec_Yip2004_{template_name}.fits'))
         qso = qso_fits[1].data
-        wave_qso = qso['wave'].flatten()
-        flux_qso = (qso['pca'][0].T / np.abs(np.mean(qso['pca'][0], axis=1))).T
-        flux_qso = flux_qso.astype('float64')
+        wave_qso = qso['wave'].flatten().astype('float64')
+        flux_qso = qso['pca'][0].astype('float64')
         self.n_template = n_template
-        self.wave_qso = wave_qso.astype('float64')
+        self.wave_qso = wave_qso
         flux_qso = flux_qso[0:n_template, :]
         # self.norm_factor = 1 / np.median(np.abs(flux_qso))
         self.flux_qso = flux_qso * self.norm_factor
@@ -103,10 +102,9 @@ class host_template():
     def _read_PCA(self, template_path):
         galaxy = fits.open(os.path.join(template_path, 'gal_eigenspec_Yip2004.fits'))
         gal = galaxy[1].data
-        wave_gal = gal['wave'].flatten()
-        flux_gal = (gal['pca'][0].T / np.abs(np.mean(gal['pca'][0], axis=1))).T
-        flux_gal = flux_gal.astype('float64')
-        self.wave_gal = wave_gal.astype('float64')
+        wave_gal = gal['wave'].flatten().astype('float64')
+        flux_gal = gal['pca'][0].astype('float64')
+        self.wave_gal = wave_gal
         if self.n_template < len(flux_gal):
             flux_gal = flux_gal[0:self.n_template, :]
         else:
@@ -348,7 +346,7 @@ class Linear_decomp():
 
         data_cube = np.vstack((self.wave, self.flux, self.err, gal_flux, qso_flux))
 
-        return data_cube, frac_host_4200, frac_host_5100
+        return data_cube, frac_host_4200, frac_host_5100, qso_par, gal_par
 
     def qso_model(self, param: list = None, wave=None):
         if param is None:
@@ -411,6 +409,7 @@ class Prior_decomp():
     def auto_decomp(self, reg_factor=0.2):
         rchi2_list = []
         result_list = []
+        best_fit = np.zeros(self.n_qso + self.n_gal)
         for fh_ini in self.fh_ini_list:
             init_params = self.initial_params(fh_ini)
             fit_result, rchi2 = self.decompose(reg_factor, init_params)
@@ -418,6 +417,10 @@ class Prior_decomp():
             result_list.append(fit_result)
 
         best_fit = result_list[np.argmin(rchi2_list)]
+        # for best_idx in np.argsort(rchi2_list):
+        #     if result_list[best_idx][0]>=0 and result_list[best_idx][self.n_qso]>=0:
+        #         best_fit = result_list[best_idx]
+        #         break
         qso_par = best_fit[:self.n_qso]
         gal_par = best_fit[self.n_qso:]
 
@@ -438,7 +441,7 @@ class Prior_decomp():
 
         data_cube = np.vstack((self.wave, self.flux, self.err, gal_flux, qso_flux))
 
-        return data_cube, frac_host_4200, frac_host_5100
+        return data_cube, frac_host_4200, frac_host_5100, qso_par, gal_par
 
     def initial_params(self, fh_ini=None):
         if fh_ini is None: fh_ini = self.fh_ini_list[0]
@@ -477,7 +480,7 @@ class Prior_decomp():
 
     def _residuals(self, param: Parameters, yval, err, reg_factor):
         chi_array = self._get_diff(param, yval, err)
-        penalty = reg_factor * np.sqrt(self._get_prior_diff(param)) * np.sum(chi_array ** 2) / len(yval)
+        penalty = reg_factor * np.sqrt(self._get_prior_diff(param) * np.sum(chi_array ** 2) / len(yval))
         # print(np.mean(chi_array + penalty))
         return chi_array + penalty
 
@@ -521,7 +524,7 @@ class Prior_decomp():
         return (np.sum(w_qso ** 2) + np.sum(w_gal ** 2)) / (self.n_qso + self.n_gal - 2)
 
 
-def ppxf_kinematics(wave, flux, err, path, fit_range=(3500, 8300), MC_iter=0):
+def ppxf_kinematics(wave, flux, err, path, fit_range=(3700, 8300), MC_iter=0):
     ppxf_dir = os.path.dirname(os.path.realpath(util.__file__))
 
     redshift = 0
@@ -532,13 +535,15 @@ def ppxf_kinematics(wave, flux, err, path, fit_range=(3500, 8300), MC_iter=0):
 
     galaxy = flux[fit_cut]
     norm_factor = np.median(galaxy)
+    if norm_factor<=0:
+        raise ValueError('The flux of the galaxy is not correct.')
     galaxy = galaxy / norm_factor
     ln_lam_gal = np.log(lam_gal)
     d_ln_lam_gal = np.diff(ln_lam_gal[[0, -1]]) / (ln_lam_gal.size - 1)
     c = 299792.458
     velscale = c * d_ln_lam_gal
     velscale = velscale.item()
-    noise = err[fit_cut] / np.median(galaxy)
+    noise = err[fit_cut] / norm_factor
     noise[noise == 0] = np.median(noise)
 
     dlam_gal = np.diff(lam_gal)
@@ -553,7 +558,7 @@ def ppxf_kinematics(wave, flux, err, path, fit_range=(3500, 8300), MC_iter=0):
     h2 = hdu[0].header
 
     lam_temp = h2['CRVAL1'] + h2['CDELT1'] * np.arange(h2['NAXIS1'])
-    good_lam = (lam_temp > 3500.) & (lam_temp < 8300.)
+    good_lam = (lam_temp > 3480.) & (lam_temp < 9450.)
     lam_temp = lam_temp[good_lam]
     lamRange_temp = [np.min(lam_temp), np.max(lam_temp)]
 
@@ -572,7 +577,7 @@ def ppxf_kinematics(wave, flux, err, path, fit_range=(3500, 8300), MC_iter=0):
 
     goodpixels = util.determine_goodpixels(np.log(lam_gal), lamRange_temp, redshift)
     line_mask = np.argwhere(
-        ((lam_gal > 4760) & (lam_gal < 5020))).flatten()
+        ((lam_gal > 4760) & (lam_gal < 5035))| ((lam_gal > 6400) & (lam_gal < 6765))).flatten()
     # | ((lam_gal > 3955) & (lam_gal < 3985))
     goodpixels = goodpixels[~np.isin(goodpixels, line_mask)]
 
@@ -580,22 +585,36 @@ def ppxf_kinematics(wave, flux, err, path, fit_range=(3500, 8300), MC_iter=0):
     vel = c * np.log(1 + redshift)  # eq.(8) of Cappellari (2017)
     start = [vel, 200.]  # (km/s), starting guess for [V, sigma]
 
-    if MC_iter<2:
-        pp = ppxf(templates, galaxy, noise, velscale, start,
-                  goodpixels=goodpixels, plot=False, moments=2, trig=1,
-                  degree=20, lam=lam_gal, lam_temp=np.exp(ln_lam_temp), quiet=True)
+    ppxf_mask = np.ones_like(wave, dtype='bool')
+    ppxf_model = np.zeros_like(wave, dtype='float')
+    window_mask = np.ones_like(fit_cut, dtype='bool')
+    window_mask = window_mask[fit_cut]
+    window_mask[goodpixels] = False
 
-        return np.array([pp.sol[1], pp.error[1] * np.sqrt(pp.chi2), pp.sol[0], pp.error[0] * np.sqrt(pp.chi2), pp.chi2])
+    if MC_iter < 2:
+        pp_orig = ppxf(templates, galaxy, noise, velscale, start,
+                       goodpixels=goodpixels, plot=False, moments=2, trig=1,
+                       degree=20, lam=lam_gal, lam_temp=np.exp(ln_lam_temp), quiet=True)
+
+        ppxf_mask[fit_cut] = window_mask
+        ppxf_model[fit_cut] = pp_orig.bestfit * norm_factor
+
+        return np.array([pp_orig.sol[1], pp_orig.error[1] * np.sqrt(pp_orig.chi2), pp_orig.sol[0],
+                         pp_orig.error[0] * np.sqrt(pp_orig.chi2), pp_orig.chi2]), ppxf_mask, ppxf_model
     else:
         pp_orig = ppxf(templates, galaxy, noise, velscale, start,
-                  goodpixels=goodpixels, plot=False, moments=2, trig=1,
-                  degree=20, lam=lam_gal, lam_temp=np.exp(ln_lam_temp), quiet=True)
+                       goodpixels=goodpixels, plot=False, moments=2, trig=1,
+                       degree=20, lam=lam_gal, lam_temp=np.exp(ln_lam_temp), quiet=True)
+
+        ppxf_mask[fit_cut] = window_mask
+        ppxf_model[fit_cut] = pp_orig.bestfit * norm_factor
 
         pp_list = np.zeros((MC_iter, 2))
         for n_iter in range(MC_iter):
             pp_mc = ppxf(templates, galaxy + np.random.normal(0, noise), noise, velscale, start,
-                  goodpixels=goodpixels, plot=False, moments=2, trig=1,
-                  degree=20, lam=lam_gal, lam_temp=np.exp(ln_lam_temp), quiet=True)
+                         goodpixels=goodpixels, plot=False, moments=2, trig=1,
+                         degree=20, lam=lam_gal, lam_temp=np.exp(ln_lam_temp), quiet=True)
             pp_list[n_iter] = pp_mc.sol[:1]
 
-        return np.array([pp_orig.sol[1], np.std(pp_list[:, 1]), pp_orig.sol[0], np.std(pp_list[:, 0]), pp_orig.chi2])
+        return np.array([pp_orig.sol[1], np.std(pp_list[:, 1]), pp_orig.sol[0], np.std(pp_list[:, 0]),
+                         pp_orig.chi2]), ppxf_mask, ppxf_model
