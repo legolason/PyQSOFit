@@ -174,7 +174,7 @@ class QSOFit():
     def Fit(self, name=None, nsmooth=1, and_mask=False, or_mask=False, reject_badpix=True, deredden=True,
             wave_range=None,
             wave_mask=None, decompose_host=True, host_prior=False, host_prior_scale=0.2, host_line_mask=True,
-            host_decomp_line=False,
+            decomp_na_mask=False,
             qso_type='global', npca_qso=10, host_type='PCA', npca_gal=5, Fe_uv_op=True,
             poly=False, BC=False, rej_abs_conti=False, rej_abs_line=False, initial_guess=None,
             n_pix_min_conti=100, param_file_name='qsopar.fits', MC=False, MCMC=False, save_fits_name=None,
@@ -474,7 +474,7 @@ class QSOFit():
         # Initial parameters for prior decomposition
         self.host_prior = host_prior
         self.host_prior_scale = host_prior_scale
-        self.host_decomp_line = host_decomp_line
+        self.decomp_na_mask = decomp_na_mask
 
         self.read_out_params(os.path.join(self.path, self.param_file_name))
 
@@ -756,12 +756,12 @@ class QSOFit():
         if self.host_prior is True:
             prior_fitter = Prior_decomp(self.wave, self.flux, self.err, self.npca_gal, self.npca_qso,
                                         path, host_type=self.host_type, qso_type=self.qso_type,
-                                        na_mask=self.host_decomp_line)
+                                        na_mask=self.decomp_na_mask)
             datacube, frac_host_4200, frac_host_5100, qso_par, gal_par = prior_fitter.auto_decomp(self.host_prior_scale)
         else:
             linear_fitter = Linear_decomp(self.wave, self.flux, self.err, self.npca_gal, self.npca_qso, path,
                                           host_type=self.host_type, qso_type=self.qso_type,
-                                          na_mask=self.host_decomp_line)
+                                          na_mask=self.decomp_na_mask)
             datacube, frac_host_4200, frac_host_5100, qso_par, gal_par = linear_fitter.auto_decomp()
 
         # for some negative host template, we do not do the decomposition # not apply anymore
@@ -1126,8 +1126,8 @@ class QSOFit():
                                                err[tmp_all][ind_noBAL], _conti_model),
                                          calc_covar=False)
                     params_dict = conti_fit.params.valuesdict()
-                    params = list(params_dict.values())
-                    samples[k] = params
+                    params_mc = list(params_dict.values())
+                    samples[k] = params_mc
 
             else:
                 RuntimeError('MCMC and MC modes are both True')
@@ -1371,7 +1371,6 @@ class QSOFit():
 
                             # Number of Gaussians loop
                             for nn in range(ngauss_fit[n]):
-                                # XXX a temporary way to shuffle the initial for a same line
                                 fit_params.add(f'{line_name}_{nn + 1}_scale', value=scale_0, min=scale_low,
                                                max=scale_up, vary=vary)
                                 fit_params.add(f'{line_name}_{nn + 1}_dwave', value=dwave_0, min=-voff, max=voff,
@@ -1572,7 +1571,7 @@ class QSOFit():
                             samples = np.zeros((self.nsamp, len(params)))
 
                             for k in range(self.nsamp):
-                                np.random.seed(k)
+                                # np.random.seed(k)
 
                                 line_flux_resampled = line_flux + np.random.randn(len(line_flux)) * self.err
 
@@ -1584,8 +1583,8 @@ class QSOFit():
                                 line_samples = minimize(self._residual_line, fit_params, args=args, calc_covar=False,
                                                         xtol=self.xtol_line, ftol=self.ftol_line)
                                 params_dict = line_samples.params.valuesdict()
-                                params = list(params_dict.values())
-                                samples[k] = params
+                                params_mc = list(params_dict.values())
+                                samples[k] = params_mc
 
                         if (self.MCMC == True) and (self.MC == True):
                             RuntimeError('MCMC and MC modes cannot both be True')
@@ -1617,7 +1616,7 @@ class QSOFit():
                     br_name = uniq_linecomp_sort[ii]
 
                     # XXX temporary solution for complex line measurement
-                    br_line_name = linelist['linename'][ind_line][0]
+                    # br_line_name = linelist['linename'][ind_line][0]
 
                     # Gauss result
                     if (self.MCMC == True or self.MC == True) and self.nsamp > 0:
@@ -1797,21 +1796,21 @@ class QSOFit():
         """
         pp = np.array(pp).astype(float)
 
-        # XXX Very temporary change to measure only the component I need!!! Would be completely wrong in other projects!
-        if len(pp) > 9:
-            pp = pp[:9]
-        ind_br = np.ones_like(pp, dtype='bool')
+        # # XXX Very temporary change to measure only the component I need!!! Would be completely wrong in other projects!
+        # if len(pp) > 9:
+        #     pp = pp[:9]
+        # ind_br = np.ones_like(pp, dtype='bool')
 
-        # if linetype.lower() == 'broad':
-        #     mask_br = (pp[2::3] > ln_sigma_br) & (pp[2::3] > 0)
-        #     ind_br = np.repeat(np.where(mask_br, True, False), 3)
-        #
-        # elif linetype.lower() == 'narrow':
-        #     mask_br = (pp[2::3] <= ln_sigma_br) & (pp[2::3] > 0)
-        #     ind_br = np.repeat(np.where(mask_br, True, False), 3)
-        #
-        # else:
-        #     raise RuntimeError("line type should be 'broad' or 'narrow'!")
+        if linetype.lower() == 'broad':
+            mask_br = (pp[2::3] > ln_sigma_br) & (pp[2::3] > 0)
+            ind_br = np.repeat(np.where(mask_br, True, False), 3)
+
+        elif linetype.lower() == 'narrow':
+            mask_br = (pp[2::3] <= ln_sigma_br) & (pp[2::3] > 0)
+            ind_br = np.repeat(np.where(mask_br, True, False), 3)
+
+        else:
+            raise RuntimeError("line type should be 'broad' or 'narrow'!")
 
         # TODO: Exclude broad lines that are not used for BH masses, etc.
 
