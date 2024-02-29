@@ -1955,7 +1955,7 @@ class QSOFit():
                 format_name = plain_name[:insert_idx] + '\,' + plain_name[insert_idx:]
             else:
                 format_name = plain_name
-            return rf'$\mathrm{{{format_name}}}$'
+            return plain_name #rf'$\mathrm{{{format_name}}}$'
 
         pp = list(self.conti_fit.params.valuesdict().values())
 
@@ -1977,12 +1977,13 @@ class QSOFit():
             # Number of line complexes actually fitted
             ncomp_fit = len(self.fur_result) // (
                         mc_flag * 6)  # TODO: Not 5 here. But better not use absolute value to fully fix this bug
-
+            
             # Prepare for the emission line subplots in the second row
             fig, axn = plt.subplots(nrows=2, ncols=np.max([ncomp_fit, 1]), figsize=(15, 8), squeeze=False)
-            for ax in axn[0]: # turn off the preset axis to leave space to the new subplot
-                ax.axis('off')
-            ax = plt.subplot(2, 1, 1)  # plot the first subplot occupying the whole first row
+            gs = axn[0, 0].get_gridspec()
+            for axi in axn[0, :]:
+                axi.remove()
+            ax = fig.add_subplot(gs[0, :])
                 
             self.f_line_narrow_model = np.zeros_like(self.wave)
             self.f_line_br_model = np.zeros_like(self.wave)
