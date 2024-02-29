@@ -1977,11 +1977,14 @@ class QSOFit():
             # Number of line complexes actually fitted
             ncomp_fit = len(self.fur_result) // (
                         mc_flag * 6)  # TODO: Not 5 here. But better not use absolute value to fully fix this bug
-
+            
             # Prepare for the emission line subplots in the second row
             fig, axn = plt.subplots(nrows=2, ncols=np.max([ncomp_fit, 1]), figsize=(15, 8), squeeze=False)
-            ax = plt.subplot(2, 1, 1)  # plot the first subplot occupying the whole first row
-
+            gs = axn[0, 0].get_gridspec()
+            for axi in axn[0, :]:
+                axi.remove()
+            ax = fig.add_subplot(gs[0, :])
+                
             self.f_line_narrow_model = np.zeros_like(self.wave)
             self.f_line_br_model = np.zeros_like(self.wave)
             lines_total = np.zeros_like(wave_eval)
@@ -2252,7 +2255,9 @@ class QSOFit():
             if self.verbose:
                 print('Saving figure as', os.path.join(save_fig_path, self.sdss_name + '.pdf'))
             fig.savefig(os.path.join(save_fig_path, self.sdss_name + '.pdf'))
-            plt.close(fig)  # Close figure to save memory
+        
+        plt.show()
+        plt.close(fig)  # Close figure to save memory
 
         self.fig = fig
         return
