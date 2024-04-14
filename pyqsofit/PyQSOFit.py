@@ -840,7 +840,10 @@ class QSOFit():
             lower_idx = np.where((self.wave > 3850) & (self.wave < 3950), True, False)
             upper_idx = np.where((self.wave > 4000) & (self.wave < 4100), True, False)
             if np.sum(lower_idx) > 10 and np.sum(upper_idx) > 10:
-                Dn4000 = np.mean(self.host[upper_idx]) / np.mean(self.host[lower_idx])
+                # Convert the flux in unit of f_lambda into f_nu
+                flux_lower = np.mean(self.host[lower_idx] * self.wave[lower_idx] ** 2) # * 3.34e-19
+                flux_upper = np.mean(self.host[upper_idx] * self.wave[upper_idx] ** 2) # * 3.34e-19
+                Dn4000 = flux_upper / flux_lower
             else:
                 Dn4000 = -1.
 

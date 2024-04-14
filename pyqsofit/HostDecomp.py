@@ -213,7 +213,7 @@ class host_template():
 
             spec_R = c0 * (10 ** delta_ll - 1)
             if spec_R < sigma:
-                xx_lim = np.abs(shift) + sigma * 3
+                xx_lim = np.log10((np.abs(shift) + sigma * 3)/c0+1)
                 loglam_shift = np.log10(shift / c0 + 1)
                 loglam_sigma = np.log10(sigma / c0 + 1)
                 conv_xx = np.arange(-xx_lim, xx_lim, delta_ll)
@@ -223,7 +223,10 @@ class host_template():
 
                 flux_interp = interp1d(wave_in, flux_in, bounds_error=False, fill_value=0)(
                     10 ** loglam)
-                flux_broaden = np.convolve(flux_interp, conv_core, mode='same')
+                if np.ndim(flux_in) == 1:
+                    flux_broaden = np.convolve(flux_interp, conv_core, mode='same')
+                else:
+                    flux_broaden = np.array([np.convolve(flux_i, conv_core, mode='same') for flux_i in flux_interp])
                 wave_in = 10 ** loglam
                 flux_in = flux_broaden
             else:
