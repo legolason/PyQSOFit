@@ -481,11 +481,21 @@ class Prior_decomp():
 
         return par_list, rchi2
 
+    # def _residuals(self, param: Parameters, yval, err, reg_factor):
+    #     chi_array = self._get_diff(param, yval, err)
+    #     penalty = reg_factor * np.sqrt(self._get_prior_diff(param) * np.sum(chi_array ** 2) / len(yval))
+    #     # print(np.mean(chi_array + penalty))
+    #     return chi_array + penalty
+
     def _residuals(self, param: Parameters, yval, err, reg_factor):
-        chi_array = self._get_diff(param, yval, err)
-        penalty = reg_factor * np.sqrt(self._get_prior_diff(param) * np.sum(chi_array ** 2) / len(yval))
-        # print(np.mean(chi_array + penalty))
-        return chi_array + penalty
+        r0 = self._get_diff(param, yval, err)
+        lam2 = reg_factor**2
+        nn = len(r0)
+        D2 = self._get_prior_diff(param)
+        sum_r0 = np.sum(r0)
+        sum_r0_2 = np.sum(r0 ** 2)
+        sig = np.sqrt(sum_r0**2 + nn*sum_r0_2*D2*lam2)-sum_r0
+        return r0 + sig/nn
 
     def _read_prior(self, path2prior, n_pp):
         prior = np.array(pd.read_csv(path2prior))
@@ -617,7 +627,8 @@ def ppxf_kinematics(wave, flux, err, path, fit_range=(3700, 8300), MC_iter=0):
             pp_mc = ppxf(templates, galaxy + np.random.normal(0, noise), noise, velscale, start,
                          goodpixels=goodpixels, plot=False, moments=2, trig=1,
                          degree=20, lam=lam_gal, lam_temp=np.exp(ln_lam_temp), quiet=True)
-            pp_list[n_iter] = pp_mc.sol[:1]
+            # pp_list[n_iter] = pp_mc.sol[:1]
+            pp_list[n_iter] = np.array([pp_mc.sol[0], pp_mc.sol[1]])
 
         return np.array([pp_orig.sol[1], np.std(pp_list[:, 1]), pp_orig.sol[0], np.std(pp_list[:, 0]),
                          pp_orig.chi2]), ppxf_mask, ppxf_model

@@ -744,6 +744,7 @@ class QSOFit():
         else:
             tmp_SN = np.array([flux[ind5100].mean() / flux[ind5100].std(), flux[ind3000].mean() / flux[ind3000].std(),
                                flux[ind1350].mean() / flux[ind1350].std()])
+            tmp_SN = tmp_SN[np.array([np.sum(ind5100), np.sum(ind3000), np.sum(ind1350)]) > 10]
             if not np.all(np.isnan(tmp_SN)):
                 self.SN_ratio_conti = np.nanmean(tmp_SN)
             else:
@@ -1983,7 +1984,11 @@ class QSOFit():
 
             # Prepare for the emission line subplots in the second row
             fig, axn = plt.subplots(nrows=2, ncols=np.max([ncomp_fit, 1]), figsize=(15, 8), squeeze=False)
-            ax = plt.subplot(2, 1, 1)  # plot the first subplot occupying the whole first row
+            # ax = plt.subplot(2, 1, 1)  # plot the first subplot occupying the whole first row
+            gs = axn[0, 0].get_gridspec()
+            for axi in axn[0, :]:
+                axi.remove()
+            ax = fig.add_subplot(gs[0, :])
 
             self.f_line_narrow_model = np.zeros_like(self.wave)
             self.f_line_br_model = np.zeros_like(self.wave)
