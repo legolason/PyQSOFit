@@ -3,12 +3,14 @@ import os
 import sys
 from setuptools import setup
 
+from version import __version__
+
 # Prepare and send a new release to PyPI
 #if "release" in sys.argv[-1]:
 #    os.system("python setup.py sdist")
 #    os.system("python setup.py bdist_wheel")
 #    os.system("twine upload dist/*")
-#    os.system("rm -rf dist/lightkurve*")
+#    os.system("rm -rf dist/pyqsofit*")
 #    sys.exit()
 
 # Load the __version__ variable without importing the package already
@@ -41,7 +43,7 @@ setup(name='PyQSOFit',
       install_requires=install_requires,
       include_package_data=True,
       classifiers=[
-          "License :: OSI Approved :: MIT License",
+          "License :: OSI Approved :: GNU License",
           "Operating System :: OS Independent",
           "Programming Language :: Python",
           "Intended Audience :: Science/Research",

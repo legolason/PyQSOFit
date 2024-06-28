@@ -175,7 +175,7 @@ class QSOFit():
             wave_range=None,
             wave_mask=None, decompose_host=True, host_prior=False, host_prior_scale=0.2, host_line_mask=True,
             decomp_na_mask=False,
-            qso_type='global', npca_qso=10, host_type='PCA', npca_gal=5, Fe_uv_op=True,
+            qso_type='global', npca_qso=10, host_type='BC03', npca_gal=5, Fe_uv_op=True,
             poly=False, BC=False, rej_abs_conti=False, rej_abs_line=False, initial_guess=None,
             n_pix_min_conti=100, param_file_name='qsopar.fits', MC=False, MCMC=False, save_fits_name=None,
             nburn=20, nsamp=200, nthin=10, epsilon_jitter=0., linefit=True, save_result=True, plot_fig=True,

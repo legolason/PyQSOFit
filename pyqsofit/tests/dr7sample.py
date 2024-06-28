@@ -10,6 +10,8 @@ import matplotlib.backends.backend_pdf as bpdf
 from astroquery.sdss import SDSS
 from astropy import coordinates as coords
 
+from astropy.table import Table
+
 warnings.filterwarnings("ignore")
 
 # Use custom matplotlib style to make Yue happy
@@ -26,32 +28,37 @@ print(pyqsofit.__version__)
 import emcee # optional, for MCMC
 print(emcee.__version__)
 
-path_ex = os.path.abspath('pyqsofit/tests') # The absolute path to the example directory 
+path_ex = os.path.abspath('.') # The absolute path to the example directory 
 
 print(path_ex)
 # Setup the parameter file
+
+# create a header
+hdr0 = fits.Header()
+hdr0['Author'] = 'Hengxiao Guo'
+primary_hdu = fits.PrimaryHDU(header=hdr0)
 
 """
 Create parameter file
 lambda    complexname  minwav maxwav linename ngauss inisca minsca maxsca inisig minsig maxsig voff vindex windex findex fvalue vary
 """
 
-newdata = np.rec.array([
-(6564.61, r'H$\alpha$', 6400, 6800, 'Ha_br',   2, 0.1, 0.0, 1e10, 5e-3, 0.004,  0.05,   0.015, 0, 0, 0, 0.05 , 1),
-(6564.61, r'H$\alpha$', 6400, 6800, 'Ha_na',   1, 0.1, 0.0, 1e10, 1e-3, 5e-4,   0.0017, 0.01,  1, 1, 0, 0.002, 1),
-(6549.85, r'H$\alpha$', 6400, 6800, 'NII6549', 1, 0.1, 0.0, 1e10, 1e-3, 2.3e-4, 0.0017, 5e-3,  1, 1, 1, 0.001, 1),
-(6585.28, r'H$\alpha$', 6400, 6800, 'NII6585', 1, 0.1, 0.0, 1e10, 1e-3, 2.3e-4, 0.0017, 5e-3,  1, 1, 1, 0.003, 1),
-(6718.29, r'H$\alpha$', 6400, 6800, 'SII6718', 1, 0.1, 0.0, 1e10, 1e-3, 2.3e-4, 0.0017, 5e-3,  1, 1, 2, 0.001, 1),
-(6732.67, r'H$\alpha$', 6400, 6800, 'SII6732', 1, 0.1, 0.0, 1e10, 1e-3, 2.3e-4, 0.0017, 5e-3,  1, 1, 2, 0.001, 1),
+line_priors = np.rec.array([
+(6564.61, r'Ha', 6400, 6800, 'Ha_br',   2, 0.1, 0.0, 1e10, 5e-3, 0.004,  0.05,   0.015, 0, 0, 0, 0.05 , 1),
+(6564.61, r'Ha', 6400, 6800, 'Ha_na',   1, 0.1, 0.0, 1e10, 1e-3, 5e-4,   0.0017, 0.01,  1, 1, 0, 0.002, 1),
+(6549.85, r'Ha', 6400, 6800, 'NII6549', 1, 0.1, 0.0, 1e10, 1e-3, 2.3e-4, 0.0017, 5e-3,  1, 1, 1, 0.001, 1),
+(6585.28, r'Ha', 6400, 6800, 'NII6585', 1, 0.1, 0.0, 1e10, 1e-3, 2.3e-4, 0.0017, 5e-3,  1, 1, 1, 0.003, 1),
+(6718.29, r'Ha', 6400, 6800, 'SII6718', 1, 0.1, 0.0, 1e10, 1e-3, 2.3e-4, 0.0017, 5e-3,  1, 1, 2, 0.001, 1),
+(6732.67, r'Ha', 6400, 6800, 'SII6732', 1, 0.1, 0.0, 1e10, 1e-3, 2.3e-4, 0.0017, 5e-3,  1, 1, 2, 0.001, 1),
 
-(4862.68, r'H$\beta$', 4640, 5100, 'Hb_br',     2, 0.1, 0.0, 1e10, 5e-3, 0.004,  0.05,   0.01, 0, 0, 0, 0.01 , 1),
-(4862.68, r'H$\beta$', 4640, 5100, 'Hb_na',     1, 0.1, 0.0, 1e10, 1e-3, 2.3e-4, 0.0017, 0.01, 1, 1, 0, 0.002, 1),
-(4960.30, r'H$\beta$', 4640, 5100, 'OIII4959c', 1, 0.1, 0.0, 1e10, 1e-3, 2.3e-4, 0.0017, 0.01, 1, 1, 0, 0.002, 1),
-(5008.24, r'H$\beta$', 4640, 5100, 'OIII5007c', 1, 0.1, 0.0, 1e10, 1e-3, 2.3e-4, 0.0017, 0.01, 1, 1, 0, 0.004, 1),
-#(4960.30, r'H$\beta$', 4640, 5100, 'OIII4959w',   1, 0.1, 0.0, 1e10, 3e-3, 2.3e-4, 0.004,  0.01,  2, 2, 0, 0.001, 1),
-#(5008.24, r'H$\beta$', 4640, 5100, 'OIII5007w',   1, 0.1, 0.0, 1e10, 3e-3, 2.3e-4, 0.004,  0.01,  2, 2, 0, 0.002, 1),
-#(4687.02, r'H$\beta$', 4640, 5100, 'HeII4687_br', 1, 0.1, 0.0, 1e10, 5e-3, 0.004,  0.05,   0.005, 0, 0, 0, 0.001, 1),
-#(4687.02, r'H$\beta$', 4640, 5100, 'HeII4687_na', 1, 0.1, 0.0, 1e10, 1e-3, 2.3e-4, 0.0017, 0.005, 1, 1, 0, 0.001, 1),
+(4862.68, r'Hb', 4640, 5100, 'Hb_br',     2, 0.1, 0.0, 1e10, 5e-3, 0.004,  0.05,   0.01, 0, 0, 0, 0.01 , 1),
+(4862.68, r'Hb', 4640, 5100, 'Hb_na',     1, 0.1, 0.0, 1e10, 1e-3, 2.3e-4, 0.0017, 0.01, 1, 1, 0, 0.002, 1),
+(4960.30, r'Hb', 4640, 5100, 'OIII4959c', 1, 0.1, 0.0, 1e10, 1e-3, 2.3e-4, 0.0017, 0.01, 1, 1, 0, 0.002, 1),
+(5008.24, r'Hb', 4640, 5100, 'OIII5007c', 1, 0.1, 0.0, 1e10, 1e-3, 2.3e-4, 0.0017, 0.01, 1, 1, 0, 0.004, 1),
+#(4960.30, r'Hb', 4640, 5100, 'OIII4959w',   1, 0.1, 0.0, 1e10, 3e-3, 2.3e-4, 0.004,  0.01,  2, 2, 0, 0.001, 1),
+#(5008.24, r'Hb', 4640, 5100, 'OIII5007w',   1, 0.1, 0.0, 1e10, 3e-3, 2.3e-4, 0.004,  0.01,  2, 2, 0, 0.002, 1),
+#(4687.02, r'Hb', 4640, 5100, 'HeII4687_br', 1, 0.1, 0.0, 1e10, 5e-3, 0.004,  0.05,   0.005, 0, 0, 0, 0.001, 1),
+#(4687.02, r'Hb', 4640, 5100, 'HeII4687_na', 1, 0.1, 0.0, 1e10, 1e-3, 2.3e-4, 0.0017, 0.005, 1, 1, 0, 0.001, 1),
 
 #(3934.78, 'CaII', 3900, 3960, 'CaII3934' , 2, 0.1, 0.0, 1e10, 1e-3, 3.333e-4, 0.0017, 0.01, 99, 0, 0, -0.001, 1),
 
@@ -115,15 +122,107 @@ hdr['fvalue'] = 'Relative scale factor for entries w/ same findex'
 hdr['vary'] = 'Whether or not to vary the line parameters (set to 0 to fix the line parameters to initial values)'
 
 # Save line info
-hdu = fits.BinTableHDU(data=newdata, header=hdr, name='data')
-hdu.writeto(os.path.join(path_ex, 'qsopar.fits'), overwrite=True)
+hdu1 = fits.BinTableHDU(data=line_priors, name='line_priors')
 
-from astropy.table import Table
-print(Table(newdata))
+"""
+In this table, we specify the windows and priors / initial conditions and boundaries for the continuum fitting parameters.
+"""
+conti_windows = np.rec.array([
+    (1150., 1170.), 
+    (1275., 1290.),
+    (1350., 1360.),
+    (1445., 1465.),
+    (1690., 1705.),
+    (1770., 1810.),
+    (1970., 2400.),
+    (2480., 2675.),
+    (2925., 3400.),
+    (3775., 3832.),
+    (4000., 4050.),
+    (4200., 4230.),
+    (4435., 4640.),
+    (5100., 5535.),
+    (6005., 6035.),
+    (6110., 6250.),
+    (6800., 7000.),
+    (7160., 7180.),
+    (7500., 7800.),
+    (8050., 8150.), # Continuum fitting windows (to avoid emission line, etc.)  [AA]
+    ], 
+    formats = 'float32,  float32',
+    names =    'min,     max')
+
+hdu2 = fits.BinTableHDU(data=conti_windows, name='conti_windows')
+
+conti_priors = np.rec.array([
+    ('Fe_uv_norm',  0.0,   0.0,   1e10,  1), # Normalization of the MgII Fe template [flux]
+    ('Fe_uv_FWHM',  3000,  1200,  18000, 1), # FWHM of the MgII Fe template [AA]
+    ('Fe_uv_shift', 0.0,   -0.01, 0.01,  1), # Wavelength shift of the MgII Fe template [lnlambda]
+    ('Fe_op_norm',  0.0,   0.0,   1e10,  1), # Normalization of the Hbeta/Halpha Fe template [flux]
+    ('Fe_op_FWHM',  3000,  1200,  18000, 1), # FWHM of the Hbeta/Halpha Fe template [AA]
+    ('Fe_op_shift', 0.0,   -0.01, 0.01,  1), # Wavelength shift of the Hbeta/Halpha Fe template [lnlambda]
+    ('PL_norm',     1.0,   0.0,   1e10,  1), # Normalization of the power-law (PL) continuum f_lambda = (lambda/3000)^-alpha
+    ('PL_slope',    -1.5,  -5.0,  3.0,   1), # Slope of the power-law (PL) continuum
+    ('Blamer_norm', 0.0,   0.0,   1e10,  1), # Normalization of the Balmer continuum at < 3646 AA [flux] (Dietrich et al. 2002)
+    ('Balmer_Te',   15000, 10000, 50000, 1), # Te of the Balmer continuum at < 3646 AA [K?]
+    ('Balmer_Tau',  0.5,   0.1,   2.0,   1), # Tau of the Balmer continuum at < 3646 AA
+    ('conti_a_0',   0.0,   None,  None,  1), # 1st coefficient of the polynomial continuum
+    ('conti_a_1',   0.0,   None,  None,  1), # 2nd coefficient of the polynomial continuum
+    ('conti_a_2',   0.0,   None,  None,  1), # 3rd coefficient of the polynomial continuum
+    # Note: The min/max bounds on the conti_a_0 coefficients are ignored by the code,
+    # so they can be determined automatically for numerical stability.
+    ],
+
+    formats = 'a20,  float32, float32, float32, int32',
+    names = 'parname, initial,   min,     max,     vary')
+
+hdr3 = fits.Header()
+hdr3['ini'] = 'Initial guess of line scale [flux]'
+hdr3['min'] = 'FWHM of the MgII Fe template'
+hdr3['max'] = 'Wavelength shift of the MgII Fe template'
+
+hdr3['vary'] = 'Whether or not to vary the parameter (set to 0 to fix the continuum parameter to initial values)'
+
+
+hdu3 = fits.BinTableHDU(data=conti_priors, header=hdr3, name='conti_priors')
+
+"""
+In this table, we allow user to customized some key parameters in our result measurements.
+"""
+
+measure_info = Table(
+    [
+        [[1350, 1450, 3000, 4200, 5100]],
+        [[
+            # [2240, 2650], 
+            [4435, 4685],
+        ]]
+    ],
+    names=([
+        'cont_loc',
+        'Fe_flux_range'
+    ]),
+    dtype=([
+        'float32',
+        'float32'
+    ])
+)
+hdr4 = fits.Header()
+hdr4['cont_loc'] = 'The wavelength of continuum luminosity in results'
+hdr4['Fe_flux_range'] = 'Fe emission wavelength range calculated in results'
+
+hdu4 = fits.BinTableHDU(data=measure_info, header=hdr4, name='measure_info')
+
+# Save line info
+hdu_list = fits.HDUList([primary_hdu, hdu1, hdu2, hdu3, hdu4])
+hdu_list.writeto(os.path.join(path_ex, 'qsopar.fits'), overwrite=True)
+print('Saving to ', os.path.join(path_ex, 'qsopar.fits'))
 
 # Download the SDSS DR7 sample
 import urllib.request
 import gzip
+
+print('Retrieving DR7 catalog.')
 
 cat_file_name = 'dr7_bh_Nov19_2013.fits.gz'
 
@@ -131,7 +230,7 @@ if not os.path.exists(cat_file_name):
     urllib.request.urlretrieve(f'http://quasar.astro.illinois.edu/BH_mass/data/catalogs/{cat_file_name}', cat_file_name)
 
 # Fit a sample of nqsofit spectra
-nqsofit = 200
+nqsofit = 20
 
 # Line properties
 line_calc_names = ['CIV_br', 'MgII_br', 'Hb_br']
@@ -150,8 +249,8 @@ with gzip.open(cat_file_name, 'rb') as f:
     len_specs = len(spec_all[1].data)
     range_rand = np.random.choice(range(len_specs), nqsofit, replace=False)
 
-    print(spec_all.info())
-    print(repr(spec_all[1].header))
+    #print(spec_all.info())
+    #print(repr(spec_all[1].header))
     
     # Catalog properties
     Mi_all = spec_all[1].data['MI_Z2']
@@ -200,10 +299,7 @@ with gzip.open(cat_file_name, 'rb') as f:
             q = QSOFit(lam, flux, err, z, ra=ra, dec=dec, plateid=plate, mjd=mjd, fiberid=fiber,  path=path_ex)
 
             # Do the fitting
-            q.Fit(param_file_name='qsopar.fits', name=None, nsmooth=1, and_or_mask=False, deredden=True, reject_badpix=True,
-                  wave_mask=None, decompose_host=True, use_ppxf=False, BC03=True, Mi=None, host_line_mask=True, npca_gal=10, npca_qso=5,
-                  Fe_uv_op=True, poly=True, BC=False, rej_abs=False, MC=False, nsamp=200, initial_guess=None, n_pix_min_host=np.inf,
-                  linefit=True, save_result=False, plot_fig=True, save_fig=False, plot_line_name=True, plot_legend=True)
+            q.Fit(param_file_name='qsopar.fits', name=None, qso_type='global', host_type='BC03', save_fig=False, save_result=False)
             
             # Emission line loop
             for j, line in enumerate(line_calc_names):
@@ -216,7 +312,7 @@ with gzip.open(cat_file_name, 'rb') as f:
                     line_type = 'narrow'
             
                 # Get the line properties
-                fwhm, sigma, ew, peak, area = q.line_prop_from_name(line, line_type)
+                fwhm, sigma, ew, peak, area, snr = q.line_prop_from_name(line, line_type)
 
                 print(f"Broad {line}:")
                 print("FWHM (km/s)", np.round(fwhm, 1))
@@ -233,7 +329,7 @@ with gzip.open(cat_file_name, 'rb') as f:
                 
 
             # Stack the results into 1 file
-            pdf.savefig(q.fig)
+            #pdf.savefig(q.fig) # Turn this off for github actions
             
     # End open file
             
@@ -292,6 +388,9 @@ for j, line in enumerate(line_calc_names):
     
     fig.tight_layout()
     fig.savefig(os.path.join(path_ex, f'{line}.pdf'), dpi=300)
+
+    # Test
+    #assert rmse_L < 0.2
 
 end = timeit.default_timer()
 print('finshed in '+str(round(end-start))+'s')
