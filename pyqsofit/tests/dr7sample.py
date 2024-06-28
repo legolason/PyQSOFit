@@ -1,7 +1,6 @@
 import glob, os,sys,timeit
 import matplotlib
 import numpy as np
-from pyqsofit.PyQSOFit import QSOFit
 from astropy.io import fits
 import matplotlib.pyplot as plt
 import warnings
@@ -27,6 +26,8 @@ print(pyqsofit.__version__)
 
 import emcee # optional, for MCMC
 print(emcee.__version__)
+
+from pyqsofit.PyQSOFit import QSOFit
 
 path_ex = os.path.abspath('.') # The absolute path to the example directory 
 
