@@ -3,7 +3,7 @@ import os
 import sys
 from setuptools import setup
 
-from pyqsofit.version import __version__
+from src.pyqsofit.version import __version__
 
 # Prepare and send a new release to PyPI
 #if "release" in sys.argv[-1]:
@@ -14,7 +14,7 @@ from pyqsofit.version import __version__
 #    sys.exit()
 
 # Load the __version__ variable without importing the package already
-exec(open('pyqsofit/version.py').read())
+exec(open('src/pyqsofit/version.py').read())
 
 with open("README.md", "r") as fh:
     long_description = fh.read()
@@ -30,7 +30,7 @@ setup(name='PyQSOFit',
       author_email='hengxiaoguo@gmail.com',
       url='https://github.com/legolason/PyQSOFit',
       license='GNU General Public License v3.0',
-      package_dir={'pyqsofit': 'pyqsofit'},
+      package_dir={'pyqsofit': 'src/pyqsofit'},
       package_data={'pyqsofit': ['fe_uv.txt', 'fe_optical.txt',
                                  'bc03/*.spec.gz',
                                  'pca/Yip_pca_templates/*.fits',
