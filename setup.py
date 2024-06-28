@@ -3,7 +3,7 @@ import os
 import sys
 from setuptools import setup
 
-from version import __version__
+from .pyqsofit.version import __version__
 
 # Prepare and send a new release to PyPI
 #if "release" in sys.argv[-1]:
