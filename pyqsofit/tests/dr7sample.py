@@ -280,7 +280,7 @@ with gzip.open(cat_file_name, 'rb') as f:
             
             # Query the spectrum
             pos = coords.SkyCoord(ra, dec, unit='deg')
-            xid = SDSS.query_region(pos, spectro=True)
+            xid = SDSS.query_region(pos, spectro=True, radius='5 arcsec')
             
             if xid is None:
                 continue

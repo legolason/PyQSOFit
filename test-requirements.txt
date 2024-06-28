@@ -1,13 +1,2 @@
-astropy>=5.0
 astroquery>=0.4.7
 pandas
-corner>=2.2.0
-emcee>=3.1.0
-lmfit>=1.0.3
-matplotlib>=3.4.0
-numpy>=1.21.0
-ppxf>=7.4.5
-PyAstronomy>=0.16.0
-scipy>=1.7.3
-tqdm>=4.60.0
-sfdmap2>=0.2.0
