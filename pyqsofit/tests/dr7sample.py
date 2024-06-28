@@ -13,8 +13,6 @@ from astropy.table import Table
 
 warnings.filterwarnings("ignore")
 
-# Use custom matplotlib style to make Yue happy
-QSOFit.set_mpl_style()
 
 # Show the versions so we know what works
 import astropy
@@ -24,10 +22,13 @@ print(astropy.__version__)
 print(lmfit.__version__)
 print(pyqsofit.__version__)
 
+from pyqsofit.PyQSOFit import QSOFit
+
+# Use custom matplotlib style to make Yue happy
+QSOFit.set_mpl_style()
+
 import emcee # optional, for MCMC
 print(emcee.__version__)
-
-from pyqsofit.PyQSOFit import QSOFit
 
 path_ex = os.path.abspath('.') # The absolute path to the example directory 
 
