@@ -21,16 +21,3 @@ v1.1 (stable): https://github.com/legolason/PyQSOFit/releases/tag/v1.1
 
 ## Cite this code
 
-> The preferred citation for this code is Guo, Shen & Wang (2018), ascl:1809:008\
-> @misc{2018ascl.soft09008G,\
-> author = {{Guo}, H. and {Shen}, Y. and {Wang}, S.},\
-> title = "{PyQSOFit: Python code to fit the spectrum of quasars}",\
-> keywords = {Software },\
-> howpublished = {Astrophysics Source Code Library},\
-> year = 2018,\
-> month = sep,\
-> archivePrefix = "ascl",\
-> eprint = {1809.008},\
-> adsurl = {[http://adsabs.harvard.edu/abs/2018ascl.soft09008G}](http://adsabs.harvard.edu/abs/2018ascl.soft09008G%7D),\
-> adsnote = {Provided by the SAO/NASA Astrophysics Data System}\
-> }
