@@ -10,7 +10,7 @@
 """
 import os, glob
 from astropy.io import fits
-import pandas as pd
+from numpy import genfromtxt
 import numpy as np
 from lmfit import Minimizer, Parameters
 from scipy.interpolate import interp1d
@@ -155,6 +155,7 @@ class host_template():
         return wave_gal, flux_gal
 
     def _read_M09(self, template_path):
+        import pandas as pd
         flux_temp = np.array([])
         wave_gal = np.array([])
         cc = 0
@@ -173,6 +174,7 @@ class host_template():
         return wave_gal, flux_gal
 
     def _read_MILES(self, template_path):
+        import pandas as pd
         flux_temp = np.array([])
         wave_gal = np.array([])
         cc = 0
@@ -498,7 +500,8 @@ class Prior_decomp():
         return r0 + sig/nn
 
     def _read_prior(self, path2prior, n_pp):
-        prior = np.array(pd.read_csv(path2prior))
+        # prior = np.array(pd.read_csv(path2prior))
+        prior = genfromtxt(path2prior, delimiter=',', skip_header=1)
         return prior[:n_pp]
 
     def qso_model(self, param: list = None, wave=None):
