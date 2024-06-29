@@ -3,16 +3,18 @@ import os
 import sys
 from setuptools import setup
 
+from src.pyqsofit.version import __version__
+
 # Prepare and send a new release to PyPI
 #if "release" in sys.argv[-1]:
 #    os.system("python setup.py sdist")
 #    os.system("python setup.py bdist_wheel")
 #    os.system("twine upload dist/*")
-#    os.system("rm -rf dist/lightkurve*")
+#    os.system("rm -rf dist/pyqsofit*")
 #    sys.exit()
 
 # Load the __version__ variable without importing the package already
-exec(open('pyqsofit/version.py').read())
+exec(open('src/pyqsofit/version.py').read())
 
 with open("README.md", "r") as fh:
     long_description = fh.read()
@@ -28,7 +30,7 @@ setup(name='PyQSOFit',
       author_email='hengxiaoguo@gmail.com',
       url='https://github.com/legolason/PyQSOFit',
       license='GNU General Public License v3.0',
-      package_dir={'pyqsofit': 'pyqsofit'},
+      package_dir={'pyqsofit': 'src/pyqsofit'},
       package_data={'pyqsofit': ['fe_uv.txt', 'fe_optical.txt',
                                  'bc03/*.spec.gz',
                                  'pca/Yip_pca_templates/*.fits',
@@ -41,7 +43,7 @@ setup(name='PyQSOFit',
       install_requires=install_requires,
       include_package_data=True,
       classifiers=[
-          "License :: OSI Approved :: MIT License",
+          "License :: OSI Approved :: GNU License",
           "Operating System :: OS Independent",
           "Programming Language :: Python",
           "Intended Audience :: Science/Research",

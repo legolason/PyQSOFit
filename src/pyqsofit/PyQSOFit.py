@@ -175,7 +175,7 @@ class QSOFit():
             wave_range=None,
             wave_mask=None, decompose_host=True, host_prior=False, host_prior_scale=0.2, host_line_mask=True,
             decomp_na_mask=False,
-            qso_type='global', npca_qso=10, host_type='PCA', npca_gal=5, Fe_uv_op=True,
+            qso_type='global', npca_qso=10, host_type='BC03', npca_gal=5, Fe_uv_op=True,
             poly=False, BC=False, rej_abs_conti=False, rej_abs_line=False, initial_guess=None,
             n_pix_min_conti=100, param_file_name='qsopar.fits', MC=False, MCMC=False, save_fits_name=None,
             nburn=20, nsamp=200, nthin=10, epsilon_jitter=0., linefit=True, save_result=True, plot_fig=True,
@@ -902,7 +902,11 @@ class QSOFit():
 
         if wave[tmp_all].shape[0] < 10:
             if self.verbose:
-                print('Less than 10 total pixels in the continuum fitting.')
+                print('Less than 10 total pixels in the continuum windows to be fit.')
+        if wave[tmp_all].shape[0] == 0:
+            # Critical warning that should print whether verbose=True or False
+            # Enlarge continuum windows or check source redshift
+            print('No pixels in the continuum windows to be fit.')
 
         """
         Setup parameters for fitting
@@ -1729,8 +1733,7 @@ class QSOFit():
         else:
             ncomp = 0
             uniq_linecomp_sort = np.array([])
-            if self.verbose:
-                print("No line to fit! Please set line_fit to FALSE or enlarge wave_range!")
+            print("No line to fit! Please set line_fit to FALSE or enlarge wave_range!")
 
         # Save properties
         self.comp_result = np.array(comp_result)
@@ -1754,7 +1757,7 @@ class QSOFit():
 
         return self.line_result, self.line_result_name
 
-    def line_prop_from_name(self, line_name, line_type='broad', ln_sigma_br=0.0017):
+    def line_prop_from_name(self, line_name, line_type='broad', sample_index=-1, ln_sigma_br=0.0017):
         """
         line_name: line name e.g., 'Ha_br'
         """
@@ -1778,10 +1781,27 @@ class QSOFit():
 
         # Number of Gaussian components loop
         for n in range(ngauss):
-            # Get the Gaussian properties
-            pp_shaped[n, 0] = float(self.line_result[self.line_result_name == f'{line_name}_{n + 1}_scale'][0])
-            pp_shaped[n, 1] = float(self.line_result[self.line_result_name == f'{line_name}_{n + 1}_centerwave'][0])
-            pp_shaped[n, 2] = float(self.line_result[self.line_result_name == f'{line_name}_{n + 1}_sigma'][0])
+
+            mask_scale = self.gauss_result_name == f'{line_name}_{n+1}_scale'
+            mask_center = self.gauss_result_name == f'{line_name}_{n+1}_centerwave'
+            mask_sigma = self.gauss_result_name == f'{line_name}_{n+1}_sigma'
+            
+            if sample_index == -1:
+                # Get the Gaussian properties
+                pp_shaped[n,0] = float(self.gauss_result[mask_scale][0])
+                pp_shaped[n,1] = float(self.gauss_result[mask_center][0])
+                pp_shaped[n,2] = float(self.gauss_result[mask_sigma][0])
+            else:
+                index_scale = np.nonzero(mask_scale)[0]//2
+                index_center = np.nonzero(mask_center)[0]//2
+                index_sigma = np.nonzero(mask_sigma)[0]//2
+
+                if len(self.gauss_result_all) == 0:
+                    return 0, 0, 0, 0, 0, 0
+                
+                pp_shaped[n,0] = float(self.gauss_result_all[sample_index, index_scale][0])
+                pp_shaped[n,1] = float(self.gauss_result_all[sample_index, index_center][0])
+                pp_shaped[n,2] = float(self.gauss_result_all[sample_index, index_sigma][0])
 
         # Flatten
         pp = pp_shaped.reshape(-1)
@@ -1870,10 +1890,10 @@ class QSOFit():
                 # Calculate the line sigma and EW in normal wavelength
                 line_flux = self._Manygauss(xx, pp_br_shaped)
                 line_wave = np.exp(xx)
-                lambda0 = integrate.trapz(line_flux, line_wave)  # calculate the total broad line flux
-                lambda1 = integrate.trapz(line_flux * line_wave, line_wave)
-                lambda2 = integrate.trapz(line_flux * line_wave * line_wave, line_wave)
-                ew = integrate.trapz(np.abs(line_flux / contiflux), line_wave)
+                lambda0 = integrate.trapezoid(line_flux, line_wave)  # calculate the total broad line flux
+                lambda1 = integrate.trapezoid(line_flux * line_wave, line_wave)
+                lambda2 = integrate.trapezoid(line_flux * line_wave * line_wave, line_wave)
+                ew = integrate.trapezoid(np.abs(line_flux / contiflux), line_wave)
                 area = lambda0
 
                 sigma = np.sqrt(lambda2 / lambda0 - (lambda1 / lambda0) ** 2) / compcenter * c
@@ -2514,7 +2534,7 @@ class QSOFit():
         else:
             raise IndexError('The parameter pp only adopts a list of 3 or 6.')
 
-        flux = integrate.trapz(yval[(xval >= lower) & (xval <= upper)], xval[(xval >= lower) & (xval <= upper)])
+        flux = integrate.trapezoid(yval[(xval >= lower) & (xval <= upper)], xval[(xval >= lower) & (xval <= upper)])
         return flux
 
     def read_out_params(self, param_file_path='qsopar.fits'):
