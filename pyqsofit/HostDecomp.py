@@ -88,9 +88,7 @@ class host_template():
             self._read_PCA(template_path)
         elif template_type == 'BC03':
             self._read_BC03(template_path)
-        elif template_type == 'indo19':
-            self._read_INDO(template_path)
-        elif template_type == 'indo50':
+        elif template_type == 'indo':
             self._read_INDO(template_path)
         elif template_type == 'M09_17':
             self._read_M09(template_path)

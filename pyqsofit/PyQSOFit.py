@@ -225,7 +225,8 @@ class QSOFit():
 
         host_prior: bool, optional
             This parameter is only useful when the decompose_host is True and BC03 is False. If True, the code will
-            adopt the prior parameters given in the pca file to perform host decomposition.
+            adopt the prior parameters given in the pca file to perform host decomposition. See arXiv:2406.17598 for
+            more description about the functionality of this prior.
 
         host_prior_scale: float, optional
             If the prior decomposition is performed, the code will use this parameter to scale the prior penalty to the
@@ -233,23 +234,41 @@ class QSOFit():
 
         host_line_mask: bool, optional
             If True, the line region of galaxy will be masked when subtracted from original spectra. Default: True
-            
-        BC03: bool, optional
-            if True, it will use Bruzual1 & Charlot 2003 host model to fit spectrum, high shift host will be low resolution R ~ 300, the rest is R ~ 2000. Default: False
-        
-        Mi: float, optional
-            i-band absolute magnitude. It only works when decompose_host is True. If not None, the Luminosity redshift binned PCA will be used to decompose
-            the spectrum. Default: None
-            
+
+        decomp_na_mask: bool, optional
+            If True, the narrow line region will be masked when perform decomposition so that the model would not be
+            affected by the emission lines. In cases we are using PCA templates to perform the decomposition,
+            restricted by the template numbers, the model may not enough to recover all the emission lines with various
+            width and strength. For purpose for only separating host continuum, we suggest to set this option as True.
+
+        qso_type: str, optional
+            The name of quasar PCA templates used in the host decomposition. This parameter can be set as 'global' or
+            '{1}ZBIN{2}' where 1 is the luminosity bin from one of [A, B, C, D] and 2 is the redshift bin from one of
+            [1, 2, 3, 4, 5]. Yip et al. (2004) built a series sets of quasar PCA templates based on different redshift
+            and absolute i-band magnitude subsamples. Check https://doi.org/10.1086/425626 for more detail. If the
+            host_prior is set to True, then only 'global' and 'CZBIN1' is supported.
+
         npca_gal: int, optional
             the number of galaxy PCA components applied. It only works when decompose_host is True. The default is 5,
             which is already account for 98.37% galaxies.
-        
+
+        host_type: str, optional
+            The name of galaxy templates used in the host decomposition. We have two tested build-in options for this
+            parameter: PCA, BC03. Only PCA option is allowed if host_prior=True. For pro user who want to customize
+            their own templates, please check Class host_template in HostDecomp.py.
+
         npca_qso: int, optional
             the number of QSO PCA components applied. It only works when decompose_host is True. The default is 20,
             No matter the global or luminosity-redshift binned PCA is used, it can reproduce > 92% QSOs. The binned PCA
             is better if have Mi information.
-         
+
+        BC03: bool, optional -- Unavailable
+            if True, it will use Bruzual1 & Charlot 2003 host model to fit spectrum, high shift host will be low resolution R ~ 300, the rest is R ~ 2000. Default: False
+
+        Mi: float, optional -- Unavailable
+            i-band absolute magnitude. It only works when decompose_host is True. If not None, the Luminosity redshift binned PCA will be used to decompose
+            the spectrum. Default: None
+
         Fe_uv_op: bool, optional
             if True, fit continuum with UV and optical FeII template. Default: True
 
