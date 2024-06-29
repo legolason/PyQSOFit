@@ -1890,10 +1890,10 @@ class QSOFit():
                 # Calculate the line sigma and EW in normal wavelength
                 line_flux = self._Manygauss(xx, pp_br_shaped)
                 line_wave = np.exp(xx)
-                lambda0 = integrate.trapz(line_flux, line_wave)  # calculate the total broad line flux
-                lambda1 = integrate.trapz(line_flux * line_wave, line_wave)
-                lambda2 = integrate.trapz(line_flux * line_wave * line_wave, line_wave)
-                ew = integrate.trapz(np.abs(line_flux / contiflux), line_wave)
+                lambda0 = integrate.trapezoid(line_flux, line_wave)  # calculate the total broad line flux
+                lambda1 = integrate.trapezoid(line_flux * line_wave, line_wave)
+                lambda2 = integrate.trapezoid(line_flux * line_wave * line_wave, line_wave)
+                ew = integrate.trapezoid(np.abs(line_flux / contiflux), line_wave)
                 area = lambda0
 
                 sigma = np.sqrt(lambda2 / lambda0 - (lambda1 / lambda0) ** 2) / compcenter * c
