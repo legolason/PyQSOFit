@@ -2534,7 +2534,7 @@ class QSOFit():
         else:
             raise IndexError('The parameter pp only adopts a list of 3 or 6.')
 
-        flux = integrate.trapz(yval[(xval >= lower) & (xval <= upper)], xval[(xval >= lower) & (xval <= upper)])
+        flux = integrate.trapezoid(yval[(xval >= lower) & (xval <= upper)], xval[(xval >= lower) & (xval <= upper)])
         return flux
 
     def read_out_params(self, param_file_path='qsopar.fits'):
