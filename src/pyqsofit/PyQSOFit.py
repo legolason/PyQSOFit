@@ -3,7 +3,6 @@
 # Email: hengxiaoguo AT gmail DOT com
 # Co-Auther Yue Shen, Shu Wang, Wenke Ren, Colin J. Burke
 # Email: rwk AT mail DOT ustc DOT edu DOT cn
-#        colinjb2 AT illinois.edu
 #
 # -------------------------------------------------
 # Version 1.2
@@ -80,8 +79,7 @@
 #     3) In HostDecomp.py module, we add the sigma measurements and Dn4000 estimation of the decomposed host component.
 # -------------------------------------------------
 
-import sys, os
-import glob
+import os
 import matplotlib
 import numpy as np
 import matplotlib.pyplot as plt
@@ -93,15 +91,12 @@ from scipy.stats import median_abs_deviation
 from lmfit import minimize, Parameters, report_fit
 
 from PyAstronomy import pyasl
-import scipy.optimize as opt
 from astropy.io import fits
 from astropy import units as u
 from astropy import constants as const
 from astropy.cosmology import FlatLambdaCDM
 
 from astropy.modeling.physical_models import BlackBody
-from astropy.modeling.functional_models import Gaussian1D
-from astropy.modeling import fitting
 
 from astropy.table import Table
 
@@ -2285,6 +2280,13 @@ class QSOFit():
         self.fig = fig
         return
 
+    def to_Spectrum1D(self):
+        from specutils import Spectrum1D
+        from astropy.nddata import StdDevUncertainty
+        spec1d = Spectrum1D(spectral_axis=self.wave*u.AA/(1+self.z), flux=self.flux*1e-17*u.erg/u.s/u.cm**2,
+                            uncertainty=StdDevUncertainty(self.err), redshift=self.z)
+        return spec1d
+
     def CalFWHM(self, logsigma):
         """transfer the logFWHM to normal frame"""
         return 2 * np.sqrt(2 * np.log(2)) * (np.exp(logsigma) - 1) * 300000.
@@ -2454,14 +2456,16 @@ class QSOFit():
             return np.zeros_like(xval)
 
     def Get_Fe_flux(self, ranges, pp=None):
-        """Calculate the flux of fitted FeII template within given wavelength ranges.
+        """
+        Calculate the flux of fitted FeII template within given wavelength ranges.
         ranges: 1-D array, 2-D array
             if 1-D array was given, it should contain two parameters contain a range of wavelength. FeII flux within this range would be calculate and documented in the result fits file.
             if 2-D array was given, it should contain a series of ranges. FeII flux within these ranges would be documented respectively.
         pp: 1-D array with 3 or 6 items.
             If 3 parameters were given, function will choose a proper template (MgII or balmer) according to the range.
             If the range give excess either template, an error would be arose.
-            If 6 parameters were given (recommended), function would adopt the first three for the MgII template and the last three for the balmer."""
+            If 6 parameters were given (recommended), function would adopt the first three for the MgII template and the last three for the balmer.
+        """
         if pp is None:
             pp = self.conti_params[:6]
 
@@ -2489,11 +2493,13 @@ class QSOFit():
         return Fe_flux_result, Fe_flux_type, Fe_flux_name
 
     def _calculate_Fe_flux(self, measure_range, pp):
-        """Calculate the flux of fitted FeII template within one given wavelength range.
+        """
+        Calculate the flux of fitted FeII template within one given wavelength range.
         The pp could be an array with a length of 3 or 6. If 3 parameters were give, function will choose a
         proper template (MgII or balmer) according to the range. If the range give excess both template, an
         error would be arose. If 6 parameters were give, function would adopt the first three for the MgII
-        template and the last three for the balmer."""
+        template and the last three for the balmer.
+        """
 
         balmer_range = np.array([3686., 7484.])
         mgii_range = np.array([1200., 3500.])
