@@ -1,8 +1,10 @@
 ## PyQSOFit: A code to fit the spectrum of quasar  
 
+### Getting Started
+
 __See the [example](https://nbviewer.org/github/legolason/PyQSOFit/blob/master/example/example.ipynb) demo notebook for a quick start tutorial__
 
-We provide a brief guide of the Python QSO fitting code (PyQSOFit) to measure spectral properties of SDSS quasars. The code was originally translated from Yue Shen's IDL code to Python. The package includes the main routine, Fe II templates, an input line-fitting parameter list, host galaxy templates, and dust reddening map to extract spectral measurements from the raw fits. Monte Carlo estimation of the measurement uncertainties of the fitting results can be conducted with the same fitting code. 
+We provide a brief guide of the Python QSO fitting code (PyQSOFit) to measure spectral properties of SDSS quasars. The code was originally translated from Yue Shen's IDL code to Python. The package includes the main routine, Fe II templates, an input line-fitting parameter list, host galaxy templates, and dust reddening map to extract spectral measurements from the raw fits. Monte Carlo or MCMC estimation of the measurement uncertainties of the fitting results can be conducted with the same fitting code. 
 
 The code takes an input spectrum (observed-frame wavelength, flux density and error arrays) and the redshift as input parameters, performs the fitting in the restframe, and outputs the best-fit parameters and quality-checking plots to the paths specified by the user. 
 
@@ -10,14 +12,22 @@ The code uses an input line-fitting parameter list to specify the fitting range 
 
 Use this code at your own risk, as we are not responsible for any errors. But if you report bugs, it will be greatly appreciated.
 
-## Install
+### Install
 
-v1.1 (stable): https://github.com/legolason/PyQSOFit/releases/tag/v1.1
+Bleeding edge:
 
-## Known problem
+``git clone https://github.com/legolason/PyQSOFit``<br>
+``cd PyQSOFit``<br>
+``python -m pip install .``<br>
 
-1. During the line fitting procedure, some emission lines need less Gaussian models than provided to be well fitted. In these circumstances, the code will give two (or more) exactly the same Gaussian models to fit the data instead of one. This problem will not affect the physical measurements but only wierd in the QA image. One can use BIC to judge the proper number of Gaussian models for each line referencing to our `example.ipynb`.
-2. Since the host decomposition hiring BC03 template is non-negative linear fitting, the host component will not stay at zero even if no hosts are detected or the decomposition is failed. We suggest user to determine the reliability of the host decomposition through QA image and the host fraction parameters f_host. (i.e., f_host>0.05 from (Shen et al. 2019)[https://doi.org/10.1088/0004-637X/805/2/96])
+Pip install (stable version):
 
-## Cite this code
+``pip install pyqsofit`` (coming soon)
 
+### Cite
+
+Preferred code citation: [Guo, H., Shen, Y., Wang, S. 2018, ascl:1809.008](https://ui.adsabs.harvard.edu/abs/2018ascl).
+
+Please also cite: [Shen, Y. et al. 2019, ApJS, 241, 34S](https://ui.adsabs.harvard.edu/abs/2019ApJS..241...34S/abstract)
+
+If using new host decompistion tools (`host_prior=True`), please cite: [Ren, W. et al. 2024](https://ui.adsabs.harvard.edu/abs/2024arXiv240617598R/abstract)
