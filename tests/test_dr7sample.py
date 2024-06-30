@@ -286,8 +286,17 @@ def test_dr7(nqsofit=20):
                 
                 mask = (xid['plate'] == plate) & (xid['mjd'] == mjd) & (xid['fiberID'] == fiber)
                 print(xid[mask])
+                
+                if len(xid[mask]) < 1:
+                    print('No spectrum found.')
+                    return
+
                 sp = SDSS.get_spectra(matches=xid[mask])
                 print(sp)
+
+                if len(sp) < 1:
+                    print('No spectrum found.')
+                    return
                 
                 data = sp[0]
 
@@ -303,7 +312,7 @@ def test_dr7(nqsofit=20):
                 q.Fit(param_file_name='qsopar.fits', name=None, qso_type='global', host_type='BC03', save_fig=False, save_result=False)
                 
                 # Test with host prior
-                #q.Fit(param_file_name='qsopar.fits', name=None, host_prior=True, qso_type='global', host_type='PCA', save_fig=False, save_result=False)
+                q.Fit(param_file_name='qsopar.fits', name=None, host_prior=True, qso_type='global', host_type='PCA', save_fig=False, save_result=False)
 
                 # Emission line loop
                 for j, line in enumerate(line_calc_names):
