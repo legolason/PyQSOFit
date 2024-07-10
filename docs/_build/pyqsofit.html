@@ -1,0 +1,702 @@
+<!DOCTYPE html>
+
+<html lang="en" data-content_root="./">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" /><meta name="viewport" content="width=device-width, initial-scale=1" />
+
+    <title>pyqsofit package &#8212; pyqsofit 2.1.6 documentation</title>
+    <link rel="stylesheet" type="text/css" href="_static/pygments.css?v=61cd365c" />
+    <link rel="stylesheet" type="text/css" href="_static/alabaster.css?v=12dfc556" />
+    <script src="_static/documentation_options.js?v=4f932e3e"></script>
+    <script src="_static/doctools.js?v=9a2dae69"></script>
+    <script src="_static/sphinx_highlight.js?v=dc90522c"></script>
+    <link rel="index" title="Index" href="genindex.html" />
+    <link rel="search" title="Search" href="search.html" />
+   
+  <link rel="stylesheet" href="_static/custom.css" type="text/css" />
+  
+
+  
+  
+
+  </head><body>
+  
+
+    <div class="document">
+      <div class="documentwrapper">
+        <div class="bodywrapper">
+          
+
+          <div class="body" role="main">
+            
+  <section id="pyqsofit-package">
+<h1>pyqsofit package<a class="headerlink" href="#pyqsofit-package" title="Link to this heading">¶</a></h1>
+<section id="submodules">
+<h2>Submodules<a class="headerlink" href="#submodules" title="Link to this heading">¶</a></h2>
+</section>
+<section id="module-pyqsofit.HostDecomp">
+<span id="pyqsofit-hostdecomp-module"></span><h2>pyqsofit.HostDecomp module<a class="headerlink" href="#module-pyqsofit.HostDecomp" title="Link to this heading">¶</a></h2>
+<p># Path       : 20230710PyQSOFit/pyqsofit
+# File       : PriorDecomp.py
+# Time       ：2023/7/27 15:47
+# Author     ：Wenke Ren
+# version    ：python 3.10
+# Description：Use the PCA data to decompose the spectra with a priori</p>
+<dl class="py class">
+<dt class="sig sig-object py" id="pyqsofit.HostDecomp.Linear_decomp">
+<em class="property"><span class="pre">class</span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">pyqsofit.HostDecomp.</span></span><span class="sig-name descname"><span class="pre">Linear_decomp</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">wave</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">flux</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">err</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">n_gal</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">n_qso</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">path</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">host_type</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">'PCA'</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">qso_type</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">'global'</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">na_mask</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">False</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#pyqsofit.HostDecomp.Linear_decomp" title="Link to this definition">¶</a></dt>
+<dd><p>Bases: <code class="xref py py-class docutils literal notranslate"><span class="pre">object</span></code></p>
+<dl class="py method">
+<dt class="sig sig-object py" id="pyqsofit.HostDecomp.Linear_decomp.auto_decomp">
+<span class="sig-name descname"><span class="pre">auto_decomp</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="headerlink" href="#pyqsofit.HostDecomp.Linear_decomp.auto_decomp" title="Link to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="pyqsofit.HostDecomp.Linear_decomp.gal_model">
+<span class="sig-name descname"><span class="pre">gal_model</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">param</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">list</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">wave</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#pyqsofit.HostDecomp.Linear_decomp.gal_model" title="Link to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="pyqsofit.HostDecomp.Linear_decomp.qso_model">
+<span class="sig-name descname"><span class="pre">qso_model</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">param</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">list</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">wave</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#pyqsofit.HostDecomp.Linear_decomp.qso_model" title="Link to this definition">¶</a></dt>
+<dd></dd></dl>
+
+</dd></dl>
+
+<dl class="py class">
+<dt class="sig sig-object py" id="pyqsofit.HostDecomp.Prior_decomp">
+<em class="property"><span class="pre">class</span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">pyqsofit.HostDecomp.</span></span><span class="sig-name descname"><span class="pre">Prior_decomp</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">wave</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">flux</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">err</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">n_gal</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">n_qso</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">path</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">host_type</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">'PCA'</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">qso_type</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">'CZBIN1'</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">na_mask</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">True</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">fh_ini_list</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">(0.1,</span> <span class="pre">0.2,</span> <span class="pre">0.3,</span> <span class="pre">0.4,</span> <span class="pre">0.5,</span> <span class="pre">0.6,</span> <span class="pre">0.7,</span> <span class="pre">0.8,</span> <span class="pre">0.9)</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#pyqsofit.HostDecomp.Prior_decomp" title="Link to this definition">¶</a></dt>
+<dd><p>Bases: <code class="xref py py-class docutils literal notranslate"><span class="pre">object</span></code></p>
+<dl class="py method">
+<dt class="sig sig-object py" id="pyqsofit.HostDecomp.Prior_decomp.auto_decomp">
+<span class="sig-name descname"><span class="pre">auto_decomp</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">reg_factor</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">0.2</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#pyqsofit.HostDecomp.Prior_decomp.auto_decomp" title="Link to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="pyqsofit.HostDecomp.Prior_decomp.cal_model">
+<span class="sig-name descname"><span class="pre">cal_model</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">param</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">Parameters</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">wave</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#pyqsofit.HostDecomp.Prior_decomp.cal_model" title="Link to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="pyqsofit.HostDecomp.Prior_decomp.decompose">
+<span class="sig-name descname"><span class="pre">decompose</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">reg_factor</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">init_params</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">non_negative</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">False</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#pyqsofit.HostDecomp.Prior_decomp.decompose" title="Link to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="pyqsofit.HostDecomp.Prior_decomp.gal_model">
+<span class="sig-name descname"><span class="pre">gal_model</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">param</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">list</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">wave</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#pyqsofit.HostDecomp.Prior_decomp.gal_model" title="Link to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="pyqsofit.HostDecomp.Prior_decomp.initial_params">
+<span class="sig-name descname"><span class="pre">initial_params</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">fh_ini</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#pyqsofit.HostDecomp.Prior_decomp.initial_params" title="Link to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="pyqsofit.HostDecomp.Prior_decomp.qso_model">
+<span class="sig-name descname"><span class="pre">qso_model</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">param</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">list</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">wave</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#pyqsofit.HostDecomp.Prior_decomp.qso_model" title="Link to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="pyqsofit.HostDecomp.Prior_decomp.read_prior">
+<span class="sig-name descname"><span class="pre">read_prior</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">prior_loc</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">QSO_prior_name</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">'QSO_pp_prior.csv'</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">GAL_prior_name</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">'GAL_pp_prior.csv'</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#pyqsofit.HostDecomp.Prior_decomp.read_prior" title="Link to this definition">¶</a></dt>
+<dd></dd></dl>
+
+</dd></dl>
+
+<dl class="py class">
+<dt class="sig sig-object py" id="pyqsofit.HostDecomp.QSO_PCA">
+<em class="property"><span class="pre">class</span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">pyqsofit.HostDecomp.</span></span><span class="sig-name descname"><span class="pre">QSO_PCA</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">template_path</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">n_template</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">5</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">template_name</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#pyqsofit.HostDecomp.QSO_PCA" title="Link to this definition">¶</a></dt>
+<dd><p>Bases: <code class="xref py py-class docutils literal notranslate"><span class="pre">object</span></code></p>
+<dl class="py method">
+<dt class="sig sig-object py" id="pyqsofit.HostDecomp.QSO_PCA.interp_data">
+<span class="sig-name descname"><span class="pre">interp_data</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">wave_exp</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#pyqsofit.HostDecomp.QSO_PCA.interp_data" title="Link to this definition">¶</a></dt>
+<dd></dd></dl>
+
+</dd></dl>
+
+<dl class="py class">
+<dt class="sig sig-object py" id="pyqsofit.HostDecomp.host_template">
+<em class="property"><span class="pre">class</span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">pyqsofit.HostDecomp.</span></span><span class="sig-name descname"><span class="pre">host_template</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">template_path</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">n_template</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">5</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">template_type</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">'PCA'</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#pyqsofit.HostDecomp.host_template" title="Link to this definition">¶</a></dt>
+<dd><p>Bases: <code class="xref py py-class docutils literal notranslate"><span class="pre">object</span></code></p>
+<dl class="py method">
+<dt class="sig sig-object py" id="pyqsofit.HostDecomp.host_template.interp_data">
+<span class="sig-name descname"><span class="pre">interp_data</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">wave_exp</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">broaden</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">bool</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">False</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">shift</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">float</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">0</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">sigma</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">float</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">0</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#pyqsofit.HostDecomp.host_template.interp_data" title="Link to this definition">¶</a></dt>
+<dd><p>Interpolate the galaxy template and find the interpolation flux at give wavelength. We also provide
+broaden methods which allow user to convolve a gaussian core before the interpolation. However,
+considering most template are not evenly sampled, we have to interpolate twice if the broaden method
+is used, which might introduce more biases.
+:param wave_exp:
+:param broaden:
+:param shift: float, in km/s
+:param sigma: float, in km/s
+:return:</p>
+</dd></dl>
+
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="pyqsofit.HostDecomp.ppxf_kinematics">
+<span class="sig-prename descclassname"><span class="pre">pyqsofit.HostDecomp.</span></span><span class="sig-name descname"><span class="pre">ppxf_kinematics</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">wave</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">flux</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">err</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">path</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">fit_range</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">(3700,</span> <span class="pre">8300)</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">MC_iter</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">0</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#pyqsofit.HostDecomp.ppxf_kinematics" title="Link to this definition">¶</a></dt>
+<dd></dd></dl>
+
+</section>
+<section id="module-pyqsofit.MESFit">
+<span id="pyqsofit-mesfit-module"></span><h2>pyqsofit.MESFit module<a class="headerlink" href="#module-pyqsofit.MESFit" title="Link to this heading">¶</a></h2>
+<dl class="py class">
+<dt class="sig sig-object py" id="pyqsofit.MESFit.MESFit">
+<em class="property"><span class="pre">class</span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">pyqsofit.MESFit.</span></span><span class="sig-name descname"><span class="pre">MESFit</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">path</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#pyqsofit.MESFit.MESFit" title="Link to this definition">¶</a></dt>
+<dd><p>Bases: <code class="xref py py-class docutils literal notranslate"><span class="pre">object</span></code></p>
+<p>Multi-epoch Spectral Fitting program</p>
+<dl class="py method">
+<dt class="sig sig-object py" id="pyqsofit.MESFit.MESFit.CalLineSN">
+<span class="sig-name descname"><span class="pre">CalLineSN</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">w</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">f</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">line_min</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">line_max</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">conti</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#pyqsofit.MESFit.MESFit.CalLineSN" title="Link to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="pyqsofit.MESFit.MESFit.Calwidth">
+<span class="sig-name descname"><span class="pre">Calwidth</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">wave</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">flux</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">wv_min</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">wv_max</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#pyqsofit.MESFit.MESFit.Calwidth" title="Link to this definition">¶</a></dt>
+<dd><p>Return line fwhm and sigma in unit of km/s</p>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="pyqsofit.MESFit.MESFit.Coadd_spec">
+<span class="sig-name descname"><span class="pre">Coadd_spec</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="headerlink" href="#pyqsofit.MESFit.MESFit.Coadd_spec" title="Link to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="pyqsofit.MESFit.MESFit.Plotline">
+<span class="sig-name descname"><span class="pre">Plotline</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">wave</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">ymin</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">ymax</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#pyqsofit.MESFit.MESFit.Plotline" title="Link to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="pyqsofit.MESFit.MESFit.corr">
+<span class="sig-name descname"><span class="pre">corr</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">w1</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">f1</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">err1</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">w_ref</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">f_ref</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">err_ref</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">wv_min</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">wv_max</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">n</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">15</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">plot</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">True</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#pyqsofit.MESFit.MESFit.corr" title="Link to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="pyqsofit.MESFit.MESFit.fixNL">
+<span class="sig-name descname"><span class="pre">fixNL</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">pardata</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">BinTableHDU</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">fitdata</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">dict</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#pyqsofit.MESFit.MESFit.fixNL" title="Link to this definition">¶</a></dt>
+<dd><p>For each line group, we fix the line sigma and scale of narrow lines to the results of mean spectra.
+:param pardata:
+:param fitdata:
+:return:</p>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="pyqsofit.MESFit.MESFit.flux2L">
+<span class="sig-name descname"><span class="pre">flux2L</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">flux</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">z</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#pyqsofit.MESFit.MESFit.flux2L" title="Link to this definition">¶</a></dt>
+<dd><p>Transfer flux to luminoity assuming a flat Universe</p>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="pyqsofit.MESFit.MESFit.interp">
+<span class="sig-name descname"><span class="pre">interp</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">wave</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">value</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">z</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">0.0</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">fill_value</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">0.0</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#pyqsofit.MESFit.MESFit.interp" title="Link to this definition">¶</a></dt>
+<dd><p>interprate to standard wavelenth into rest or obs frame</p>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="pyqsofit.MESFit.MESFit.normNL">
+<span class="sig-name descname"><span class="pre">normNL</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">norm_line_wv</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">5008.24</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">path</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">name</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">'normNL'</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">save</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">True</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">tol</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">1e-10</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#pyqsofit.MESFit.MESFit.normNL" title="Link to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="pyqsofit.MESFit.MESFit.ppxf_host">
+<span class="sig-name descname"><span class="pre">ppxf_host</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">rest_wv</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">fx</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">error</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">redshift</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">wv_min</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">4125</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">wv_max</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">5350</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">plot</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">quiet</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">False</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">mask_width</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">3000</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#pyqsofit.MESFit.MESFit.ppxf_host" title="Link to this definition">¶</a></dt>
+<dd><p>fit the host galaxy to get the stellar velocity dispersion.</p>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="pyqsofit.MESFit.MESFit.residuals_norm">
+<span class="sig-name descname"><span class="pre">residuals_norm</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">p</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">mean_wv</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">mean_spec</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">flux_new</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#pyqsofit.MESFit.MESFit.residuals_norm" title="Link to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="pyqsofit.MESFit.MESFit.s2f">
+<span class="sig-name descname"><span class="pre">s2f</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">array</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#pyqsofit.MESFit.MESFit.s2f" title="Link to this definition">¶</a></dt>
+<dd><p>string to float</p>
+</dd></dl>
+
+</dd></dl>
+
+</section>
+<section id="module-pyqsofit.PyQSOFit">
+<span id="pyqsofit-pyqsofit-module"></span><h2>pyqsofit.PyQSOFit module<a class="headerlink" href="#module-pyqsofit.PyQSOFit" title="Link to this heading">¶</a></h2>
+<dl class="py class">
+<dt class="sig sig-object py" id="pyqsofit.PyQSOFit.QSOFit">
+<em class="property"><span class="pre">class</span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">pyqsofit.PyQSOFit.</span></span><span class="sig-name descname"><span class="pre">QSOFit</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">lam</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">flux</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">err</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">z</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">ra</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">-999</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">dec</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">-999</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">plateid</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">mjd</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">fiberid</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">path</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">and_mask_in</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">or_mask_in</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">wdisp</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#pyqsofit.PyQSOFit.QSOFit" title="Link to this definition">¶</a></dt>
+<dd><p>Bases: <code class="xref py py-class docutils literal notranslate"><span class="pre">object</span></code></p>
+<dl class="py method">
+<dt class="sig sig-object py" id="pyqsofit.PyQSOFit.QSOFit.Balmer_conti">
+<span class="sig-name descname"><span class="pre">Balmer_conti</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">xval</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">pp</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#pyqsofit.PyQSOFit.QSOFit.Balmer_conti" title="Link to this definition">¶</a></dt>
+<dd><p>Fit the Balmer continuum from the model of Dietrich+02</p>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="pyqsofit.PyQSOFit.QSOFit.CalFWHM">
+<span class="sig-name descname"><span class="pre">CalFWHM</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">logsigma</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#pyqsofit.PyQSOFit.QSOFit.CalFWHM" title="Link to this definition">¶</a></dt>
+<dd><p>transfer the logFWHM to normal frame</p>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="pyqsofit.PyQSOFit.QSOFit.F_poly_conti">
+<span class="sig-name descname"><span class="pre">F_poly_conti</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">xval</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">pp</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">x0</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">3000</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#pyqsofit.PyQSOFit.QSOFit.F_poly_conti" title="Link to this definition">¶</a></dt>
+<dd><p>Fit the continuum with a polynomial component account for the dust reddening with a*X+b*X^2+c*X^3</p>
+<p>TODO: See if LMFIT’s built-in modeles improved performance and numerical stability
+<a class="reference external" href="https://lmfit.github.io/lmfit-py/builtin_models.html">https://lmfit.github.io/lmfit-py/builtin_models.html</a></p>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="pyqsofit.PyQSOFit.QSOFit.Fe_flux_balmer">
+<span class="sig-name descname"><span class="pre">Fe_flux_balmer</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">xval</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">pp</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#pyqsofit.PyQSOFit.QSOFit.Fe_flux_balmer" title="Link to this definition">¶</a></dt>
+<dd><p>Fit the optical FeII on the continuum from 3686 to 7484 A based on Vestergaard &amp; Wilkes 2001</p>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="pyqsofit.PyQSOFit.QSOFit.Fe_flux_mgii">
+<span class="sig-name descname"><span class="pre">Fe_flux_mgii</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">xval</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">pp</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#pyqsofit.PyQSOFit.QSOFit.Fe_flux_mgii" title="Link to this definition">¶</a></dt>
+<dd><p>Fit the UV FeII component on the continuum from 1200 to 3500 A based on Boroson &amp; Green 1992.</p>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="pyqsofit.PyQSOFit.QSOFit.Fit">
+<span class="sig-name descname"><span class="pre">Fit</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">name</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">nsmooth</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">1</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">and_mask</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">False</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">or_mask</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">False</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">reject_badpix</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">True</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">deredden</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">True</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">wave_range</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">wave_mask</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">decompose_host</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">True</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">host_prior</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">False</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">host_prior_scale</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">0.2</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">host_line_mask</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">True</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">decomp_na_mask</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">False</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">qso_type</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">'global'</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">npca_qso</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">10</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">host_type</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">'BC03'</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">npca_gal</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">5</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">Fe_uv_op</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">True</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">poly</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">False</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">BC</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">False</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">rej_abs_conti</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">False</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">rej_abs_line</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">False</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">initial_guess</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">n_pix_min_conti</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">100</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">param_file_name</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">'qsopar.fits'</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">MC</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">False</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">MCMC</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">False</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">save_fits_name</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">nburn</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">20</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">nsamp</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">200</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">nthin</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">10</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">epsilon_jitter</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">0.0</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">linefit</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">True</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">save_result</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">True</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">plot_fig</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">True</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">save_fits_path</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">'.'</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">save_fig</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">True</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">plot_corner</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">True</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">verbose</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">False</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">kwargs_plot</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">{}</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">kwargs_conti_emcee</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">{}</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">kwargs_line_emcee</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">{}</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#pyqsofit.PyQSOFit.QSOFit.Fit" title="Link to this definition">¶</a></dt>
+<dd><p>Fit the QSO spectrum and get different decomposed components and corresponding parameters</p>
+<section id="parameter">
+<h3>Parameter:<a class="headerlink" href="#parameter" title="Link to this heading">¶</a></h3>
+<dl class="simple">
+<dt>name: str, optional</dt><dd><p>source name, Default is None. If None, it will use plateid+mjd+fiberid as the name. If there are no
+such parameters, it will be empty.</p>
+</dd>
+<dt>nsmooth: integer number, optional</dt><dd><p>do n-pixel smoothing to the raw input flux and err spectra. The default is set to 1 (no smooth).
+It will return the same array size. We note that smooth the raw data is not suggested, this function is in case of some fail-fitted low S/N spectra.</p>
+</dd>
+<dt>and_mask: bool, optional</dt><dd><p>If True, and and_mask or or_mask is not None, it will delete the masked pixels, and only return the remained pixels. Default: False</p>
+</dd>
+<dt>or_mask: bool, optional</dt><dd><p>If True, and and_mask or or_mask is not None, it will delete the masked pixels, and only return the remained pixels. Default: False</p>
+</dd>
+<dt>reject_badpix: bool, optional</dt><dd><p>reject 10 most possible outliers by the test of pointDistGESD. One important Caveat here is that this process will also delete narrow emission lines
+in some high SN ratio object e.g., [OIII]. Only use it when you are definitely clear about what you are doing. It will return the remained pixels.</p>
+</dd>
+<dt>deredden: bool, optional</dt><dd><p>correct the Galactic extinction only if the RA and Dec are available. It will return the corrected flux with the same array size. Default: True.</p>
+</dd>
+<dt>wave_range: 2-element array, optional</dt><dd><p>trim input wavelength (lam) according to the min and max range of the input 2-element array, e.g.,
+np.array([4000.,6000.]) in Rest frame range. Default: None</p>
+</dd>
+<dt>wave_mask: 2-D array</dt><dd><p>mask some absorption lines or sky lines in spectrum, e.g., np.array([[2200.,2300.]]), np.array([[5650.,5750.],[5850.,5900.]])</p>
+</dd>
+<dt>decompose_host: bool, optional    </dt><dd><p>If True, the host galaxy-QSO decomposition will be applied. If no more than 100 pixels are negative, the result will be applied. The Decomposition is
+based on the PCA method of Yip et al. 2004 (AJ, 128, 585) &amp; (128, 2603). Now the template is only available for redshift &lt; 1.16 in specific absolute
+magnitude bins. For galaxy, the global model has 10 PCA components and first 5 will enough to reproduce 98.37% galaxy spectra. For QSO, the global model
+has 50, and the first 20 will reproduce 96.89% QSOs. If have i-band absolute magnitude, the Luminosity-redshift binned PCA components are available.
+Then the first 10 PCA in each bin is enough to reproduce most QSO spectrum. Default: False</p>
+</dd>
+<dt>host_prior: bool, optional</dt><dd><p>This parameter is only useful when the decompose_host is True and BC03 is False. If True, the code will
+adopt the prior parameters given in the pca file to perform host decomposition.</p>
+</dd>
+<dt>host_prior_scale: float, optional</dt><dd><p>If the prior decomposition is performed, the code will use this parameter to scale the prior penalty to the
+original chi2. Default: 0.2</p>
+</dd>
+<dt>host_line_mask: bool, optional</dt><dd><p>If True, the line region of galaxy will be masked when subtracted from original spectra. Default: True</p>
+</dd>
+<dt>BC03: bool, optional</dt><dd><p>if True, it will use Bruzual1 &amp; Charlot 2003 host model to fit spectrum, high shift host will be low resolution R ~ 300, the rest is R ~ 2000. Default: False</p>
+</dd>
+<dt>Mi: float, optional</dt><dd><p>i-band absolute magnitude. It only works when decompose_host is True. If not None, the Luminosity redshift binned PCA will be used to decompose
+the spectrum. Default: None</p>
+</dd>
+<dt>npca_gal: int, optional</dt><dd><p>the number of galaxy PCA components applied. It only works when decompose_host is True. The default is 5,
+which is already account for 98.37% galaxies.</p>
+</dd>
+<dt>npca_qso: int, optional</dt><dd><p>the number of QSO PCA components applied. It only works when decompose_host is True. The default is 20,
+No matter the global or luminosity-redshift binned PCA is used, it can reproduce &gt; 92% QSOs. The binned PCA
+is better if have Mi information.</p>
+</dd>
+<dt>Fe_uv_op: bool, optional</dt><dd><p>if True, fit continuum with UV and optical FeII template. Default: True</p>
+</dd>
+<dt>poly: bool, optional</dt><dd><p>if True, fit continuum with the polynomial component to account for the dust reddening. Default: False</p>
+</dd>
+<dt>BC: bool, optional</dt><dd><p>if True, fit continuum with Balmer continua from 1000 to 3646A. Default: False</p>
+</dd>
+<dt>rej_abs_conti: bool, optional</dt><dd><p>if True, it will iterate the continuum fitting once, rejecting 3 sigma outlier absorption pixels in the continuum
+(&lt; 3500A), which might fall into the broad absorption lines. Default: False</p>
+</dd>
+<dt>rej_abs_line: bool, optional</dt><dd><p>if True, it will iterate the emission line fitting twice, rejecting 3 sigma outlier absorption pixels
+which might fall into the broad absorption lines. Default: False</p>
+</dd>
+<dt>n_pix_min_conti: float, optional</dt><dd><p>minimum number of negative pixels for host continuuum fit to be rejected. Default: 100</p>
+</dd>
+<dt>param_file_name: str, optional</dt><dd><p>name of the qso fitting parameter FITS file. Default: ‘qsopar.fits’</p>
+</dd>
+<dt>MC: bool, optional </dt><dd><p>if True, do Monte Carlo resampling of the spectrum based on the input error array to produce the MC error array.
+if False, the code will not save the MLE minimization error produced by lmfit since it is biased and can not be trusted.
+But it can be still output by using the lmfit attribute. Default: False</p>
+</dd>
+<dt>MCMC: bool, optional </dt><dd><p>if True, do Markov Chain Monte Carlo sampling of the posterior probability densities after MLE fitting to produce the error array.
+Note: An error will be thrown if both MC and MCMC are True. Default: False</p>
+</dd>
+<dt>nburn: int, optional</dt><dd><p>the number of burn-in samples to run MCMC chain if MCMC=True. It only works when MCMC is True. Default: 20</p>
+</dd>
+<dt>nsamp: int, optional</dt><dd><p>the number of trials of the MC process to produce the error array (if MC=True) or number samples to run MCMC chain (if MCMC=True). Should be larger than 20. It only works when either MC or MCMC is True. Default: 200</p>
+</dd>
+<dt>linefit: bool, optional</dt><dd><p>if True, the emission line will be fitted. Default: True</p>
+</dd>
+<dt>save_result: bool, optional</dt><dd><p>if True, all the fitting results will be saved to a fits file, Default: True</p>
+</dd>
+<dt>plot_fig: bool, optional</dt><dd><p>if True, the fitting results will be plotted. Default: True</p>
+</dd>
+<dt>save_fig: bool, optional</dt><dd><p>if True, the figure will be saved, and the path can be set by “save_fig_path”. Default: True</p>
+</dd>
+<dt>plot_corner: bool, optinoal</dt><dd><p>whether or not to plot the corner plot results if MCMC=True. Default: True</p>
+</dd>
+<dt>save_fig_path: str, optional</dt><dd><p>the output path of the figure. If None, the default “save_fig_path” is set to “path”</p>
+</dd>
+<dt>save_fits_path: str, optional</dt><dd><p>the output path of the result fits. If None, the default “save_fits_path” is set to “path”</p>
+</dd>
+<dt>save_fits_name: str, optional</dt><dd><p>the output name of the result fits. Default: “result.fits”</p>
+</dd>
+<dt>verbose: bool, optional</dt><dd><p>turn on (True) or off (False) debugging output. Default: False</p>
+</dd>
+<dt>kwargs_plot: dict, optional</dt><dd><p>extra aguments for plot_fig for plotting results. See LINK TO PLOT_FIG_DOC. Default: {}</p>
+</dd>
+<dt>kwargs_conti_emcee: dict, optional</dt><dd><p>extra aguments for emcee Sampler for continuum fitting. Default: {}</p>
+</dd>
+<dt>kwargs_line_emcee: dict, optional</dt><dd><p>extra arguments for emcee Sampler for line fitting. Default: {}</p>
+</dd>
+</dl>
+</section>
+<section id="return">
+<h3>Return:<a class="headerlink" href="#return" title="Link to this heading">¶</a></h3>
+</section>
+<section id="properties">
+<h3>Properties:<a class="headerlink" href="#properties" title="Link to this heading">¶</a></h3>
+<dl class="simple">
+<dt>.wave: array</dt><dd><p>the rest wavelength, some pixels have been removed.</p>
+</dd>
+<dt>.flux: array</dt><dd><p>the rest flux. Dereddened and <a href="#id1"><span class="problematic" id="id2">*</span></a>(1+z) flux.</p>
+</dd>
+<dt>.err: array</dt><dd><p>the error.</p>
+</dd>
+<dt>.wave_prereduced: array</dt><dd><p>the wavelength after removing bad pixels, masking, deredden, spectral trim, and smoothing.</p>
+</dd>
+<dt>.flux_prereduced: array</dt><dd><p>the flux after removing bad pixels, masking, deredden, spectral trim, and smoothing.</p>
+</dd>
+<dt>.err_prereduced: array</dt><dd><p>the error after removing bad pixels, masking, deredden, spectral trim, and smoothing.</p>
+</dd>
+<dt>.host: array</dt><dd><p>the model of host galaxy from PCA method</p>
+</dd>
+<dt>.qso: array</dt><dd><p>the model of a quasar from PCA method.</p>
+</dd>
+<dt>.SN_ratio_conti: float</dt><dd><p>the mean S/N ratio of 1350, 3000 and 5100A.</p>
+</dd>
+<dt>.conti_fit.: structure </dt><dd><p>all the continuum fitting results, including best-fit parameters and Chisquare, etc. For details,
+see <a class="reference external" href="https://lmfit.github.io/lmfit-py/fitting.html">https://lmfit.github.io/lmfit-py/fitting.html</a></p>
+</dd>
+<dt>.f_conti_model: array</dt><dd><p>the continuum model including power-law, polynomial, optical/UV FeII, Balmer continuum.</p>
+</dd>
+<dt>.f_bc_model: array</dt><dd><p>the Balmer continuum model.</p>
+</dd>
+<dt>.f_fe_uv_model: array</dt><dd><p>the UV FeII model.</p>
+</dd>
+<dt>.f_fe_op_model: array</dt><dd><p>the optical FeII model.</p>
+</dd>
+<dt>.f_pl_model: array</dt><dd><p>the power-law model.</p>
+</dd>
+<dt>.f_poly_model: array</dt><dd><p>the polynomial model.</p>
+</dd>
+<dt>.PL_poly_BC: array</dt><dd><p>The combination of Powerlaw, polynomial and Balmer continuum model.</p>
+</dd>
+<dt>.line_flux: array</dt><dd><p>the emission line flux after subtracting the .f_conti_model.</p>
+</dd>
+<dt>.line_fit: structrue</dt><dd><p>Line fitting results for last complexes (From Lya to Ha) , including best-fit parameters, errors (lmfit derived) and Chisquare, etc. For details,
+see <a class="reference external" href="https://lmfit.github.io/lmfit-py/fitting.html">https://lmfit.github.io/lmfit-py/fitting.html</a></p>
+</dd>
+<dt>.gauss_result: array</dt><dd><p>3*n Gaussian parameters for all lines in the format of [scale, centerwave, sigma ], n is number of Gaussians for all complexes.
+ADD UNITS</p>
+</dd>
+<dt>gauss_result_all: array</dt><dd><p>[nsamp, 3*n] Gaussian parameters for all lines in the format of [scale, centerwave, sigma ], n is number of Gaussians for all complexes.
+ADD UNITS</p>
+</dd>
+<dt>.conti_result: array</dt><dd><p>continuum parameters, including widely used continuum parameters and monochromatic flux at 1350, 3000
+and 5100 Angstrom, etc. The corresponding names are listed in .conti_result_name. For all continuum fitting results,
+go to .conti_fit.params.</p>
+</dd>
+<dt>.conti_result_name: array</dt><dd><p>the names for .conti_result.</p>
+</dd>
+<dt>.fur_result: array</dt><dd><p>emission line parameters, including FWHM, sigma, EW, measured from whole model of each main broad emission line covered.
+The corresponding names are listed in .line_result_name.</p>
+</dd>
+<dt>.fur_result_name: array</dt><dd><p>the names for .fur_result.</p>
+</dd>
+<dt>.line_result: array</dt><dd><p>emission line parameters, including FWHM, sigma, EW, measured from whole model of each main broad emission line covered,
+and fitting parameters of each Gaussian component. The corresponding names are listed in .line_result_name.</p>
+</dd>
+<dt>.line_result_name: array</dt><dd><p>the names for .line_result.</p>
+</dd>
+<dt>.uniq_linecomp_sort: array</dt><dd><p>the sorted complex names.</p>
+</dd>
+<dt>.all_comp_range: array</dt><dd><p>the start and end wavelength for each complex. e.g., Hb is [4640.  5100.] AA.</p>
+</dd>
+<dt>.linelist: array</dt><dd><p>the information listed in the param_file_name (qsopar.fits).</p>
+</dd>
+</dl>
+</section>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="pyqsofit.PyQSOFit.QSOFit.Get_Fe_flux">
+<span class="sig-name descname"><span class="pre">Get_Fe_flux</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">ranges</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">pp</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#pyqsofit.PyQSOFit.QSOFit.Get_Fe_flux" title="Link to this definition">¶</a></dt>
+<dd><p>Calculate the flux of fitted FeII template within given wavelength ranges.
+ranges: 1-D array, 2-D array</p>
+<blockquote>
+<div><p>if 1-D array was given, it should contain two parameters contain a range of wavelength. FeII flux within this range would be calculate and documented in the result fits file.
+if 2-D array was given, it should contain a series of ranges. FeII flux within these ranges would be documented respectively.</p>
+</div></blockquote>
+<dl class="simple">
+<dt>pp: 1-D array with 3 or 6 items.</dt><dd><p>If 3 parameters were given, function will choose a proper template (MgII or balmer) according to the range.
+If the range give excess either template, an error would be arose.
+If 6 parameters were given (recommended), function would adopt the first three for the MgII template and the last three for the balmer.</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="pyqsofit.PyQSOFit.QSOFit.Manygauss">
+<span class="sig-name descname"><span class="pre">Manygauss</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">xval</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">pp</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#pyqsofit.PyQSOFit.QSOFit.Manygauss" title="Link to this definition">¶</a></dt>
+<dd><p>Robust function for multi-Gaussian model used to fit the emission lines</p>
+<p>This is evaluated many times within the scipy optimize, so we want to keep the code as fast as possible
+Hence, it is vectorized so pp must have shape [ngauss, 3]</p>
+<p>xval: wavelength array in AA</p>
+<dl class="simple">
+<dt>pp: Paramaters [ngauss*3]</dt><dd><p>scale: line amplitude
+wave: central ln wavelength in AA
+sigma: width in km/s</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="pyqsofit.PyQSOFit.QSOFit.Onegauss">
+<span class="sig-name descname"><span class="pre">Onegauss</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">xval</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">pp</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#pyqsofit.PyQSOFit.QSOFit.Onegauss" title="Link to this definition">¶</a></dt>
+<dd><p>The single Gaussian model used to fit the emission lines 
+Parameter: the scale factor, central wavelength in logwave, line FWHM in logwave</p>
+<p>This is evaluated many times within the scipy optimize, so we want to keep the code as fast as possible
+Hence, we avoid calling any external libraries like astropy’s Gaussian here</p>
+<p>It is slightly faster to fit the (un-normalized) amplitude directly to avoid blow-up at small sigma</p>
+<p>xval: wavelength array in AA</p>
+<p>TODO: See if LMFIT’s built-in modeles improved performance
+<a class="reference external" href="https://lmfit.github.io/lmfit-py/builtin_models.html">https://lmfit.github.io/lmfit-py/builtin_models.html</a></p>
+<dl class="simple">
+<dt>pp: Paramaters [3]</dt><dd><p>scale: line amplitude
+wave: central ln wavelength in AA
+sigma: width in km/s</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="pyqsofit.PyQSOFit.QSOFit.PL">
+<span class="sig-name descname"><span class="pre">PL</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">xval</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">pp</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">x0</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">3000</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#pyqsofit.PyQSOFit.QSOFit.PL" title="Link to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="pyqsofit.PyQSOFit.QSOFit.Smooth">
+<span class="sig-name descname"><span class="pre">Smooth</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">y</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">box_pts</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#pyqsofit.PyQSOFit.QSOFit.Smooth" title="Link to this definition">¶</a></dt>
+<dd><p>Smooth the flux with n pixels</p>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="pyqsofit.PyQSOFit.QSOFit.decompose_host_qso">
+<span class="sig-name descname"><span class="pre">decompose_host_qso</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">wave</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">flux</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">err</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">path</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#pyqsofit.PyQSOFit.QSOFit.decompose_host_qso" title="Link to this definition">¶</a></dt>
+<dd><p>Decompose the host galaxy from QSO</p>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="pyqsofit.PyQSOFit.QSOFit.fit_continuum">
+<span class="sig-name descname"><span class="pre">fit_continuum</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">wave</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">flux</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">err</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">ra</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">dec</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">plateid</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">mjd</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">fiberid</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#pyqsofit.PyQSOFit.QSOFit.fit_continuum" title="Link to this definition">¶</a></dt>
+<dd><p>Fit the continuum with PL, Polynomial, UV/optical FeII, Balmer continuum</p>
+<section id="id3">
+<h3>Parameter:<a class="headerlink" href="#id3" title="Link to this heading">¶</a></h3>
+<dl class="simple">
+<dt>lam: array, required</dt><dd><p>wavelength</p>
+</dd>
+<dt>flux: array, required</dt><dd><p>flux</p>
+</dd>
+<dt>err: array, required</dt><dd><p>1 sigma error</p>
+</dd>
+<dt>conti_windows: 2d array, optional</dt><dd><p>Continuum fitting windows. If None, use default windows. For special situations, you
+may need to change these to improve the fitting (e.g., Ly-alpha absorption troughs, etc.) Default: None</p>
+</dd>
+</dl>
+</section>
+<section id="id4">
+<h3>Return:<a class="headerlink" href="#id4" title="Link to this heading">¶</a></h3>
+</section>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="pyqsofit.PyQSOFit.QSOFit.fit_lines">
+<span class="sig-name descname"><span class="pre">fit_lines</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">wave</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">line_flux</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">err</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">f</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#pyqsofit.PyQSOFit.QSOFit.fit_lines" title="Link to this definition">¶</a></dt>
+<dd><p>Fit the emission lines with Gaussian profiles</p>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="pyqsofit.PyQSOFit.QSOFit.flux2L">
+<span class="sig-name descname"><span class="pre">flux2L</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">flux</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">z</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#pyqsofit.PyQSOFit.QSOFit.flux2L" title="Link to this definition">¶</a></dt>
+<dd><p>Transfer flux to luminoity assuming a flat Universe</p>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="pyqsofit.PyQSOFit.QSOFit.line_prop">
+<span class="sig-name descname"><span class="pre">line_prop</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">compcenter</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">pp</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">linetype</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">'broad'</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">ln_sigma_br</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">0.0017</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#pyqsofit.PyQSOFit.QSOFit.line_prop" title="Link to this definition">¶</a></dt>
+<dd><p>Calculate the further results for the broad component in emission lines, e.g., FWHM, sigma, peak, line flux
+The compcenter is the theortical vacuum wavelength for the broad compoenet.
+compcenter:
+pp:
+linetype: ‘broad’ or ‘narrow’
+ln_sigma_br: line sigma separating broad and narrow lines (AA??)
+ln_sigma_max: Max sigma to consider in the calculation (used to exclude ultra-broad wings, etc.)</p>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="pyqsofit.PyQSOFit.QSOFit.line_prop_from_name">
+<span class="sig-name descname"><span class="pre">line_prop_from_name</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">line_name</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">line_type</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">'broad'</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">sample_index</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">-1</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">ln_sigma_br</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">0.0017</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#pyqsofit.PyQSOFit.QSOFit.line_prop_from_name" title="Link to this definition">¶</a></dt>
+<dd><p>line_name: line name e.g., ‘Ha_br’</p>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="pyqsofit.PyQSOFit.QSOFit.plot_fig">
+<span class="sig-name descname"><span class="pre">plot_fig</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">save_fig_path</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">'.'</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">broad_fwhm</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">1200</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">plot_line_name</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">True</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">plot_legend</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">True</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">ylims</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">plot_residual</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">True</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">show_title</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">True</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">plot_br_prop</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">False</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#pyqsofit.PyQSOFit.QSOFit.plot_fig" title="Link to this definition">¶</a></dt>
+<dd><p>Plot the results</p>
+<dl class="simple">
+<dt>broad_fwhm: float, optional</dt><dd><p>Definition for width of the broad lines. Default: 1200 km/s (careful, is not the exact separation used in line_prop)</p>
+</dd>
+<dt>plot_line_name: bool, optional</dt><dd><p>if True, serval main emission lines will be plotted in the first panel of the output figure. Default: False</p>
+</dd>
+</dl>
+<p>TODO: Consider splitting up into plot_conti and plot_complex functions
+Wenke: I totally agree with that!!!
+to encourage flexibility/reuse</p>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="pyqsofit.PyQSOFit.QSOFit.read_out_params">
+<span class="sig-name descname"><span class="pre">read_out_params</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">param_file_path</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">'qsopar.fits'</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#pyqsofit.PyQSOFit.QSOFit.read_out_params" title="Link to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="pyqsofit.PyQSOFit.QSOFit.save_result">
+<span class="sig-name descname"><span class="pre">save_result</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">conti_result</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">conti_result_type</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">conti_result_name</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">line_result</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">line_result_type</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">line_result_name</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">save_fits_path</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">save_fits_name</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#pyqsofit.PyQSOFit.QSOFit.save_result" title="Link to this definition">¶</a></dt>
+<dd><p>Save all data to fits</p>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="pyqsofit.PyQSOFit.QSOFit.set_mpl_style">
+<span class="sig-name descname"><span class="pre">set_mpl_style</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">tsize</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">18</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">tdir</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">'in'</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">major</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">5.0</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">minor</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">3.0</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">lwidth</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">1.8</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">lhandle</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">2.0</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#pyqsofit.PyQSOFit.QSOFit.set_mpl_style" title="Link to this definition">¶</a></dt>
+<dd><p>Function to set MPL style</p>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="pyqsofit.PyQSOFit.QSOFit.to_Spectrum1D">
+<span class="sig-name descname"><span class="pre">to_Spectrum1D</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="headerlink" href="#pyqsofit.PyQSOFit.QSOFit.to_Spectrum1D" title="Link to this definition">¶</a></dt>
+<dd></dd></dl>
+
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="pyqsofit.PyQSOFit.get_err">
+<span class="sig-prename descclassname"><span class="pre">pyqsofit.PyQSOFit.</span></span><span class="sig-name descname"><span class="pre">get_err</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">s</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">margin</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">0.16</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">axis</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">0</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">default_value</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">-1.0</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#pyqsofit.PyQSOFit.get_err" title="Link to this definition">¶</a></dt>
+<dd><p>Get 100*margin percent distribution of a given data.
+:param s: 1-D array or 2-D array. If a 1-D array is given, the data will deem the array as the data sample and the
+axis parameter will be ignored. If a 2-D array is given, how the function deel with this data will depend on the
+axis. If axis==0, the function will calculate the distribution of each column of the array. If axis==1, the
+function will calculate the distribution of each row of the array.
+:param margin: The margin of the distribution. The default value is 16%, which means the function will calculate
+about 1 sigma error for each sample
+:param axis: How the function deel with the data, see above.
+:return: float or 1-D array, depends on the input data.</p>
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="pyqsofit.PyQSOFit.read_conti_params">
+<span class="sig-prename descclassname"><span class="pre">pyqsofit.PyQSOFit.</span></span><span class="sig-name descname"><span class="pre">read_conti_params</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">param_file_path</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">'qsopar.fits'</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#pyqsofit.PyQSOFit.read_conti_params" title="Link to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="pyqsofit.PyQSOFit.read_line_params">
+<span class="sig-prename descclassname"><span class="pre">pyqsofit.PyQSOFit.</span></span><span class="sig-name descname"><span class="pre">read_line_params</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">param_file_path</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">'qsopar.fits'</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#pyqsofit.PyQSOFit.read_line_params" title="Link to this definition">¶</a></dt>
+<dd></dd></dl>
+
+</section>
+<section id="module-pyqsofit.version">
+<span id="pyqsofit-version-module"></span><h2>pyqsofit.version module<a class="headerlink" href="#module-pyqsofit.version" title="Link to this heading">¶</a></h2>
+</section>
+<section id="module-pyqsofit">
+<span id="module-contents"></span><h2>Module contents<a class="headerlink" href="#module-pyqsofit" title="Link to this heading">¶</a></h2>
+</section>
+</section>
+
+
+          </div>
+          
+        </div>
+      </div>
+      <div class="sphinxsidebar" role="navigation" aria-label="main navigation">
+        <div class="sphinxsidebarwrapper">
+<h1 class="logo"><a href="index.html">pyqsofit</a></h1>
+
+
+
+
+
+
+
+
+<h3>Navigation</h3>
+
+<div class="relations">
+<h3>Related Topics</h3>
+<ul>
+  <li><a href="index.html">Documentation overview</a><ul>
+  </ul></li>
+</ul>
+</div>
+<search id="searchbox" style="display: none" role="search">
+  <h3 id="searchlabel">Quick search</h3>
+    <div class="searchformwrapper">
+    <form class="search" action="search.html" method="get">
+      <input type="text" name="q" aria-labelledby="searchlabel" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false"/>
+      <input type="submit" value="Go" />
+    </form>
+    </div>
+</search>
+<script>document.getElementById('searchbox').style.display = "block"</script>
+
+
+
+
+
+
+
+
+        </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+    <div class="footer">
+      &#169;2024, Hengxiao Guo.
+      
+      |
+      Powered by <a href="https://www.sphinx-doc.org/">Sphinx 7.3.7</a>
+      &amp; <a href="https://alabaster.readthedocs.io">Alabaster 0.7.16</a>
+      
+      |
+      <a href="_sources/pyqsofit.rst.txt"
+          rel="nofollow">Page source</a>
+    </div>
+
+    
+
+    
+  </body>
+</html>
