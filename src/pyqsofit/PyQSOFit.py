@@ -768,6 +768,13 @@ class QSOFit():
 
     def decompose_host_qso(self, wave, flux, err, path):
         """Decompose the host galaxy from QSO"""
+        # Initialize default values
+        self.host = np.zeros(len(wave))
+        self.decomposed = False
+        self.host_result = np.array([])
+        self.host_result_type = np.array([])
+        self.host_result_name = np.array([])
+
         if self.host_prior is True:
             prior_fitter = Prior_decomp(self.wave, self.flux, self.err, self.npca_gal, self.npca_qso,
                                         path, host_type=self.host_type, qso_type=self.qso_type,
@@ -786,11 +793,6 @@ class QSOFit():
         host_spec = datacube[1, :] - datacube[4, :]
         if np.sum(np.where(datacube[3, :] < 0, True, False) | np.where(datacube[4, :] < 0, True, False)) > 0.1 * \
                 datacube.shape[1] or np.median(datacube[3, :]) < 0.01 * flux_level or np.median(host_spec) < 0:
-            self.host = np.zeros(len(wave))
-            self.decomposed = False
-            self.host_result = np.array([])
-            self.host_result_type = np.array([])
-            self.host_result_name = np.array([])
             if self.verbose:
                 print('Got negative host galaxy / QSO flux over 10% of coverage, decomposition is not applied!')
         else:

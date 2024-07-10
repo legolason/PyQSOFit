@@ -296,6 +296,9 @@ class Linear_decomp():
         wave_min = np.max([np.min(wave), np.min(self.qso_tmp.wave_qso), np.min(self.gal_tmp.wave_gal)])
         wave_max = np.min([np.max(wave), np.max(self.qso_tmp.wave_qso), np.max(self.gal_tmp.wave_gal)])
         ind_data = np.where((wave > wave_min) & (wave < wave_max), True, False)
+        if np.sum(ind_data)/len(ind_data) < 0.5:
+            raise ValueError('The templates used for decomposition can only cover less than 50% of the original data. '
+                             'Please check the settings and consider close the decomposition function.')
         self.wave, self.flux, self.err = wave[ind_data], flux[ind_data], err[ind_data]
 
         if na_mask == True:
@@ -388,6 +391,9 @@ class Prior_decomp():
         wave_min = np.max([np.min(wave), np.min(self.qso_tmp.wave_qso), np.min(self.gal_tmp.wave_gal)])
         wave_max = np.min([np.max(wave), np.max(self.qso_tmp.wave_qso), np.max(self.gal_tmp.wave_gal)])
         ind_data = np.where((wave > wave_min) & (wave < wave_max), True, False)
+        if np.sum(ind_data)/len(ind_data) < 0.5:
+            raise ValueError('The templates used for decomposition can only cover less than 50% of the original data. '
+                             'Please check the settings and consider close the decomposition function.')
         self.wave, self.flux, self.err = wave[ind_data], flux[ind_data], err[ind_data]
 
         if na_mask == True:
