@@ -241,7 +241,7 @@ class QSOFit():
             '{1}ZBIN{2}' where 1 is the luminosity bin from one of [A, B, C, D] and 2 is the redshift bin from one of
             [1, 2, 3, 4, 5]. Yip et al. (2004) built a series sets of quasar PCA templates based on different redshift
             and absolute i-band magnitude subsamples. Check https://doi.org/10.1086/425626 for more detail. If the
-            host_prior is set to True, then only 'global' and 'CZBIN1' is supported.
+            host_prior is set to True, then only 'DZBIN1' and 'CZBIN1' is supported.
 
         npca_gal: int, optional
             the number of galaxy PCA components applied. It only works when decompose_host is True. The default is 5,
@@ -770,7 +770,7 @@ class QSOFit():
         """Decompose the host galaxy from QSO"""
         # Initialize default values
         self.host = np.zeros(len(wave))
-        self.decomposed = False
+        self.decomposed = True
         self.host_result = np.array([])
         self.host_result_type = np.array([])
         self.host_result_name = np.array([])
@@ -779,12 +779,20 @@ class QSOFit():
             prior_fitter = Prior_decomp(self.wave, self.flux, self.err, self.npca_gal, self.npca_qso,
                                         path, host_type=self.host_type, qso_type=self.qso_type,
                                         na_mask=self.decomp_na_mask)
-            datacube, frac_host_4200, frac_host_5100, qso_par, gal_par = prior_fitter.auto_decomp(self.host_prior_scale)
+            if prior_fitter.assertion is True:
+                datacube, frac_host_4200, frac_host_5100, qso_par, gal_par = prior_fitter.auto_decomp(self.host_prior_scale)
+            else:
+                self.decomposed = False
+                return self.wave, self.flux, self.err
         else:
             linear_fitter = Linear_decomp(self.wave, self.flux, self.err, self.npca_gal, self.npca_qso, path,
                                           host_type=self.host_type, qso_type=self.qso_type,
                                           na_mask=self.decomp_na_mask)
-            datacube, frac_host_4200, frac_host_5100, qso_par, gal_par = linear_fitter.auto_decomp()
+            if linear_fitter.assertion is True:
+                datacube, frac_host_4200, frac_host_5100, qso_par, gal_par = linear_fitter.auto_decomp()
+            else:
+                self.decomposed = False
+                return self.wave, self.flux, self.err
 
         # for some negative host template, we do not do the decomposition # not apply anymore
         # For a few cases, the host template is too weak that the host spectra (data - qso) would be mostly negative
@@ -793,11 +801,10 @@ class QSOFit():
         host_spec = datacube[1, :] - datacube[4, :]
         if np.sum(np.where(datacube[3, :] < 0, True, False) | np.where(datacube[4, :] < 0, True, False)) > 0.1 * \
                 datacube.shape[1] or np.median(datacube[3, :]) < 0.01 * flux_level or np.median(host_spec) < 0:
+            self.decomposed = False
             if self.verbose:
                 print('Got negative host galaxy / QSO flux over 10% of coverage, decomposition is not applied!')
         else:
-            self.decomposed = True
-            del self.wave, self.flux, self.err
             self.wave = datacube[0, :]
 
             rchi2_decomp = np.sum((datacube[1, :] - datacube[4, :] - datacube[3, :]) ** 2 / datacube[2, :] ** 2) / (

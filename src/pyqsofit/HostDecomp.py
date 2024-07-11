@@ -9,6 +9,8 @@
 # Description：Use the PCA data to decompose the spectra with a priori
 """
 import os, glob
+import warnings
+
 from astropy.io import fits
 from numpy import genfromtxt
 import numpy as np
@@ -279,6 +281,7 @@ class Linear_decomp():
         self.err = err
         self.n_gal = n_gal
         self.n_qso = n_qso
+        self.assertion = True
 
         path2prior = os.path.join(path, 'pca/prior')
         path2qso = os.path.join(path, 'pca/Yip_pca_templates')
@@ -297,27 +300,29 @@ class Linear_decomp():
         wave_max = np.min([np.max(wave), np.max(self.qso_tmp.wave_qso), np.max(self.gal_tmp.wave_gal)])
         ind_data = np.where((wave > wave_min) & (wave < wave_max), True, False)
         if np.sum(ind_data)/len(ind_data) < 0.5:
-            raise ValueError('The templates used for decomposition can only cover less than 50% of the original data. '
+            self.assertion = False
+            warnings.warn('The templates used for decomposition can only cover less than 50% of the original data. '
                              'Please check the settings and consider close the decomposition function.')
-        self.wave, self.flux, self.err = wave[ind_data], flux[ind_data], err[ind_data]
-
-        if na_mask == True:
-            self.wave_fit, self.flux_fit, self.err_fit = _na_mask(self.wave, self.flux, self.err)
         else:
-            self.wave_fit, self.flux_fit, self.err_fit = self.wave, self.flux, self.err
+            self.wave, self.flux, self.err = wave[ind_data], flux[ind_data], err[ind_data]
 
-        self.qso_datacube = self.qso_tmp.interp_data(self.wave_fit)
-        self.gal_datacube = self.gal_tmp.interp_data(self.wave_fit)
+            if na_mask == True:
+                self.wave_fit, self.flux_fit, self.err_fit = _na_mask(self.wave, self.flux, self.err)
+            else:
+                self.wave_fit, self.flux_fit, self.err_fit = self.wave, self.flux, self.err
 
-        self.n_qso = self.qso_tmp.n_template
-        self.n_gal = self.gal_tmp.n_template
+            self.qso_datacube = self.qso_tmp.interp_data(self.wave_fit)
+            self.gal_datacube = self.gal_tmp.interp_data(self.wave_fit)
 
-        if self.n_qso != n_qso:
-            raise ValueError(f'The number of qso template is not correct. '
-                             f'You ask for {n_qso} template, while the maximum number of qso template is {self.n_qso}')
-        if self.n_gal != n_gal:
-            raise ValueError(f'The number of gal template is not correct. '
-                             f'You ask for {n_gal} template, while the maximum number of gal template is {self.n_gal}')
+            self.n_qso = self.qso_tmp.n_template
+            self.n_gal = self.gal_tmp.n_template
+
+            if self.n_qso != n_qso:
+                raise ValueError(f'The number of qso template is not correct. '
+                                 f'You ask for {n_qso} template, while the maximum number of qso template is {self.n_qso}')
+            if self.n_gal != n_gal:
+                raise ValueError(f'The number of gal template is not correct. '
+                                 f'You ask for {n_gal} template, while the maximum number of gal template is {self.n_gal}')
 
     def auto_decomp(self):
         flux_temp = np.vstack((self.qso_datacube, self.gal_datacube)).T
@@ -384,6 +389,13 @@ class Prior_decomp():
         QSO_prior_name = f'QSO_pp_prior_{qso_type}.csv'
         self.fh_ini_list = fh_ini_list
 
+        self.wave = wave
+        self.flux = flux
+        self.err = err
+        self.n_gal = n_gal
+        self.n_qso = n_qso
+        self.assertion = True
+
         self.qso_tmp = QSO_PCA(path2qso, n_qso, template_name=qso_type)
         self.gal_tmp = host_template(n_template=n_gal, template_path=path2host, template_type=host_type)
 
@@ -392,24 +404,26 @@ class Prior_decomp():
         wave_max = np.min([np.max(wave), np.max(self.qso_tmp.wave_qso), np.max(self.gal_tmp.wave_gal)])
         ind_data = np.where((wave > wave_min) & (wave < wave_max), True, False)
         if np.sum(ind_data)/len(ind_data) < 0.5:
-            raise ValueError('The templates used for decomposition can only cover less than 50% of the original data. '
+            warnings.warn('The templates used for decomposition can only cover less than 50% of the original data. '
                              'Please check the settings and consider close the decomposition function.')
-        self.wave, self.flux, self.err = wave[ind_data], flux[ind_data], err[ind_data]
-
-        if na_mask == True:
-            self.wave_fit, self.flux_fit, self.err_fit = _na_mask(self.wave, self.flux, self.err)
+            self.assertion = False
         else:
-            self.wave_fit, self.flux_fit, self.err_fit = self.wave, self.flux, self.err
+            self.wave, self.flux, self.err = wave[ind_data], flux[ind_data], err[ind_data]
 
-        self.qso_datacube = self.qso_tmp.interp_data(self.wave_fit)
-        self.gal_datacube = self.gal_tmp.interp_data(self.wave_fit)
-        self.n_qso = self.qso_tmp.n_template
-        self.n_gal = self.gal_tmp.n_template
+            if na_mask == True:
+                self.wave_fit, self.flux_fit, self.err_fit = _na_mask(self.wave, self.flux, self.err)
+            else:
+                self.wave_fit, self.flux_fit, self.err_fit = self.wave, self.flux, self.err
 
-        self.qso_prior = np.array([[0, 1]] * self.n_qso)
-        self.gal_prior = np.array([[0, 1]] * self.n_gal)
+            self.qso_datacube = self.qso_tmp.interp_data(self.wave_fit)
+            self.gal_datacube = self.gal_tmp.interp_data(self.wave_fit)
+            self.n_qso = self.qso_tmp.n_template
+            self.n_gal = self.gal_tmp.n_template
 
-        self.read_prior(path2prior, QSO_prior_name, GAL_prior_name)
+            self.qso_prior = np.array([[0, 1]] * self.n_qso)
+            self.gal_prior = np.array([[0, 1]] * self.n_gal)
+
+            self.read_prior(path2prior, QSO_prior_name, GAL_prior_name)
 
     def read_prior(self, prior_loc, QSO_prior_name='QSO_pp_prior.csv', GAL_prior_name='GAL_pp_prior.csv'):
         self.qso_prior = self._read_prior(os.path.join(prior_loc, QSO_prior_name), self.n_qso)
