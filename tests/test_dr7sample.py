@@ -309,10 +309,10 @@ def test_dr7(nqsofit=20):
                 q = QSOFit(lam, flux, err, z, ra=ra, dec=dec, plateid=plate, mjd=mjd, fiberid=fiber,  path=path_ex)
 
                 # Do the fitting
-                q.Fit(param_file_name='qsopar.fits', name=None, qso_type='global', host_type='BC03', save_fig=False, save_result=False)
+                q.Fit(param_file_name='qsopar.fits', name=None, qso_type='CZBIN1', host_type='BC03', save_fig=False, save_result=False)
                 
                 # Test with host prior
-                q.Fit(param_file_name='qsopar.fits', name=None, host_prior=True, qso_type='global', host_type='PCA', save_fig=False, save_result=False)
+                q.Fit(param_file_name='qsopar.fits', name=None, host_prior=True, qso_type='CZBIN1', host_type='PCA', save_fig=False, save_result=False)
 
                 # Emission line loop
                 for j, line in enumerate(line_calc_names):
