@@ -26,7 +26,7 @@ Pip install (stable version):
 
 ### Cite
 
-Preferred code citation: [Guo, H., Shen, Y., Wang, S. 2018, ascl:1809.008](https://ui.adsabs.harvard.edu/abs/2018ascl).
+Preferred code citation: [Guo, H., Shen, Y., Wang, S. 2018, ascl:1809.008](https://ui.adsabs.harvard.edu/abs/2018ascl.soft09008G/abstract).
 
 Please also cite: [Shen, Y. et al. 2019, ApJS, 241, 34S](https://ui.adsabs.harvard.edu/abs/2019ApJS..241...34S/abstract)
 
